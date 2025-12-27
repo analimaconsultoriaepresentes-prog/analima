@@ -14,7 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      products: {
+        Row: {
+          brand: string | null
+          category: string
+          cost_price: number
+          created_at: string
+          expiry_date: string | null
+          id: string
+          name: string
+          sale_price: number
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          brand?: string | null
+          category: string
+          cost_price?: number
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          name: string
+          sale_price?: number
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          brand?: string | null
+          category?: string
+          cost_price?: number
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          name?: string
+          sale_price?: number
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sale_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          product_name: string
+          quantity: number
+          sale_id: string
+          subtotal: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          product_name: string
+          quantity?: number
+          sale_id: string
+          subtotal: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          product_name?: string
+          quantity?: number
+          sale_id?: string
+          subtotal?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales: {
+        Row: {
+          created_at: string
+          id: string
+          payment_method: string
+          status: string
+          total: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_method: string
+          status?: string
+          total?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_method?: string
+          status?: string
+          total?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
