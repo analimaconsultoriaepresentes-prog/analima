@@ -37,7 +37,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { toast } from "@/hooks/use-toast";
+import type { Product, ProductFormData } from "@/hooks/useProducts";
 
 const productSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
@@ -53,19 +53,6 @@ const productSchema = z.object({
   message: "Preço de venda deve ser maior que o preço de custo",
   path: ["salePrice"],
 });
-
-type ProductFormData = z.infer<typeof productSchema>;
-
-interface Product {
-  id: string;
-  name: string;
-  category: "Presente" | "Perfume" | "Cosmético";
-  brand: string;
-  costPrice: number;
-  salePrice: number;
-  stock: number;
-  expiryDate?: string;
-}
 
 interface ProductFormProps {
   open: boolean;
@@ -121,13 +108,6 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
   function handleSubmit(data: ProductFormData) {
     onSubmit(data);
     form.reset();
-    onOpenChange(false);
-    toast({
-      title: editProduct ? "Produto atualizado!" : "Produto cadastrado!",
-      description: editProduct 
-        ? `${data.name} foi atualizado com sucesso.`
-        : `${data.name} foi adicionado ao seu catálogo.`,
-    });
   }
 
   return (
@@ -367,5 +347,3 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
     </Dialog>
   );
 }
-
-export type { ProductFormData };
