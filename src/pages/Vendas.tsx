@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, ShoppingCart, Calendar, XCircle, Loader2 } from "lucide-react";
+import { Plus, Search, ShoppingCart, Calendar, XCircle, Loader2, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,7 @@ export default function Vendas() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-slide-up">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 animate-slide-up">
         <div className="stat-card">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-xl bg-primary/10">
@@ -111,6 +111,19 @@ export default function Vendas() {
               <p className="text-sm text-muted-foreground">Ticket Médio</p>
               <p className="text-xl font-bold text-foreground">
                 R$ {stats.averageTicket.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-warning/10">
+              <Package className="w-5 h-5 text-warning" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">PA</p>
+              <p className="text-xl font-bold text-foreground">
+                {stats.productPerService.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
               </p>
             </div>
           </div>
