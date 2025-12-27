@@ -9,7 +9,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar storeName="Essência & Cia" />
+      <Sidebar />
       <main className={cn(
         "transition-all duration-300 ease-in-out",
         "lg:ml-64 min-h-screen"

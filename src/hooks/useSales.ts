@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "./useAuth";
 import type { Product } from "./useProducts";
 
 export interface SaleItem {
@@ -29,10 +30,17 @@ export interface CartItem {
 }
 
 export function useSales() {
+  const { user } = useAuth();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchSales = async () => {
+    if (!user) {
+      setSales([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data: salesData, error: salesError } = await supabase
         .from("sales")
@@ -90,7 +98,7 @@ export function useSales() {
 
   useEffect(() => {
     fetchSales();
-  }, []);
+  }, [user]);
 
   const addSale = async (
     cartItems: CartItem[],
@@ -98,6 +106,8 @@ export function useSales() {
     total: number,
     updateStock: (id: string, quantity: number) => Promise<boolean>
   ): Promise<boolean> => {
+    if (!user) return false;
+
     try {
       // Create sale
       const { data: saleData, error: saleError } = await supabase
@@ -106,6 +116,7 @@ export function useSales() {
           total,
           payment_method: paymentMethod,
           status: "completed",
+          user_id: user.id,
         })
         .select()
         .single();
