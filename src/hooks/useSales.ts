@@ -209,6 +209,13 @@ export function useSales() {
   const totalToday = todaySales.reduce((acc, s) => acc + s.total, 0);
   const countToday = todaySales.length;
   const averageTicket = countToday > 0 ? totalToday / countToday : 0;
+  
+  // PA - Produto por Atendimento (average items per sale)
+  const totalItemsToday = todaySales.reduce(
+    (acc, s) => acc + s.items.reduce((itemAcc, item) => itemAcc + item.quantity, 0),
+    0
+  );
+  const productPerService = countToday > 0 ? totalItemsToday / countToday : 0;
 
   return {
     sales,
@@ -220,6 +227,7 @@ export function useSales() {
       totalToday,
       countToday,
       averageTicket,
+      productPerService,
     },
   };
 }
