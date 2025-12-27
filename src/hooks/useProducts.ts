@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "./useAuth";
 
 export interface Product {
   id: string;
@@ -24,10 +25,17 @@ export interface ProductFormData {
 }
 
 export function useProducts() {
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProducts = async () => {
+    if (!user) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from("products")
@@ -62,9 +70,11 @@ export function useProducts() {
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [user]);
 
   const addProduct = async (data: ProductFormData): Promise<boolean> => {
+    if (!user) return false;
+    
     try {
       const { error } = await supabase.from("products").insert({
         name: data.name,
@@ -74,6 +84,7 @@ export function useProducts() {
         sale_price: data.salePrice,
         stock: data.stock,
         expiry_date: data.expiryDate?.toISOString().split("T")[0] || null,
+        user_id: user.id,
       });
 
       if (error) throw error;

@@ -26,6 +26,7 @@ export type Database = {
           sale_price: number
           stock: number
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           brand?: string | null
@@ -38,6 +39,7 @@ export type Database = {
           sale_price?: number
           stock?: number
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           brand?: string | null
@@ -50,6 +52,28 @@ export type Database = {
           sale_price?: number
           stock?: number
           updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -108,6 +132,7 @@ export type Database = {
           payment_method: string
           status: string
           total: number
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -115,6 +140,7 @@ export type Database = {
           payment_method: string
           status?: string
           total?: number
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -122,6 +148,37 @@ export type Database = {
           payment_method?: string
           status?: string
           total?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      stores: {
+        Row: {
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          primary_color: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          primary_color?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          primary_color?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

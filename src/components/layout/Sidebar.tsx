@@ -12,9 +12,11 @@ import {
   X,
   Store,
   ChevronLeft,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useStore } from "@/hooks/useStore";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -26,15 +28,14 @@ const menuItems = [
   { icon: Settings, label: "Configurações", path: "/configuracoes" },
 ];
 
-interface SidebarProps {
-  storeName?: string;
-  storeLogo?: string;
-}
-
-export function Sidebar({ storeName = "ANA LIMA", storeLogo }: SidebarProps) {
+export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();
+  const { store, loading } = useStore();
+
+  const storeName = store?.name || "Minha Loja";
+  const storeLogo = store?.logoUrl;
 
   return (
     <>
@@ -67,14 +68,16 @@ export function Sidebar({ storeName = "ANA LIMA", storeLogo }: SidebarProps) {
         {/* Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
           <div className={cn("flex items-center gap-3 overflow-hidden", isCollapsed && "justify-center")}>
-            {storeLogo ? (
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            ) : storeLogo ? (
               <img src={storeLogo} alt={storeName} className="w-10 h-10 rounded-lg object-cover" />
             ) : (
               <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
                 <Store className="w-5 h-5 text-primary-foreground" />
               </div>
             )}
-            {!isCollapsed && (
+            {!isCollapsed && !loading && (
               <span className="font-semibold text-sidebar-foreground truncate">{storeName}</span>
             )}
           </div>
