@@ -3,6 +3,7 @@ import { Plus, Search, Filter, Package, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { ProductForm, type ProductFormData } from "@/components/products/ProductForm";
 
 interface Product {
   id: string;
@@ -15,7 +16,7 @@ interface Product {
   expiryDate?: string;
 }
 
-const products: Product[] = [
+const initialProducts: Product[] = [
   { id: "1", name: "Perfume Dolce & Gabbana Light Blue", category: "Perfume", brand: "D&G", costPrice: 150, salePrice: 280, stock: 3, expiryDate: "2025-12-01" },
   { id: "2", name: "Kit Presente Natura Ekos", category: "Presente", brand: "Natura", costPrice: 85, salePrice: 150, stock: 8 },
   { id: "3", name: "Hidratante Corporal Nivea 400ml", category: "Cosmético", brand: "Nivea", costPrice: 25, salePrice: 45, stock: 15, expiryDate: "2025-01-15" },
@@ -32,6 +33,8 @@ const categoryColors: Record<string, string> = {
 
 export default function Produtos() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -42,6 +45,20 @@ export default function Produtos() {
     return ((sale - cost) / sale * 100).toFixed(1);
   };
 
+  const handleAddProduct = (data: ProductFormData) => {
+    const newProduct: Product = {
+      id: crypto.randomUUID(),
+      name: data.name,
+      category: data.category,
+      brand: data.brand,
+      costPrice: data.costPrice,
+      salePrice: data.salePrice,
+      stock: data.stock,
+      expiryDate: data.expiryDate?.toISOString().split("T")[0],
+    };
+    setProducts(prev => [newProduct, ...prev]);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -50,7 +67,7 @@ export default function Produtos() {
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Produtos</h1>
           <p className="text-muted-foreground mt-1">Gerencie seu estoque e catálogo</p>
         </div>
-        <Button className="btn-primary gap-2">
+        <Button className="btn-primary gap-2" onClick={() => setIsFormOpen(true)}>
           <Plus className="w-4 h-4" />
           Novo Produto
         </Button>
@@ -128,6 +145,13 @@ export default function Produtos() {
           </div>
         ))}
       </div>
+
+      {/* Product Form Modal */}
+      <ProductForm
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        onSubmit={handleAddProduct}
+      />
     </div>
   );
 }
