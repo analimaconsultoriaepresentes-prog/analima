@@ -31,7 +31,7 @@ interface SidebarProps {
   storeLogo?: string;
 }
 
-export function Sidebar({ storeName = "Minha Loja", storeLogo }: SidebarProps) {
+export function Sidebar({ storeName = "ANA LIMA", storeLogo }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const location = useLocation();

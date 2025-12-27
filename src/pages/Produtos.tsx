@@ -1,9 +1,26 @@
 import { useState } from "react";
-import { Plus, Search, Filter, Package, AlertTriangle } from "lucide-react";
+import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ProductForm, type ProductFormData } from "@/components/products/ProductForm";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
 
 interface Product {
   id: string;
@@ -35,6 +52,8 @@ export default function Produtos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,6 +76,49 @@ export default function Produtos() {
       expiryDate: data.expiryDate?.toISOString().split("T")[0],
     };
     setProducts(prev => [newProduct, ...prev]);
+  };
+
+  const handleEditProduct = (data: ProductFormData) => {
+    if (!editProduct) return;
+    setProducts(prev =>
+      prev.map(p =>
+        p.id === editProduct.id
+          ? {
+              ...p,
+              name: data.name,
+              category: data.category,
+              brand: data.brand,
+              costPrice: data.costPrice,
+              salePrice: data.salePrice,
+              stock: data.stock,
+              expiryDate: data.expiryDate?.toISOString().split("T")[0],
+            }
+          : p
+      )
+    );
+    setEditProduct(null);
+  };
+
+  const handleDeleteProduct = () => {
+    if (!deleteProduct) return;
+    setProducts(prev => prev.filter(p => p.id !== deleteProduct.id));
+    toast({
+      title: "Produto excluído",
+      description: `${deleteProduct.name} foi removido do catálogo.`,
+    });
+    setDeleteProduct(null);
+  };
+
+  const openEditModal = (product: Product) => {
+    setEditProduct(product);
+    setIsFormOpen(true);
+  };
+
+  const handleFormClose = (open: boolean) => {
+    setIsFormOpen(open);
+    if (!open) {
+      setEditProduct(null);
+    }
   };
 
   return (
@@ -108,6 +170,26 @@ export default function Produtos() {
                   <p className="text-sm text-muted-foreground">{product.brand}</p>
                 </div>
               </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openEditModal(product)}>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => setDeleteProduct(product)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Excluir
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -149,9 +231,32 @@ export default function Produtos() {
       {/* Product Form Modal */}
       <ProductForm
         open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        onSubmit={handleAddProduct}
+        onOpenChange={handleFormClose}
+        onSubmit={editProduct ? handleEditProduct : handleAddProduct}
+        editProduct={editProduct}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteProduct} onOpenChange={(open) => !open && setDeleteProduct(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir produto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deleteProduct?.name}</strong>? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteProduct}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

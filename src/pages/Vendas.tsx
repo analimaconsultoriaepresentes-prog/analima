@@ -3,6 +3,17 @@ import { Plus, Search, ShoppingCart, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { SaleForm } from "@/components/sales/SaleForm";
+
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+  brand: string;
+  costPrice: number;
+  salePrice: number;
+  stock: number;
+}
 
 interface Sale {
   id: string;
@@ -13,7 +24,16 @@ interface Sale {
   time: string;
 }
 
-const sales: Sale[] = [
+const initialProducts: Product[] = [
+  { id: "1", name: "Perfume Dolce & Gabbana Light Blue", category: "Perfume", brand: "D&G", costPrice: 150, salePrice: 280, stock: 3 },
+  { id: "2", name: "Kit Presente Natura Ekos", category: "Presente", brand: "Natura", costPrice: 85, salePrice: 150, stock: 8 },
+  { id: "3", name: "Hidratante Corporal Nivea 400ml", category: "Cosmético", brand: "Nivea", costPrice: 25, salePrice: 45, stock: 15 },
+  { id: "4", name: "Perfume 212 Carolina Herrera", category: "Perfume", brand: "CH", costPrice: 200, salePrice: 350, stock: 5 },
+  { id: "5", name: "Creme Facial L'Oréal", category: "Cosmético", brand: "L'Oréal", costPrice: 45, salePrice: 90, stock: 2 },
+  { id: "6", name: "Caixa de Chocolates Ferrero", category: "Presente", brand: "Ferrero", costPrice: 40, salePrice: 80, stock: 12 },
+];
+
+const initialSales: Sale[] = [
   { id: "1", products: ["Perfume D&G 100ml", "Creme Nivea"], total: 325, paymentMethod: "pix", date: "2024-01-15", time: "14:30" },
   { id: "2", products: ["Kit Presente Natura"], total: 150, paymentMethod: "cartao", date: "2024-01-15", time: "12:15" },
   { id: "3", products: ["Hidratante Corporal"], total: 45, paymentMethod: "dinheiro", date: "2024-01-15", time: "10:00" },
@@ -37,10 +57,50 @@ const paymentColors: Record<string, string> = {
 
 export default function Vendas() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [sales, setSales] = useState<Sale[]>(initialSales);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
 
+  const today = new Date().toISOString().split("T")[0];
+  
   const totalToday = sales
     .filter(sale => sale.date === "2024-01-15")
     .reduce((acc, sale) => acc + sale.total, 0);
+
+  const salesToday = sales.filter(s => s.date === "2024-01-15").length;
+
+  const handleNewSale = (
+    cartItems: { product: Product; quantity: number }[],
+    paymentMethod: string,
+    total: number
+  ) => {
+    const now = new Date();
+    const newSale: Sale = {
+      id: crypto.randomUUID(),
+      products: cartItems.map(item => `${item.product.name} (${item.quantity}x)`),
+      total,
+      paymentMethod: paymentMethod as Sale["paymentMethod"],
+      date: now.toISOString().split("T")[0],
+      time: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    setSales(prev => [newSale, ...prev]);
+
+    // Update stock
+    setProducts(prev =>
+      prev.map(product => {
+        const cartItem = cartItems.find(item => item.product.id === product.id);
+        if (cartItem) {
+          return { ...product, stock: product.stock - cartItem.quantity };
+        }
+        return product;
+      })
+    );
+  };
+
+  const filteredSales = sales.filter(sale =>
+    sale.products.some(p => p.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <div className="space-y-6">
@@ -50,7 +110,7 @@ export default function Vendas() {
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Vendas</h1>
           <p className="text-muted-foreground mt-1">Registre e acompanhe suas vendas</p>
         </div>
-        <Button className="btn-primary gap-2">
+        <Button className="btn-primary gap-2" onClick={() => setIsFormOpen(true)}>
           <Plus className="w-4 h-4" />
           Nova Venda
         </Button>
@@ -65,7 +125,7 @@ export default function Vendas() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Vendas Hoje</p>
-              <p className="text-xl font-bold text-foreground">{sales.filter(s => s.date === "2024-01-15").length}</p>
+              <p className="text-xl font-bold text-foreground">{salesToday}</p>
             </div>
           </div>
         </div>
@@ -87,7 +147,9 @@ export default function Vendas() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Ticket Médio</p>
-              <p className="text-xl font-bold text-foreground">R$ {(totalToday / 3).toFixed(2)}</p>
+              <p className="text-xl font-bold text-foreground">
+                R$ {salesToday > 0 ? (totalToday / salesToday).toFixed(2) : "0.00"}
+              </p>
             </div>
           </div>
         </div>
@@ -107,7 +169,7 @@ export default function Vendas() {
       {/* Sales List */}
       <div className="bg-card rounded-xl border border-border/50 overflow-hidden animate-slide-up">
         <div className="divide-y divide-border">
-          {sales.map((sale, index) => (
+          {filteredSales.map((sale, index) => (
             <div
               key={sale.id}
               className="p-4 hover:bg-muted/30 transition-colors"
@@ -136,6 +198,14 @@ export default function Vendas() {
           ))}
         </div>
       </div>
+
+      {/* Sale Form Modal */}
+      <SaleForm
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        products={products}
+        onSubmit={handleNewSale}
+      />
     </div>
   );
 }

@@ -56,13 +56,25 @@ const productSchema = z.object({
 
 type ProductFormData = z.infer<typeof productSchema>;
 
+interface Product {
+  id: string;
+  name: string;
+  category: "Presente" | "Perfume" | "Cosmético";
+  brand: string;
+  costPrice: number;
+  salePrice: number;
+  stock: number;
+  expiryDate?: string;
+}
+
 interface ProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: ProductFormData) => void;
+  editProduct?: Product | null;
 }
 
-export function ProductForm({ open, onOpenChange, onSubmit }: ProductFormProps) {
+export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: ProductFormProps) {
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
@@ -72,6 +84,29 @@ export function ProductForm({ open, onOpenChange, onSubmit }: ProductFormProps) 
       salePrice: 0,
       stock: 0,
     },
+  });
+
+  // Reset form when editProduct changes
+  useState(() => {
+    if (editProduct) {
+      form.reset({
+        name: editProduct.name,
+        category: editProduct.category,
+        brand: editProduct.brand,
+        costPrice: editProduct.costPrice,
+        salePrice: editProduct.salePrice,
+        stock: editProduct.stock,
+        expiryDate: editProduct.expiryDate ? new Date(editProduct.expiryDate) : undefined,
+      });
+    } else {
+      form.reset({
+        name: "",
+        brand: "",
+        costPrice: 0,
+        salePrice: 0,
+        stock: 0,
+      });
+    }
   });
 
   const costPrice = form.watch("costPrice");
@@ -88,8 +123,10 @@ export function ProductForm({ open, onOpenChange, onSubmit }: ProductFormProps) 
     form.reset();
     onOpenChange(false);
     toast({
-      title: "Produto cadastrado!",
-      description: `${data.name} foi adicionado ao seu catálogo.`,
+      title: editProduct ? "Produto atualizado!" : "Produto cadastrado!",
+      description: editProduct 
+        ? `${data.name} foi atualizado com sucesso.`
+        : `${data.name} foi adicionado ao seu catálogo.`,
     });
   }
 
@@ -97,15 +134,17 @@ export function ProductForm({ open, onOpenChange, onSubmit }: ProductFormProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-              <Package className="w-5 h-5 text-primary-foreground" />
-            </div>
-            Novo Produto
-          </DialogTitle>
-          <DialogDescription>
-            Preencha os dados do produto para adicionar ao catálogo.
-          </DialogDescription>
+        <DialogTitle className="flex items-center gap-2 text-xl">
+          <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
+            <Package className="w-5 h-5 text-primary-foreground" />
+          </div>
+          {editProduct ? "Editar Produto" : "Novo Produto"}
+        </DialogTitle>
+        <DialogDescription>
+          {editProduct 
+            ? "Atualize os dados do produto."
+            : "Preencha os dados do produto para adicionar ao catálogo."}
+        </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -308,6 +347,7 @@ export function ProductForm({ open, onOpenChange, onSubmit }: ProductFormProps) 
             </div>
 
             {/* Botões */}
+            {/* Botões */}
             <div className="flex gap-3 pt-4">
               <Button
                 type="button"
@@ -318,7 +358,7 @@ export function ProductForm({ open, onOpenChange, onSubmit }: ProductFormProps) 
                 Cancelar
               </Button>
               <Button type="submit" className="flex-1 btn-primary">
-                Cadastrar Produto
+                {editProduct ? "Salvar Alterações" : "Cadastrar Produto"}
               </Button>
             </div>
           </form>
