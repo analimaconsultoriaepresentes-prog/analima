@@ -405,6 +405,7 @@ export type Database = {
       }
       stores: {
         Row: {
+          birthday_message: string | null
           created_at: string
           id: string
           logo_url: string | null
@@ -414,6 +415,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          birthday_message?: string | null
           created_at?: string
           id?: string
           logo_url?: string | null
@@ -423,6 +425,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          birthday_message?: string | null
           created_at?: string
           id?: string
           logo_url?: string | null

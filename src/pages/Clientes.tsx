@@ -28,8 +28,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCustomers, Customer } from "@/hooks/useCustomers";
+import { useStore } from "@/hooks/useStore";
 import { CustomerForm } from "@/components/customers/CustomerForm";
 import { CustomerDetails } from "@/components/customers/CustomerDetails";
+import { BirthdayAlertsCard } from "@/components/customers/BirthdayAlertsCard";
 import {
   Plus,
   Search,
@@ -53,6 +55,7 @@ export default function Clientes() {
     deleteCustomer,
     getCustomerSalesHistory,
   } = useCustomers();
+  const { store } = useStore();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -112,6 +115,14 @@ export default function Clientes() {
           Novo Cliente
         </Button>
       </div>
+
+      {/* Birthday Alerts Card */}
+      {!loading && customers.length > 0 && store && (
+        <BirthdayAlertsCard
+          customers={customers}
+          birthdayMessage={store.birthdayMessage}
+        />
+      )}
 
       {/* Search */}
       <div className="relative">

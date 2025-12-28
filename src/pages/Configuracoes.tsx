@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut } from "lucide-react";
+import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/hooks/useStore";
@@ -28,12 +29,14 @@ export default function Configuracoes() {
 
   const [storeName, setStoreName] = useState("");
   const [selectedColor, setSelectedColor] = useState("#F97316");
+  const [birthdayMessage, setBirthdayMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (store) {
       setStoreName(store.name);
       setSelectedColor(store.primaryColor);
+      setBirthdayMessage(store.birthdayMessage);
     }
   }, [store]);
 
@@ -48,7 +51,7 @@ export default function Configuracoes() {
     }
 
     setSaving(true);
-    await updateStore(storeName, selectedColor);
+    await updateStore(storeName, selectedColor, birthdayMessage);
     
     // Apply color to CSS
     const color = colorOptions.find(c => c.value === selectedColor);
@@ -237,6 +240,33 @@ export default function Configuracoes() {
         </TabsContent>
 
         <TabsContent value="notificacoes" className="mt-6 space-y-6">
+          {/* Birthday Message */}
+          <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Cake className="w-5 h-5 text-primary" />
+              Mensagem de Aniversário
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="birthdayMessage" className="flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4" />
+                  Mensagem padrão para WhatsApp
+                </Label>
+                <Textarea
+                  id="birthdayMessage"
+                  value={birthdayMessage}
+                  onChange={(e) => setBirthdayMessage(e.target.value)}
+                  className="mt-1.5 min-h-[100px]"
+                  placeholder="Ex: Oi {NOME}! 🎉 Feliz aniversário!"
+                />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Use <code className="bg-muted px-1 py-0.5 rounded text-xs">{"{NOME}"}</code> para incluir o primeiro nome do cliente automaticamente.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Alert Settings */}
           <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <Bell className="w-5 h-5 text-primary" />
@@ -246,7 +276,7 @@ export default function Configuracoes() {
               <div className="flex items-center justify-between py-3 border-b border-border">
                 <div>
                   <p className="font-medium text-foreground">Estoque baixo</p>
-                  <p className="text-sm text-muted-foreground">Alertar quando produto tiver menos de 5 unidades</p>
+                  <p className="text-sm text-muted-foreground">Alertar quando produto tiver menos de 3 unidades</p>
                 </div>
                 <Switch defaultChecked />
               </div>
@@ -273,6 +303,19 @@ export default function Configuracoes() {
               </div>
             </div>
           </div>
+
+          <Button 
+            className="btn-primary gap-2" 
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Salvar Alterações
+          </Button>
         </TabsContent>
       </Tabs>
     </div>
