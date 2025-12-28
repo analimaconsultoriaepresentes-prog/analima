@@ -12,6 +12,7 @@ export interface SaleItem {
   unitPrice: number;
   subtotal: number;
   cycle?: number;
+  origin?: string;
 }
 
 export interface Sale {
@@ -52,7 +53,7 @@ export function useSales() {
 
       const { data: itemsData, error: itemsError } = await supabase
         .from("sale_items")
-        .select("*, products(cycle)");
+        .select("*, products(cycle, origin)");
 
       if (itemsError) throw itemsError;
 
@@ -66,7 +67,8 @@ export function useSales() {
             quantity: i.quantity,
             unitPrice: Number(i.unit_price),
             subtotal: Number(i.subtotal),
-            cycle: (i.products as { cycle: number | null } | null)?.cycle ?? undefined,
+            cycle: (i.products as { cycle: number | null; origin: string | null } | null)?.cycle ?? undefined,
+            origin: (i.products as { cycle: number | null; origin: string | null } | null)?.origin ?? undefined,
           }));
 
         const date = new Date(s.created_at);
