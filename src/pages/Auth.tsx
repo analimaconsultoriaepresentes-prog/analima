@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Store, Mail, Lock, Loader2, Eye, EyeOff } from "lucide-react";
+import { Store, Mail, Lock, Loader2, Eye, EyeOff, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
+
+const ALLOWED_EMAIL = "analimaconsultoriaepresentes@gmail.com";
 
 const authSchema = z.object({
   email: z.string().email("E-mail inválido"),
@@ -15,19 +17,25 @@ const authSchema = z.object({
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, loading: authLoading, signIn, signUp } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
+  const { user, loading: authLoading, signIn, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     if (user) {
-      navigate("/");
+      // Validate email after login
+      if (user.email?.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
+        setAccessDenied(true);
+        signOut();
+      } else {
+        navigate("/");
+      }
     }
-  }, [user, navigate]);
+  }, [user, navigate, signOut]);
 
   const validateForm = () => {
     try {
@@ -52,53 +60,36 @@ export default function Auth() {
     
     if (!validateForm()) return;
 
+    // Check email before attempting login
+    if (email.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
+      setAccessDenied(true);
+      return;
+    }
+
     setLoading(true);
+    setAccessDenied(false);
 
     try {
-      if (isLogin) {
-        const { error } = await signIn(email, password);
-        if (error) {
-          if (error.message.includes("Invalid login credentials")) {
-            toast({
-              title: "Erro ao entrar",
-              description: "E-mail ou senha incorretos.",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Erro ao entrar",
-              description: error.message,
-              variant: "destructive",
-            });
-          }
+      const { error } = await signIn(email, password);
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast({
+            title: "Erro ao entrar",
+            description: "E-mail ou senha incorretos.",
+            variant: "destructive",
+          });
         } else {
           toast({
-            title: "Bem-vindo de volta!",
-            description: "Login realizado com sucesso.",
+            title: "Erro ao entrar",
+            description: error.message,
+            variant: "destructive",
           });
         }
       } else {
-        const { error } = await signUp(email, password);
-        if (error) {
-          if (error.message.includes("already registered")) {
-            toast({
-              title: "E-mail já cadastrado",
-              description: "Tente fazer login ou use outro e-mail.",
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Erro ao cadastrar",
-              description: error.message,
-              variant: "destructive",
-            });
-          }
-        } else {
-          toast({
-            title: "Conta criada!",
-            description: "Sua loja está pronta para uso.",
-          });
-        }
+        toast({
+          title: "Bem-vindo de volta!",
+          description: "Login realizado com sucesso.",
+        });
       }
     } finally {
       setLoading(false);
@@ -113,6 +104,33 @@ export default function Auth() {
     );
   }
 
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md text-center animate-fade-in">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert className="w-8 h-8 text-destructive" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Acesso Restrito</h1>
+          <p className="text-muted-foreground mb-6">
+            Sistema exclusivo da loja <strong className="text-foreground">ANA LIMA</strong>.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setAccessDenied(false);
+              setEmail("");
+              setPassword("");
+            }}
+            className="min-h-[48px]"
+          >
+            Voltar ao login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
@@ -121,9 +139,9 @@ export default function Auth() {
           <div className="w-16 h-16 rounded-2xl gradient-bg flex items-center justify-center mx-auto mb-4">
             <Store className="w-8 h-8 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">GestãoFácil</h1>
+          <h1 className="text-2xl font-bold text-foreground">ANA LIMA</h1>
           <p className="text-muted-foreground mt-1">
-            {isLogin ? "Entre na sua conta" : "Crie sua loja grátis"}
+            Consultoria e Presentes
           </p>
         </div>
 
@@ -140,7 +158,7 @@ export default function Auth() {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 input-styled"
+                  className="pl-10 input-styled min-h-[48px]"
                 />
               </div>
               {errors.email && (
@@ -158,12 +176,12 @@ export default function Auth() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 input-styled"
+                  className="pl-10 pr-10 input-styled min-h-[48px]"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground min-h-[44px] min-w-[44px] flex items-center justify-center"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -173,39 +191,19 @@ export default function Auth() {
               )}
             </div>
 
-            <Button type="submit" className="w-full btn-primary" disabled={loading}>
+            <Button type="submit" className="w-full btn-primary min-h-[48px]" disabled={loading}>
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
-              ) : isLogin ? (
-                "Entrar"
               ) : (
-                "Criar Conta"
+                "Entrar"
               )}
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              {isLogin ? "Ainda não tem conta?" : "Já tem uma conta?"}
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-primary font-medium ml-1 hover:underline"
-              >
-                {isLogin ? "Cadastre-se" : "Entrar"}
-              </button>
-            </p>
-          </div>
         </div>
 
-        {/* Features */}
-        {!isLogin && (
-          <div className="mt-6 text-center text-sm text-muted-foreground animate-fade-in">
-            <p>✓ Controle de vendas e estoque</p>
-            <p>✓ Relatórios financeiros</p>
-            <p>✓ 100% gratuito</p>
-          </div>
-        )}
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Sistema exclusivo para uso interno
+        </p>
       </div>
     </div>
   );
