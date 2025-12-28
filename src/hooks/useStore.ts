@@ -8,6 +8,7 @@ export interface Store {
   name: string;
   logoUrl: string | null;
   primaryColor: string;
+  birthdayMessage: string;
 }
 
 export function useStore() {
@@ -37,6 +38,7 @@ export function useStore() {
           name: data.name,
           logoUrl: data.logo_url,
           primaryColor: data.primary_color || "#F97316",
+          birthdayMessage: data.birthday_message || "Oi {NOME}! 🎉 Feliz aniversário! Preparamos presentes e cestas personalizadas especialmente para você. Quer que eu te mostre algumas opções?",
         });
       }
     } catch (error) {
@@ -50,18 +52,28 @@ export function useStore() {
     fetchStore();
   }, [user]);
 
-  const updateStore = async (name: string, primaryColor: string): Promise<boolean> => {
+  const updateStore = async (name: string, primaryColor: string, birthdayMessage?: string): Promise<boolean> => {
     if (!user) return false;
 
     try {
+      const updateData: Record<string, string> = { name, primary_color: primaryColor };
+      if (birthdayMessage !== undefined) {
+        updateData.birthday_message = birthdayMessage;
+      }
+      
       const { error } = await supabase
         .from("stores")
-        .update({ name, primary_color: primaryColor })
+        .update(updateData)
         .eq("user_id", user.id);
 
       if (error) throw error;
 
-      setStore(prev => prev ? { ...prev, name, primaryColor } : null);
+      setStore(prev => prev ? { 
+        ...prev, 
+        name, 
+        primaryColor,
+        ...(birthdayMessage !== undefined && { birthdayMessage })
+      } : null);
       toast({
         title: "Configurações salvas",
         description: "As alterações foram aplicadas com sucesso.",
