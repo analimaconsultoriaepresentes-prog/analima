@@ -25,23 +25,23 @@ export function StatCard({ title, value, icon, trend, variant = "default", class
         className
       )}
     >
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground font-medium">{title}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-1 sm:space-y-2 flex-1 min-w-0">
+          <p className="text-xs sm:text-sm text-muted-foreground font-medium truncate">{title}</p>
+          <p className="text-lg sm:text-2xl font-bold text-foreground truncate">{value}</p>
           {trend && (
             <div className={cn(
-              "flex items-center gap-1 text-sm font-medium",
+              "flex items-center gap-1 text-xs sm:text-sm font-medium",
               trend.isPositive ? "text-success" : "text-destructive"
             )}>
-              {trend.isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              {trend.isPositive ? <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" /> : <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4" />}
               <span>{trend.isPositive ? "+" : ""}{trend.value}%</span>
-              <span className="text-muted-foreground font-normal">vs mês anterior</span>
+              <span className="text-muted-foreground font-normal hidden sm:inline">vs mês anterior</span>
             </div>
           )}
         </div>
         <div className={cn(
-          "p-3 rounded-xl",
+          "p-2 sm:p-3 rounded-lg sm:rounded-xl flex-shrink-0",
           variant === "default" && "bg-muted",
           variant === "primary" && "bg-primary/10 text-primary",
           variant === "success" && "bg-success/10 text-success",

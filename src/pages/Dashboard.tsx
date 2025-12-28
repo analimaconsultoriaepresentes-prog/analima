@@ -1,74 +1,99 @@
-import { DollarSign, TrendingUp, Receipt, Wallet } from "lucide-react";
+import { DollarSign, TrendingUp, Receipt, Package, Loader2 } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AlertsCard } from "@/components/dashboard/AlertsCard";
 import { TopProductsCard } from "@/components/dashboard/TopProductsCard";
 import { RecentSalesCard } from "@/components/dashboard/RecentSalesCard";
 import { ProfitChart } from "@/components/dashboard/ProfitChart";
+import { useDashboardData } from "@/hooks/useDashboardData";
 
 export default function Dashboard() {
+  const {
+    revenueToday,
+    revenueMonth,
+    ticketMonth,
+    paMonth,
+    trends,
+    lowStockProducts,
+    expiringProducts,
+    recentSales,
+    topProducts,
+    monthlyData,
+    categoryData,
+    loading,
+  } = useDashboardData();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="animate-fade-in">
-        <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
           Olá, Bem-vindo! 👋
         </h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
           Veja como está o desempenho da sua loja hoje
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Grid - 2 cols mobile, 4 cols desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Faturamento Hoje"
-          value="R$ 1.245,00"
+          value={`R$ ${revenueToday.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           icon={<DollarSign className="w-5 h-5" />}
-          trend={{ value: 12, isPositive: true }}
           variant="primary"
           className="delay-100"
         />
         <StatCard
           title="Faturamento do Mês"
-          value="R$ 28.450,00"
+          value={`R$ ${revenueMonth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           icon={<TrendingUp className="w-5 h-5" />}
-          trend={{ value: 8, isPositive: true }}
+          trend={
+            trends.revenueTrend !== 0
+              ? { value: Math.abs(trends.revenueTrend), isPositive: trends.revenueTrend > 0 }
+              : undefined
+          }
           variant="success"
           className="delay-200"
         />
         <StatCard
-          title="Despesas do Mês"
-          value="R$ 12.380,00"
+          title="Ticket Médio"
+          value={`R$ ${ticketMonth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           icon={<Receipt className="w-5 h-5" />}
-          trend={{ value: 3, isPositive: false }}
           variant="warning"
           className="delay-300"
         />
         <StatCard
-          title="Lucro Estimado"
-          value="R$ 16.070,00"
-          icon={<Wallet className="w-5 h-5" />}
-          trend={{ value: 15, isPositive: true }}
+          title="PA (Itens/Venda)"
+          value={paMonth.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+          icon={<Package className="w-5 h-5" />}
           className="delay-400"
         />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Charts Row - stack on mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2">
-          <SalesChart />
+          <SalesChart data={monthlyData} />
         </div>
         <div>
-          <ProfitChart />
+          <ProfitChart data={categoryData} />
         </div>
       </div>
 
-      {/* Bottom Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <RecentSalesCard />
-        <TopProductsCard />
-        <AlertsCard />
+      {/* Bottom Grid - stack on mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <RecentSalesCard sales={recentSales} />
+        <TopProductsCard products={topProducts} />
+        <AlertsCard lowStock={lowStockProducts} expiring={expiringProducts} />
       </div>
     </div>
   );
