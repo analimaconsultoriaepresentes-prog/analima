@@ -35,7 +35,7 @@ export interface CartItem {
 
 export function useSales() {
   const { user } = useAuth();
-  const { checkBasketStock, deductBasketStock } = useBaskets();
+  const { checkBasketStock, deductBasketStock, restoreBasketStock } = useBaskets();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -151,8 +151,8 @@ export function useSales() {
 
       if (saleError) throw saleError;
 
-      // Create sale items
-      const saleItems = cartItems.map((item) => ({
+      // Create sale items and get their IDs
+      const saleItemsToInsert = cartItems.map((item) => ({
         sale_id: saleData.id,
         product_id: item.product.id,
         product_name: item.product.name,
@@ -161,19 +161,32 @@ export function useSales() {
         subtotal: item.product.salePrice * item.quantity,
       }));
 
-      const { error: itemsError } = await supabase
+      const { data: insertedItems, error: itemsError } = await supabase
         .from("sale_items")
-        .insert(saleItems);
+        .insert(saleItemsToInsert)
+        .select("id, product_id");
 
       if (itemsError) throw itemsError;
 
+      // Create a map of product_id to sale_item_id
+      const saleItemIdMap = new Map<string, string>();
+      (insertedItems || []).forEach((item) => {
+        saleItemIdMap.set(item.product_id, item.id);
+      });
+
       // Update stock for each product
       for (const item of cartItems) {
-        if (item.product.isBasket) {
-          // For baskets, deduct stock of component items
-          for (let i = 0; i < item.quantity; i++) {
-            await deductBasketStock(item.product.id, updateStock);
-          }
+        const saleItemId = saleItemIdMap.get(item.product.id);
+        
+        if (item.product.isBasket && saleItemId) {
+          // For baskets, deduct stock of component items and record the deduction
+          await deductBasketStock(
+            item.product.id,
+            item.quantity,
+            updateStock,
+            saleData.id,
+            saleItemId
+          );
         }
         // Always deduct the basket/product itself
         await updateStock(item.product.id, item.quantity);
@@ -198,7 +211,7 @@ export function useSales() {
 
   const cancelSale = async (
     saleId: string,
-    restoreStock: (id: string, quantity: number) => Promise<boolean>
+    restoreStock: (id: string, quantity: number, cycle?: number) => Promise<boolean>
   ): Promise<boolean> => {
     try {
       const sale = sales.find((s) => s.id === saleId);
@@ -212,7 +225,10 @@ export function useSales() {
 
       if (error) throw error;
 
-      // Restore stock for each item
+      // First, restore basket component stock if there are any
+      await restoreBasketStock(saleId, restoreStock);
+
+      // Then restore stock for each sold item (baskets and regular products)
       for (const item of sale.items) {
         await restoreStock(item.productId, item.quantity);
       }
