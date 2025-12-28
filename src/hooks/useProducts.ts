@@ -215,22 +215,27 @@ export function useProducts() {
     }
   };
 
-  const restoreStock = async (id: string, quantity: number): Promise<boolean> => {
+  const restoreStock = async (id: string, quantity: number, cycle?: number): Promise<boolean> => {
     try {
       const product = products.find((p) => p.id === id);
       if (!product) return false;
 
       const newStock = product.stock + quantity;
+      
+      const updateData: { stock: number; cycle?: number } = { stock: newStock };
+      if (cycle !== undefined) {
+        updateData.cycle = cycle;
+      }
 
       const { error } = await supabase
         .from("products")
-        .update({ stock: newStock })
+        .update(updateData)
         .eq("id", id);
 
       if (error) throw error;
 
       setProducts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, stock: newStock } : p))
+        prev.map((p) => (p.id === id ? { ...p, stock: newStock, cycle: cycle ?? p.cycle } : p))
       );
       return true;
     } catch (error) {

@@ -17,7 +17,8 @@ interface StockEntryModalProps {
   onOpenChange: (open: boolean) => void;
   productName: string;
   currentStock: number;
-  onConfirm: (quantity: number) => Promise<boolean>;
+  currentCycle: number | null;
+  onConfirm: (quantity: number, cycle?: number) => Promise<boolean>;
 }
 
 export function StockEntryModal({
@@ -25,9 +26,11 @@ export function StockEntryModal({
   onOpenChange,
   productName,
   currentStock,
+  currentCycle,
   onConfirm,
 }: StockEntryModalProps) {
   const [quantity, setQuantity] = useState("");
+  const [cycle, setCycle] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -42,16 +45,33 @@ export function StockEntryModal({
       return;
     }
 
+    // Validate cycle if provided
+    let cycleValue: number | undefined;
+    if (cycle.trim() !== "") {
+      const cycleNum = parseInt(cycle, 10);
+      if (isNaN(cycleNum) || cycleNum <= 0) {
+        toast({
+          title: "Ciclo inválido",
+          description: "O ciclo deve ser um número inteiro maior que zero.",
+          variant: "destructive",
+        });
+        return;
+      }
+      cycleValue = cycleNum;
+    }
+
     setLoading(true);
-    const success = await onConfirm(qty);
+    const success = await onConfirm(qty, cycleValue);
     setLoading(false);
 
     if (success) {
+      const cycleMsg = cycleValue ? ` Ciclo atualizado para ${cycleValue}.` : "";
       toast({
         title: "Estoque atualizado",
-        description: `+${qty} unidades adicionadas ao estoque de "${productName}".`,
+        description: `+${qty} unidades adicionadas ao estoque de "${productName}".${cycleMsg}`,
       });
       setQuantity("");
+      setCycle("");
       onOpenChange(false);
     }
   };
@@ -59,6 +79,7 @@ export function StockEntryModal({
   const handleClose = (isOpen: boolean) => {
     if (!isOpen) {
       setQuantity("");
+      setCycle("");
     }
     onOpenChange(isOpen);
   };
@@ -96,6 +117,22 @@ export function StockEntryModal({
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               className="text-lg"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cycle">Ciclo (opcional)</Label>
+            <p className="text-xs text-muted-foreground">
+              {currentCycle ? `Ciclo atual: ${currentCycle}` : "Nenhum ciclo definido"}
+            </p>
+            <Input
+              id="cycle"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Ex: 22"
+              value={cycle}
+              onChange={(e) => setCycle(e.target.value)}
             />
           </div>
 
