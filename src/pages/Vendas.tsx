@@ -40,7 +40,7 @@ export default function Vendas() {
 
   const { products, loading: loadingProducts, updateStock, restoreStock } = useProducts();
   const { sales, loading: loadingSales, addSale, cancelSale: cancelSaleAction, stats } = useSales();
-  const { customers } = useCustomers();
+  const { customers, addCustomer } = useCustomers();
 
   const handleNewSale = async (
     cartItems: { product: typeof products[0]; quantity: number }[],
@@ -230,6 +230,7 @@ export default function Vendas() {
         products={products}
         customers={customers}
         onSubmit={handleNewSale}
+        onAddCustomer={addCustomer}
       />
 
       {/* Cancel Confirmation Dialog */}

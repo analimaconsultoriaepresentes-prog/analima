@@ -81,18 +81,18 @@ export function useCustomers() {
     fetchCustomers();
   }, [user]);
 
-  const addCustomer = async (data: CustomerFormData): Promise<boolean> => {
-    if (!user) return false;
+  const addCustomer = async (data: CustomerFormData): Promise<string | null> => {
+    if (!user) return null;
 
     try {
-      const { error } = await supabase.from("customers").insert({
+      const { data: insertedData, error } = await supabase.from("customers").insert({
         user_id: user.id,
         name: data.name.trim(),
         phone: data.phone?.trim() || null,
         email: data.email?.trim() || null,
         birthday: data.birthday || null,
         notes: data.notes?.trim() || null,
-      });
+      }).select("id").single();
 
       if (error) throw error;
 
@@ -102,7 +102,7 @@ export function useCustomers() {
       });
 
       await fetchCustomers();
-      return true;
+      return insertedData.id;
     } catch (error) {
       console.error("Error adding customer:", error);
       toast({
@@ -110,7 +110,7 @@ export function useCustomers() {
         description: "Não foi possível adicionar o cliente.",
         variant: "destructive",
       });
-      return false;
+      return null;
     }
   };
 
