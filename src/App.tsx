@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Produtos from "./pages/Produtos";
@@ -18,9 +19,10 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+const ALLOWED_EMAIL = "analimaconsultoriaepresentes@gmail.com";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
 
   if (loading) {
     return (
@@ -32,6 +34,30 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Backend validation: check if user email is allowed
+  if (user.email?.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md text-center animate-fade-in">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+            <ShieldAlert className="w-8 h-8 text-destructive" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Acesso Restrito</h1>
+          <p className="text-muted-foreground mb-6">
+            Sistema exclusivo da loja <strong className="text-foreground">ANA LIMA</strong>.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => signOut()}
+            className="min-h-[48px]"
+          >
+            Sair
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return <AppLayout>{children}</AppLayout>;
