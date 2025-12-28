@@ -117,7 +117,7 @@ export function Sidebar() {
         {!isCollapsed && (
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
             <div className="text-xs text-muted-foreground text-center">
-              © 2024 GestãoFácil
+              © 2026 ANALIMA
             </div>
           </div>
         )}
