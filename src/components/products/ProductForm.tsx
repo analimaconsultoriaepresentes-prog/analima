@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Package, Percent } from "lucide-react";
+import { CalendarIcon, Package, Percent, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,11 +53,19 @@ const productSchema = z.object({
     required_error: "Selecione uma categoria",
   }),
   brand: z.string().min(1, "Informe a marca").max(50, "Marca muito longa"),
-  costPrice: z.coerce.number().min(0.01, "Preço de custo deve ser maior que zero"),
+  costPrice: z.coerce.number().min(0, "Preço de custo não pode ser negativo"),
   salePrice: z.coerce.number().min(0.01, "Preço de venda deve ser maior que zero"),
   stock: z.coerce.number().int().min(0, "Estoque não pode ser negativo"),
   expiryDate: z.date().optional(),
-}).refine((data) => data.salePrice > data.costPrice, {
+  origin: z.enum(["purchased", "gift"]),
+}).refine((data) => {
+  // For gifts (cost = 0), only require sale price > 0
+  if (data.origin === "gift") {
+    return data.salePrice > 0;
+  }
+  // For purchased products, require sale price > cost price
+  return data.salePrice > data.costPrice;
+}, {
   message: "Preço de venda deve ser maior que o preço de custo",
   path: ["salePrice"],
 });
@@ -85,6 +93,17 @@ function ProductFormContent({
   
   const costPrice = form.watch("costPrice");
   const salePrice = form.watch("salePrice");
+  const origin = form.watch("origin");
+  
+  const isGift = origin === "gift";
+  
+  // Auto-set cost to 0 when origin changes to gift
+  useEffect(() => {
+    if (isGift) {
+      form.setValue("costPrice", 0, { shouldValidate: true });
+      setDesiredMargin("");
+    }
+  }, [isGift, form]);
   
   // Calculate actual margin for display
   const actualMargin = salePrice > 0 && costPrice > 0 && salePrice > costPrice
@@ -160,6 +179,34 @@ function ProductFormContent({
           )}
         />
 
+        {/* Origem do Produto */}
+        <FormField
+          control={form.control}
+          name="origin"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Origem do Produto</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="input-styled min-h-[44px]">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="purchased">Comprado</SelectItem>
+                  <SelectItem value="gift">
+                    <span className="flex items-center gap-2">
+                      <Gift className="w-4 h-4" />
+                      Brinde
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {/* Categoria e Marca - stack on mobile */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
@@ -219,37 +266,46 @@ function ProductFormContent({
                   inputMode="decimal"
                   placeholder="0,00" 
                   className="input-styled min-h-[44px]"
+                  disabled={isGift}
                   {...field} 
+                  value={isGift ? 0 : field.value}
                 />
               </FormControl>
+              {isGift && (
+                <FormDescription className="text-xs">
+                  Produtos recebidos como brinde têm custo zero.
+                </FormDescription>
+              )}
               <FormMessage />
             </FormItem>
           )}
         />
 
         {/* Margem e Preço de Venda */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Margem desejada (%)
-            </label>
-            <div className="relative">
-              <Input 
-                type="number" 
-                step="0.1"
-                min="0"
-                inputMode="decimal"
-                placeholder="Ex: 50" 
-                className="input-styled min-h-[44px] pr-8"
-                value={desiredMargin}
-                onChange={handleDesiredMarginChange}
-              />
-              <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className={cn("grid gap-4", isGift ? "grid-cols-1" : "grid-cols-2")}>
+          {!isGift && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Margem desejada (%)
+              </label>
+              <div className="relative">
+                <Input 
+                  type="number" 
+                  step="0.1"
+                  min="0"
+                  inputMode="decimal"
+                  placeholder="Ex: 50" 
+                  className="input-styled min-h-[44px] pr-8"
+                  value={desiredMargin}
+                  onChange={handleDesiredMarginChange}
+                />
+                <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Venda = Custo + Margem
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Venda = Custo + Margem
-            </p>
-          </div>
+          )}
 
           <FormField
             control={form.control}
@@ -272,6 +328,11 @@ function ProductFormContent({
                     ref={field.ref}
                   />
                 </FormControl>
+                {isGift && (
+                  <FormDescription className="text-xs">
+                    Margem não se aplica para brinde (custo zero).
+                  </FormDescription>
+                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -389,6 +450,7 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
       costPrice: 0,
       salePrice: 0,
       stock: 0,
+      origin: "purchased",
     },
   });
 
@@ -403,6 +465,7 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
         salePrice: editProduct.salePrice,
         stock: editProduct.stock,
         expiryDate: editProduct.expiryDate ? new Date(editProduct.expiryDate) : undefined,
+        origin: editProduct.origin,
       });
     } else {
       form.reset({
@@ -411,6 +474,7 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
         costPrice: 0,
         salePrice: 0,
         stock: 0,
+        origin: "purchased",
       });
     }
   });

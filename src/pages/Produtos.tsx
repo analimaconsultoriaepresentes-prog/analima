@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2 } from "lucide-react";
+import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -174,6 +174,12 @@ export default function Produtos() {
                 <span className={cn("alert-badge", categoryColors[product.category])}>
                   {product.category}
                 </span>
+                {product.origin === "gift" && (
+                  <span className="alert-badge bg-primary/10 text-primary flex items-center gap-1">
+                    <Gift className="w-3 h-3" />
+                    Brinde
+                  </span>
+                )}
                 {product.stock <= 5 && (
                   <span className="alert-badge alert-badge-warning flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
