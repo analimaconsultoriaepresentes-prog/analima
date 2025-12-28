@@ -123,10 +123,12 @@ export function useSales() {
       if (item.product.isBasket) {
         const stockCheck = await checkBasketStock(item.product.id, products);
         if (!stockCheck.hasStock) {
+          const itemsList = stockCheck.missingItems.map(item => `• ${item}`).join("\n");
           toast({
-            title: "Estoque insuficiente",
-            description: `Faltam itens para montar a cesta "${item.product.name}": ${stockCheck.missingItems.join(", ")}`,
+            title: "Estoque insuficiente para montar esta cesta",
+            description: `Não é possível vender "${item.product.name}". Itens com problema:\n${itemsList}`,
             variant: "destructive",
+            duration: 8000,
           });
           return false;
         }
