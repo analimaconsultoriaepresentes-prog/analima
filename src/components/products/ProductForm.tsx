@@ -58,6 +58,7 @@ const productSchema = z.object({
   stock: z.coerce.number().int().min(0, "Estoque não pode ser negativo"),
   expiryDate: z.date().optional(),
   origin: z.enum(["purchased", "gift"]),
+  cycle: z.coerce.number().int().min(1, "Ciclo deve ser maior que zero").optional().or(z.literal("")),
 }).refine((data) => {
   // For gifts (cost = 0), only require sale price > 0
   if (data.origin === "gift") {
@@ -251,35 +252,66 @@ function ProductFormContent({
           />
         </div>
 
-        {/* Preço de Custo */}
-        <FormField
-          control={form.control}
-          name="costPrice"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Preço de Custo (R$)</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  step="0.01"
-                  min="0"
-                  inputMode="decimal"
-                  placeholder="0,00" 
-                  className="input-styled min-h-[44px]"
-                  disabled={isGift}
-                  {...field} 
-                  value={isGift ? 0 : field.value}
-                />
-              </FormControl>
-              {isGift && (
+        {/* Ciclo e Preço de Custo */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="cycle"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Ciclo (opcional)</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    min="1"
+                    inputMode="numeric"
+                    placeholder="Ex: 1, 2, 3..." 
+                    className="input-styled min-h-[44px]"
+                    {...field}
+                    value={field.value ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      field.onChange(val === "" ? undefined : parseInt(val, 10));
+                    }}
+                  />
+                </FormControl>
                 <FormDescription className="text-xs">
-                  Produtos recebidos como brinde têm custo zero.
+                  Número do ciclo/campanha da revista.
                 </FormDescription>
-              )}
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="costPrice"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Preço de Custo (R$)</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    inputMode="decimal"
+                    placeholder="0,00" 
+                    className="input-styled min-h-[44px]"
+                    disabled={isGift}
+                    {...field} 
+                    value={isGift ? 0 : field.value}
+                  />
+                </FormControl>
+                {isGift && (
+                  <FormDescription className="text-xs">
+                    Produtos recebidos como brinde têm custo zero.
+                  </FormDescription>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         {/* Margem e Preço de Venda */}
         <div className={cn("grid gap-4", isGift ? "grid-cols-1" : "grid-cols-2")}>
@@ -451,6 +483,7 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
       salePrice: 0,
       stock: 0,
       origin: "purchased",
+      cycle: undefined,
     },
   });
 
@@ -466,6 +499,7 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
         stock: editProduct.stock,
         expiryDate: editProduct.expiryDate ? new Date(editProduct.expiryDate) : undefined,
         origin: editProduct.origin,
+        cycle: editProduct.cycle,
       });
     } else {
       form.reset({
@@ -475,6 +509,7 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
         salePrice: 0,
         stock: 0,
         origin: "purchased",
+        cycle: undefined,
       });
     }
   });

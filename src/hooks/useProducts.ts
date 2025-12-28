@@ -13,6 +13,7 @@ export interface Product {
   stock: number;
   expiryDate?: string;
   origin: "purchased" | "gift";
+  cycle?: number;
 }
 
 export interface ProductFormData {
@@ -24,6 +25,7 @@ export interface ProductFormData {
   stock: number;
   expiryDate?: Date;
   origin: "purchased" | "gift";
+  cycle?: number;
 }
 
 export function useProducts() {
@@ -56,6 +58,7 @@ export function useProducts() {
         stock: p.stock,
         expiryDate: p.expiry_date || undefined,
         origin: (p.origin as Product["origin"]) || "purchased",
+        cycle: p.cycle ?? undefined,
       }));
 
       setProducts(mapped);
@@ -89,6 +92,7 @@ export function useProducts() {
         expiry_date: data.expiryDate?.toISOString().split("T")[0] || null,
         user_id: user.id,
         origin: data.origin,
+        cycle: data.cycle || null,
       });
 
       if (error) throw error;
@@ -123,6 +127,7 @@ export function useProducts() {
           stock: data.stock,
           expiry_date: data.expiryDate?.toISOString().split("T")[0] || null,
           origin: data.origin,
+          cycle: data.cycle || null,
         })
         .eq("id", id);
 
