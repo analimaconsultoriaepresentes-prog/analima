@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useStore } from "@/hooks/useStore";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: LayoutDashboard, label: "Painel", path: "/" },
   { icon: Package, label: "Produtos", path: "/produtos" },
   { icon: ShoppingCart, label: "Vendas", path: "/vendas" },
   { icon: Receipt, label: "Despesas", path: "/despesas" },
