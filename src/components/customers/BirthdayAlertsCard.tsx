@@ -87,8 +87,25 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
 
   const getWhatsAppUrl = (customer: BirthdayCustomer): string => {
     const phone = normalizePhone(customer.phone || "");
-    const message = birthdayMessage.replace("{NOME}", customer.name.split(" ")[0]);
+    
+    // Ensure message is plain text (decode if already encoded from legacy data)
+    let plainMessage = birthdayMessage;
+    try {
+      // Check if message appears to be URL encoded (contains %XX patterns)
+      if (/%[0-9A-Fa-f]{2}/.test(birthdayMessage)) {
+        plainMessage = decodeURIComponent(birthdayMessage);
+      }
+    } catch {
+      // If decoding fails, use original message
+      plainMessage = birthdayMessage;
+    }
+    
+    // Replace placeholder with customer first name
+    const message = plainMessage.replace("{NOME}", customer.name.split(" ")[0]);
+    
+    // Apply encodeURIComponent ONLY ONCE here
     const encodedMessage = encodeURIComponent(message);
+    
     return `https://wa.me/${phone}?text=${encodedMessage}`;
   };
 
