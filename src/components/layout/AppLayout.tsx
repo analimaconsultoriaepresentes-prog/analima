@@ -8,13 +8,13 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background flex">
       <Sidebar />
       <main className={cn(
-        "transition-all duration-300 ease-in-out",
-        "lg:ml-64 min-h-screen w-full"
+        "flex-1 min-h-screen transition-all duration-300 ease-in-out",
+        "lg:ml-64"
       )}>
-        <div className="p-3 pt-16 sm:p-4 sm:pt-20 lg:p-6 lg:pt-6 max-w-full">
+        <div className="p-4 pt-16 sm:p-5 sm:pt-20 lg:p-6 lg:pt-6 max-w-full overflow-x-hidden">
           {children}
         </div>
       </main>
