@@ -296,6 +296,7 @@ function ProductFormContent({
             onPackagingCostChange={setBasketPackagingCost}
             desiredMargin={basketDesiredMargin}
             onDesiredMarginChange={setBasketDesiredMargin}
+            isEditing={!!editProduct}
           />
         )}
 
@@ -624,7 +625,7 @@ function ProductFormContent({
           <Button 
             type="submit" 
             className="flex-1 btn-primary min-h-[48px] text-base"
-            disabled={isBasket && basketItems.length === 0}
+            disabled={isBasket && basketItems.length === 0 && !editProduct}
           >
             {editProduct ? "Salvar" : "Cadastrar"}
           </Button>

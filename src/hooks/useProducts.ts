@@ -84,11 +84,11 @@ export function useProducts() {
     fetchProducts();
   }, [user]);
 
-  const addProduct = async (data: ProductFormData): Promise<boolean> => {
-    if (!user) return false;
+  const addProduct = async (data: ProductFormData): Promise<string | null> => {
+    if (!user) return null;
     
     try {
-      const { error } = await supabase.from("products").insert({
+      const { data: insertedData, error } = await supabase.from("products").insert({
         name: data.name,
         category: data.category,
         brand: data.brand,
@@ -101,7 +101,7 @@ export function useProducts() {
         cycle: data.cycle || null,
         is_basket: data.isBasket,
         packaging_cost: data.packagingCost || 0,
-      });
+      }).select('id').single();
 
       if (error) throw error;
 
@@ -110,7 +110,7 @@ export function useProducts() {
         title: "Produto adicionado",
         description: `${data.name} foi adicionado ao catálogo.`,
       });
-      return true;
+      return insertedData?.id || null;
     } catch (error) {
       console.error("Error adding product:", error);
       toast({
@@ -118,7 +118,7 @@ export function useProducts() {
         description: "Tente novamente.",
         variant: "destructive",
       });
-      return false;
+      return null;
     }
   };
 
