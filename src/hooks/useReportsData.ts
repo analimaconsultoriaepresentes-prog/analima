@@ -26,12 +26,45 @@ interface CategoryData {
   margem: number;
 }
 
+interface ComparisonData {
+  current: number;
+  previous: number;
+  difference: number;
+  percentChange: number;
+  trend: "up" | "down" | "stable";
+}
+
 interface ReportStats {
   totalReceita: number;
   totalDespesa: number;
   totalLucro: number;
   monthlyData: MonthlyData[];
   categoryData: CategoryData[];
+  comparison: {
+    receita: ComparisonData;
+    despesa: ComparisonData;
+    lucro: ComparisonData;
+  };
+}
+
+function calculateComparison(current: number, previous: number): ComparisonData {
+  const difference = current - previous;
+  const percentChange = previous > 0 
+    ? ((current - previous) / previous) * 100 
+    : current > 0 ? 100 : 0;
+  
+  let trend: "up" | "down" | "stable" = "stable";
+  if (Math.abs(percentChange) > 1) {
+    trend = percentChange > 0 ? "up" : "down";
+  }
+  
+  return {
+    current,
+    previous,
+    difference,
+    percentChange,
+    trend,
+  };
 }
 
 export function useReportsData(period: PeriodOption = "6months") {
@@ -43,6 +76,11 @@ export function useReportsData(period: PeriodOption = "6months") {
     totalLucro: 0,
     monthlyData: [],
     categoryData: [],
+    comparison: {
+      receita: { current: 0, previous: 0, difference: 0, percentChange: 0, trend: "stable" },
+      despesa: { current: 0, previous: 0, difference: 0, percentChange: 0, trend: "stable" },
+      lucro: { current: 0, previous: 0, difference: 0, percentChange: 0, trend: "stable" },
+    },
   });
 
   const getMonthsCount = (p: PeriodOption): number => {
@@ -52,6 +90,16 @@ export function useReportsData(period: PeriodOption = "6months") {
       case "6months": return 6;
       case "1year": return 12;
       default: return 6;
+    }
+  };
+
+  const getDaysCount = (p: PeriodOption): number => {
+    switch (p) {
+      case "30days": return 30;
+      case "3months": return 90;
+      case "6months": return 180;
+      case "1year": return 365;
+      default: return 180;
     }
   };
 
@@ -69,6 +117,7 @@ export function useReportsData(period: PeriodOption = "6months") {
       let totalDespesa = 0;
 
       const monthsCount = getMonthsCount(period);
+      const daysCount = getDaysCount(period);
 
       // For 30 days, we still show 1 month of data
       const loopCount = period === "30days" ? 1 : monthsCount;
@@ -128,6 +177,55 @@ export function useReportsData(period: PeriodOption = "6months") {
         });
       }
 
+      // ==========================================
+      // FETCH PREVIOUS PERIOD DATA FOR COMPARISON
+      // ==========================================
+      let prevPeriodStart: Date;
+      let prevPeriodEnd: Date;
+
+      if (period === "30days") {
+        prevPeriodEnd = subDays(today, 31);
+        prevPeriodStart = subDays(today, 60);
+      } else {
+        prevPeriodEnd = subMonths(today, monthsCount);
+        prevPeriodStart = subMonths(today, monthsCount * 2);
+      }
+
+      // Fetch previous period sales
+      const { data: prevSalesData } = await supabase
+        .from("sales")
+        .select("total")
+        .eq("status", "completed")
+        .gte("created_at", prevPeriodStart.toISOString())
+        .lte("created_at", prevPeriodEnd.toISOString());
+
+      const prevReceita = (prevSalesData || []).reduce(
+        (acc, s) => acc + Number(s.total),
+        0
+      );
+
+      // Fetch previous period expenses
+      const { data: prevExpensesData } = await supabase
+        .from("expenses")
+        .select("amount")
+        .gte("due_date", format(prevPeriodStart, "yyyy-MM-dd"))
+        .lte("due_date", format(prevPeriodEnd, "yyyy-MM-dd"));
+
+      const prevDespesa = (prevExpensesData || []).reduce(
+        (acc, e) => acc + Number(e.amount),
+        0
+      );
+
+      const prevLucro = prevReceita - prevDespesa;
+      const totalLucro = totalReceita - totalDespesa;
+
+      // Calculate comparisons
+      const comparison = {
+        receita: calculateComparison(totalReceita, prevReceita),
+        despesa: calculateComparison(totalDespesa, prevDespesa),
+        lucro: calculateComparison(totalLucro, prevLucro),
+      };
+
       // Fetch category data from sale_items
       const periodStart = period === "30days" 
         ? subDays(today, 30) 
@@ -184,9 +282,10 @@ export function useReportsData(period: PeriodOption = "6months") {
       setStats({
         totalReceita,
         totalDespesa,
-        totalLucro: totalReceita - totalDespesa,
+        totalLucro,
         monthlyData,
         categoryData,
+        comparison,
       });
     } catch (error) {
       console.error("Error fetching report data:", error);

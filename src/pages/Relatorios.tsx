@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useReportsData, PeriodOption, periodLabels } from "@/hooks/useReportsData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { ComparisonBadge } from "@/components/reports/ComparisonBadge";
 import {
   Select,
   SelectContent,
@@ -15,7 +16,7 @@ import {
 
 export default function Relatorios() {
   const [period, setPeriod] = useState<PeriodOption>("6months");
-  const { totalReceita, totalDespesa, totalLucro, monthlyData, categoryData, loading } = useReportsData(period);
+  const { totalReceita, totalDespesa, totalLucro, monthlyData, categoryData, comparison, loading } = useReportsData(period);
 
   const handleExport = () => {
     if (monthlyData.length === 0) {
@@ -55,10 +56,25 @@ export default function Relatorios() {
 
     // SEÇÃO 3 - Resumo
     lines.push(`RESUMO (${periodLabels[period]})`);
-    lines.push(["Indicador", "Valor"].join(sep));
-    lines.push(["Total Receitas", totalReceita.toFixed(2).replace(".", ",")].join(sep));
-    lines.push(["Total Despesas", totalDespesa.toFixed(2).replace(".", ",")].join(sep));
-    lines.push(["Lucro Total", totalLucro.toFixed(2).replace(".", ",")].join(sep));
+    lines.push(["Indicador", "Valor", "Variação (%)", "vs Período Anterior"].join(sep));
+    lines.push([
+      "Total Receitas", 
+      totalReceita.toFixed(2).replace(".", ","),
+      comparison.receita.percentChange.toFixed(1).replace(".", ",") + "%",
+      comparison.receita.difference.toFixed(2).replace(".", ",")
+    ].join(sep));
+    lines.push([
+      "Total Despesas", 
+      totalDespesa.toFixed(2).replace(".", ","),
+      comparison.despesa.percentChange.toFixed(1).replace(".", ",") + "%",
+      comparison.despesa.difference.toFixed(2).replace(".", ",")
+    ].join(sep));
+    lines.push([
+      "Lucro Total", 
+      totalLucro.toFixed(2).replace(".", ","),
+      comparison.lucro.percentChange.toFixed(1).replace(".", ",") + "%",
+      comparison.lucro.difference.toFixed(2).replace(".", ",")
+    ].join(sep));
 
     const csv = lines.join("\r\n");
     const BOM = "\uFEFF";
@@ -86,7 +102,7 @@ export default function Relatorios() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            <Skeleton key={i} className="h-32 w-full rounded-xl" />
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -131,7 +147,7 @@ export default function Relatorios() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards with Comparison */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-slide-up">
         <div className="stat-card">
           <div className="flex items-center gap-3">
@@ -139,10 +155,15 @@ export default function Relatorios() {
               <TrendingUp className="w-5 h-5 text-success" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-muted-foreground">Receita Total ({periodLabels[period]})</p>
+              <p className="text-sm text-muted-foreground">Receita Total</p>
               <p className="text-xl font-bold text-success truncate">
                 R$ {totalReceita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
+              <ComparisonBadge 
+                percentChange={comparison.receita.percentChange}
+                difference={comparison.receita.difference}
+                trend={comparison.receita.trend}
+              />
             </div>
           </div>
         </div>
@@ -152,10 +173,16 @@ export default function Relatorios() {
               <TrendingDown className="w-5 h-5 text-destructive" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-muted-foreground">Despesas Total ({periodLabels[period]})</p>
+              <p className="text-sm text-muted-foreground">Despesas Total</p>
               <p className="text-xl font-bold text-destructive truncate">
                 R$ {totalDespesa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
+              <ComparisonBadge 
+                percentChange={comparison.despesa.percentChange}
+                difference={comparison.despesa.difference}
+                trend={comparison.despesa.trend}
+                invertColors // For expenses, down is good
+              />
             </div>
           </div>
         </div>
@@ -165,10 +192,15 @@ export default function Relatorios() {
               <DollarSign className="w-5 h-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-muted-foreground">Lucro Total ({periodLabels[period]})</p>
+              <p className="text-sm text-muted-foreground">Lucro Total</p>
               <p className="text-xl font-bold text-primary truncate">
                 R$ {totalLucro.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
+              <ComparisonBadge 
+                percentChange={comparison.lucro.percentChange}
+                difference={comparison.lucro.difference}
+                trend={comparison.lucro.trend}
+              />
             </div>
           </div>
         </div>

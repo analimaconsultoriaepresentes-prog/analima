@@ -62,6 +62,11 @@ export type Database = {
           due_date: string
           expense_type: string
           id: string
+          is_recurring: boolean
+          parent_expense_id: string | null
+          recurring_day: number | null
+          recurring_end_date: string | null
+          recurring_start_date: string | null
           status: string
           updated_at: string
           user_id: string
@@ -74,6 +79,11 @@ export type Database = {
           due_date: string
           expense_type?: string
           id?: string
+          is_recurring?: boolean
+          parent_expense_id?: string | null
+          recurring_day?: number | null
+          recurring_end_date?: string | null
+          recurring_start_date?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -86,11 +96,24 @@ export type Database = {
           due_date?: string
           expense_type?: string
           id?: string
+          is_recurring?: boolean
+          parent_expense_id?: string | null
+          recurring_day?: number | null
+          recurring_end_date?: string | null
+          recurring_start_date?: string | null
           status?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "expenses_parent_expense_id_fkey"
+            columns: ["parent_expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
