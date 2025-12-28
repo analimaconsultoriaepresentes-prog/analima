@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Minus, Plus, ShoppingCart, Trash2, Search, User } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2, Search, User, UserPlus, Phone, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Drawer,
   DrawerContent,
@@ -27,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Customer } from "@/hooks/useCustomers";
+import { Customer, CustomerFormData } from "@/hooks/useCustomers";
 
 interface Product {
   id: string;
@@ -49,6 +50,7 @@ interface SaleFormProps {
   products: Product[];
   customers: Customer[];
   onSubmit: (items: CartItem[], paymentMethod: string, total: number, customerId?: string) => void;
+  onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
 }
 
 const paymentMethods = [
@@ -63,17 +65,26 @@ function SaleFormContent({
   customers,
   onSubmit,
   onClose,
+  onAddCustomer,
 }: {
   products: Product[];
   customers: Customer[];
   onSubmit: (items: CartItem[], paymentMethod: string, total: number, customerId?: string) => void;
   onClose: () => void;
+  onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
 }) {
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [customerSearch, setCustomerSearch] = useState("");
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerBirthday, setNewCustomerBirthday] = useState("");
+  const [newCustomerNotes, setNewCustomerNotes] = useState("");
+  const [savingCustomer, setSavingCustomer] = useState(false);
 
   const availableProducts = products.filter(
     (p) =>
@@ -174,68 +185,194 @@ function SaleFormContent({
 
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
 
+  const handleSaveNewCustomer = async () => {
+    if (!newCustomerName.trim() || !newCustomerPhone.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Nome e telefone são obrigatórios.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingCustomer(true);
+    const customerId = await onAddCustomer({
+      name: newCustomerName.trim(),
+      phone: newCustomerPhone.trim(),
+      birthday: newCustomerBirthday || undefined,
+      notes: newCustomerNotes.trim() || undefined,
+    });
+    setSavingCustomer(false);
+
+    if (customerId) {
+      setSelectedCustomerId(customerId);
+      setShowNewCustomerForm(false);
+      setNewCustomerName("");
+      setNewCustomerPhone("");
+      setNewCustomerBirthday("");
+      setNewCustomerNotes("");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Cliente (opcional) */}
-      <div>
-        <Label className="mb-2 block text-sm font-medium flex items-center gap-2">
+      <div className="space-y-2">
+        <Label className="block text-sm font-medium flex items-center gap-2">
           <User className="w-4 h-4" />
           Cliente (opcional)
         </Label>
+        
         {selectedCustomer ? (
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
-            <div>
-              <p className="font-medium text-sm">{selectedCustomer.name}</p>
-              {selectedCustomer.phone && (
-                <p className="text-xs text-muted-foreground">{selectedCustomer.phone}</p>
-              )}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">{selectedCustomer.name}</p>
+                {selectedCustomer.phone && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Phone className="w-3 h-3" />
+                    {selectedCustomer.phone}
+                  </p>
+                )}
+              </div>
             </div>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => setSelectedCustomerId("")}
+              className="text-destructive hover:text-destructive"
             >
               Remover
             </Button>
           </div>
+        ) : showNewCustomerForm ? (
+          // Quick customer registration form
+          <div className="space-y-3 p-4 rounded-lg border border-border bg-muted/30">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-primary" />
+                Cadastro rápido
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowNewCustomerForm(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+            
+            <div className="grid gap-3">
+              <div>
+                <Label htmlFor="quick-name" className="text-xs">Nome *</Label>
+                <Input
+                  id="quick-name"
+                  value={newCustomerName}
+                  onChange={(e) => setNewCustomerName(e.target.value)}
+                  placeholder="Nome do cliente"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="quick-phone" className="text-xs">Telefone/WhatsApp *</Label>
+                <Input
+                  id="quick-phone"
+                  type="tel"
+                  value={newCustomerPhone}
+                  onChange={(e) => setNewCustomerPhone(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  className="mt-1"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="quick-birthday" className="text-xs">Aniversário</Label>
+                  <Input
+                    id="quick-birthday"
+                    type="date"
+                    value={newCustomerBirthday}
+                    onChange={(e) => setNewCustomerBirthday(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    onClick={handleSaveNewCustomer}
+                    disabled={savingCustomer || !newCustomerName.trim() || !newCustomerPhone.trim()}
+                    className="w-full"
+                    size="sm"
+                  >
+                    {savingCustomer ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4 mr-1" />
+                        Salvar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar cliente..."
-              value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
-              className="pl-10"
-            />
-            {customerSearch && (
-              <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-32 overflow-y-auto border border-border rounded-lg bg-card shadow-lg divide-y divide-border">
-                {filteredCustomers.length === 0 ? (
-                  <div className="p-3 text-sm text-muted-foreground text-center">
-                    Nenhum cliente encontrado
-                  </div>
-                ) : (
-                  filteredCustomers.slice(0, 5).map((customer) => (
-                    <button
-                      key={customer.id}
-                      type="button"
-                      className="w-full p-3 flex items-center justify-between hover:bg-muted/50 text-left"
-                      onClick={() => {
-                        setSelectedCustomerId(customer.id);
-                        setCustomerSearch("");
-                      }}
-                    >
-                      <div>
-                        <p className="font-medium text-sm">{customer.name}</p>
-                        {customer.phone && (
-                          <p className="text-xs text-muted-foreground">{customer.phone}</p>
-                        )}
+          // Customer search and buttons
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar cliente..."
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  className="pl-10"
+                />
+                {customerSearch && (
+                  <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-32 overflow-y-auto border border-border rounded-lg bg-card shadow-lg divide-y divide-border">
+                    {filteredCustomers.length === 0 ? (
+                      <div className="p-3 text-sm text-muted-foreground text-center">
+                        Nenhum cliente encontrado
                       </div>
-                    </button>
-                  ))
+                    ) : (
+                      filteredCustomers.slice(0, 5).map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          className="w-full p-3 flex items-center justify-between hover:bg-muted/50 text-left"
+                          onClick={() => {
+                            setSelectedCustomerId(customer.id);
+                            setCustomerSearch("");
+                          }}
+                        >
+                          <div>
+                            <p className="font-medium text-sm">{customer.name}</p>
+                            {customer.phone && (
+                              <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
                 )}
               </div>
-            )}
+              <Button
+                type="button"
+                variant="outline"
+                size={isMobile ? "default" : "icon"}
+                onClick={() => setShowNewCustomerForm(true)}
+                className={cn(isMobile && "px-3")}
+              >
+                <UserPlus className="w-4 h-4" />
+                {isMobile && <span className="ml-1">Novo</span>}
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -400,7 +537,7 @@ function SaleFormContent({
   );
 }
 
-export function SaleForm({ open, onOpenChange, products, customers, onSubmit }: SaleFormProps) {
+export function SaleForm({ open, onOpenChange, products, customers, onSubmit, onAddCustomer }: SaleFormProps) {
   const isMobile = useIsMobile();
 
   const handleClose = () => {
@@ -425,7 +562,7 @@ export function SaleForm({ open, onOpenChange, products, customers, onSubmit }: 
             <DrawerDescription>Adicione produtos e finalize a venda.</DrawerDescription>
           </DrawerHeader>
           <div className="px-4 pb-6 overflow-y-auto flex-1">
-            <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} />
+            <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} onAddCustomer={onAddCustomer} />
           </div>
         </DrawerContent>
       </Drawer>
@@ -440,7 +577,7 @@ export function SaleForm({ open, onOpenChange, products, customers, onSubmit }: 
           <DialogDescription>Adicione produtos e finalize a venda.</DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto">
-          <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} />
+          <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} onAddCustomer={onAddCustomer} />
         </div>
       </DialogContent>
     </Dialog>

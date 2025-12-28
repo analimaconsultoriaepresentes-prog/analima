@@ -22,7 +22,7 @@ import { Customer, CustomerFormData } from "@/hooks/useCustomers";
 interface CustomerFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: CustomerFormData) => Promise<boolean>;
+  onSubmit: (data: CustomerFormData) => Promise<string | boolean | null>;
   customer?: Customer | null;
 }
 
@@ -31,7 +31,7 @@ function CustomerFormContent({
   customer,
   onClose,
 }: {
-  onSubmit: (data: CustomerFormData) => Promise<boolean>;
+  onSubmit: (data: CustomerFormData) => Promise<string | boolean | null>;
   customer?: Customer | null;
   onClose: () => void;
 }) {
@@ -64,7 +64,7 @@ function CustomerFormContent({
     if (!name.trim()) return;
 
     setLoading(true);
-    const success = await onSubmit({
+    const result = await onSubmit({
       name: name.trim(),
       phone: phone.trim() || undefined,
       email: email.trim() || undefined,
@@ -73,7 +73,8 @@ function CustomerFormContent({
     });
     setLoading(false);
 
-    if (success) {
+    // Success if result is truthy (true or a string ID)
+    if (result) {
       onClose();
     }
   };
