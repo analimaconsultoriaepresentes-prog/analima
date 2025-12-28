@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Minus, Package, ShoppingBasket, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Package, ShoppingBasket, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,7 @@ interface BasketCompositionFormProps {
   onPackagingCostChange: (cost: number) => void;
   desiredMargin: number;
   onDesiredMarginChange: (margin: number) => void;
+  isEditing?: boolean;
 }
 
 export function BasketCompositionForm({
@@ -41,9 +42,9 @@ export function BasketCompositionForm({
   onPackagingCostChange,
   desiredMargin,
   onDesiredMarginChange,
+  isEditing = false,
 }: BasketCompositionFormProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>("");
-  const [selectedRemoveProductId, setSelectedRemoveProductId] = useState<string>("");
 
   // Filter out products that are already in the basket or are baskets themselves
   const selectableProducts = useMemo(() => {
@@ -67,35 +68,45 @@ export function BasketCompositionForm({
   const estimatedProfit = suggestedSalePrice - totalCost;
 
   const handleAddProduct = () => {
-    if (!selectedProductId) return;
+    if (!selectedProductId) {
+      toast.error("Selecione um produto para adicionar");
+      return;
+    }
 
     const product = availableProducts.find((p) => p.id === selectedProductId);
     if (!product) return;
 
-    const newItem: BasketItemInput = {
-      productId: product.id,
-      productName: product.name,
-      quantity: 1,
-      costPrice: product.costPrice,
-      salePrice: product.salePrice,
-    };
-
-    onItemsChange([...items, newItem]);
+    // Check if product already exists - if so, increment quantity
+    const existingItem = items.find((i) => i.productId === selectedProductId);
+    if (existingItem) {
+      onItemsChange(
+        items.map((i) =>
+          i.productId === selectedProductId
+            ? { ...i, quantity: i.quantity + 1 }
+            : i
+        )
+      );
+      toast.success(`Quantidade de ${product.name} aumentada`);
+    } else {
+      const newItem: BasketItemInput = {
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        costPrice: product.costPrice,
+        salePrice: product.salePrice,
+      };
+      onItemsChange([...items, newItem]);
+      toast.success(`${product.name} adicionado à cesta`);
+    }
     setSelectedProductId("");
   };
 
   const handleRemoveItem = (productId: string) => {
+    const item = items.find((i) => i.productId === productId);
     onItemsChange(items.filter((i) => i.productId !== productId));
-  };
-
-  const handleRemoveFromDropdown = () => {
-    if (!selectedRemoveProductId) {
-      toast.error("Selecione um produto para retirar da cesta");
-      return;
+    if (item) {
+      toast.success(`${item.productName} removido da cesta`);
     }
-    handleRemoveItem(selectedRemoveProductId);
-    setSelectedRemoveProductId("");
-    toast.success("Produto removido da cesta");
   };
 
   const handleQuantityChange = (productId: string, quantity: number) => {
@@ -120,7 +131,7 @@ export function BasketCompositionForm({
             <SelectContent>
               {selectableProducts.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-muted-foreground">
-                  Nenhum produto disponível
+                  {items.length > 0 ? "Todos os produtos já estão na cesta" : "Nenhum produto disponível"}
                 </div>
               ) : (
                 selectableProducts.map((product) => (
@@ -128,7 +139,7 @@ export function BasketCompositionForm({
                     <div className="flex items-center justify-between gap-2">
                       <span>{product.name}</span>
                       <span className="text-xs text-muted-foreground">
-                        R$ {product.costPrice.toFixed(2)}
+                        R$ {product.costPrice.toFixed(2)} | Estoque: {product.stock}
                       </span>
                     </div>
                   </SelectItem>
@@ -148,77 +159,65 @@ export function BasketCompositionForm({
         </div>
       </div>
 
-      {/* Remove Product Section - Only show if there are items */}
-      {items.length > 0 && (
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Retirar Produto da Cesta</Label>
-          <div className="flex gap-2">
-            <Select value={selectedRemoveProductId} onValueChange={setSelectedRemoveProductId}>
-              <SelectTrigger className="flex-1 input-styled min-h-[44px]">
-                <SelectValue placeholder="Selecione um produto para retirar" />
-              </SelectTrigger>
-              <SelectContent>
-                {items.map((item) => (
-                  <SelectItem key={item.productId} value={item.productId}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>{item.productName}</span>
-                      <span className="text-xs text-muted-foreground">
-                        (qtd: {item.quantity})
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleRemoveFromDropdown}
-              disabled={!selectedRemoveProductId}
-              className="min-h-[44px] gap-2"
-            >
-              <Minus className="w-4 h-4" />
-              <span className="hidden sm:inline">Retirar</span>
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Items List */}
       {items.length > 0 ? (
         <div className="space-y-3">
           <Label className="text-sm font-medium">
             Itens da Cesta ({items.length})
           </Label>
-          <ScrollArea className="max-h-[200px]">
+          <ScrollArea className="max-h-[250px]">
             <div className="space-y-2">
-              {items.map((item) => (
-                <div
-                  key={item.productId}
-                  className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border/50"
-                >
-                  <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                    <Package className="w-4 h-4 text-muted-foreground" />
+              {items.map((item) => {
+                const product = availableProducts.find((p) => p.id === item.productId);
+                const hasLowStock = product && product.stock < item.quantity;
+                
+                return (
+                  <div
+                    key={item.productId}
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-lg border",
+                      hasLowStock 
+                        ? "bg-warning/5 border-warning/30" 
+                        : "bg-muted/50 border-border/50"
+                    )}
+                  >
+                    <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                      <Package className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{item.productName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        R$ {item.costPrice.toFixed(2)} cada • Subtotal: R$ {(item.costPrice * item.quantity).toFixed(2)}
+                      </p>
+                      {hasLowStock && (
+                        <p className="text-xs text-warning mt-0.5">
+                          Estoque insuficiente (disponível: {product?.stock || 0})
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          handleQuantityChange(item.productId, parseInt(e.target.value) || 1)
+                        }
+                        className="w-16 h-8 text-center input-styled"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleRemoveItem(item.productId)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{item.productName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      R$ {item.costPrice.toFixed(2)} cada • Subtotal: R$ {(item.costPrice * item.quantity).toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        handleQuantityChange(item.productId, parseInt(e.target.value) || 1)
-                      }
-                      className="w-16 h-8 text-center input-styled"
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </ScrollArea>
         </div>
@@ -228,90 +227,93 @@ export function BasketCompositionForm({
           <p className="text-sm text-muted-foreground text-center">
             Nenhum item na cesta
           </p>
+          {isEditing && (
+            <p className="text-xs text-muted-foreground text-center mt-1">
+              Adicione produtos para compor a cesta
+            </p>
+          )}
         </div>
       )}
 
       {/* Costs Section */}
-      {items.length > 0 && (
-        <div className="space-y-4 pt-4 border-t border-border/50">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm">Custo dos Itens</Label>
-              <div className="h-[44px] flex items-center px-3 bg-muted/50 rounded-md border border-border/50">
-                <span className="font-medium">R$ {totalItemsCost.toFixed(2)}</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="packaging-cost" className="text-sm">Custo Embalagem</Label>
-              <Input
-                id="packaging-cost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={packagingCost}
-                onChange={(e) => onPackagingCostChange(parseFloat(e.target.value) || 0)}
-                className="input-styled min-h-[44px]"
-                placeholder="0,00"
-              />
+      <div className="space-y-4 pt-4 border-t border-border/50">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-sm">Custo dos Itens</Label>
+            <div className="h-[44px] flex items-center px-3 bg-muted/50 rounded-md border border-border/50">
+              <span className="font-medium">R$ {totalItemsCost.toFixed(2)}</span>
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm">Custo Total</Label>
-              <div className="h-[44px] flex items-center px-3 bg-primary/10 rounded-md border border-primary/20">
-                <span className="font-bold text-primary">R$ {totalCost.toFixed(2)}</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="desired-margin" className="text-sm">Margem Desejada (%)</Label>
-              <Input
-                id="desired-margin"
-                type="number"
-                min="0"
-                step="0.1"
-                value={desiredMargin}
-                onChange={(e) => onDesiredMarginChange(parseFloat(e.target.value) || 0)}
-                className="input-styled min-h-[44px]"
-                placeholder="50"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="packaging-cost" className="text-sm">Custo Embalagem</Label>
+            <Input
+              id="packaging-cost"
+              type="number"
+              min="0"
+              step="0.01"
+              value={packagingCost}
+              onChange={(e) => onPackagingCostChange(parseFloat(e.target.value) || 0)}
+              className="input-styled min-h-[44px]"
+              placeholder="0,00"
+            />
           </div>
-
-          {/* Suggested Price & Profit */}
-          {desiredMargin > 0 && (
-            <div className="bg-success/5 border border-success/20 rounded-lg p-4 animate-fade-in">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground text-xs">Preço de Venda Sugerido</p>
-                  <p className="font-bold text-success text-lg">
-                    R$ {suggestedSalePrice.toFixed(2)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs">Lucro Estimado</p>
-                  <p className="font-bold text-success text-lg">
-                    R$ {estimatedProfit.toFixed(2)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Warning for low stock items */}
-          {items.some((item) => {
-            const product = availableProducts.find((p) => p.id === item.productId);
-            return product && product.stock < item.quantity;
-          }) && (
-            <div className="flex items-start gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg">
-              <AlertCircle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-warning">
-                Alguns itens têm estoque insuficiente para a quantidade selecionada.
-              </p>
-            </div>
-          )}
         </div>
-      )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-sm">Custo Total</Label>
+            <div className="h-[44px] flex items-center px-3 bg-primary/10 rounded-md border border-primary/20">
+              <span className="font-bold text-primary">R$ {totalCost.toFixed(2)}</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="desired-margin" className="text-sm">Margem Desejada (%)</Label>
+            <Input
+              id="desired-margin"
+              type="number"
+              min="0"
+              step="0.1"
+              value={desiredMargin}
+              onChange={(e) => onDesiredMarginChange(parseFloat(e.target.value) || 0)}
+              className="input-styled min-h-[44px]"
+              placeholder="50"
+            />
+          </div>
+        </div>
+
+        {/* Suggested Price & Profit */}
+        {desiredMargin > 0 && totalCost > 0 && (
+          <div className="bg-success/5 border border-success/20 rounded-lg p-4 animate-fade-in">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground text-xs">Preço de Venda Sugerido</p>
+                <p className="font-bold text-success text-lg">
+                  R$ {suggestedSalePrice.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Lucro Estimado</p>
+                <p className="font-bold text-success text-lg">
+                  R$ {estimatedProfit.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Warning for low stock items */}
+        {items.some((item) => {
+          const product = availableProducts.find((p) => p.id === item.productId);
+          return product && product.stock < item.quantity;
+        }) && (
+          <div className="flex items-start gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+            <AlertCircle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-warning">
+              Alguns itens têm estoque insuficiente para a quantidade selecionada.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

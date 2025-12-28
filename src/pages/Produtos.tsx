@@ -103,24 +103,17 @@ export default function Produtos() {
   };
 
   const handleAddProduct = async (data: ProductFormData, basketItems?: BasketItemInput[]) => {
-    const success = await addProduct(data);
-    if (success) {
-      // If it's a basket, we need to save the basket items after getting the product ID
+    const productId = await addProduct(data);
+    if (productId) {
+      // If it's a basket, save the basket items using the returned product ID
       if (data.isBasket && basketItems && basketItems.length > 0) {
-        // Refetch to get the new product
-        await refetch();
-        const newProduct = products.find(
-          (p) => p.name === data.name && p.isBasket
+        await saveBasketItems(
+          productId,
+          basketItems.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          }))
         );
-        if (newProduct) {
-          await saveBasketItems(
-            newProduct.id,
-            basketItems.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-            }))
-          );
-        }
       }
       setIsFormOpen(false);
     }
