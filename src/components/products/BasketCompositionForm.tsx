@@ -169,16 +169,20 @@ export function BasketCompositionForm({
             <div className="space-y-2">
               {items.map((item) => {
                 const product = availableProducts.find((p) => p.id === item.productId);
-                const hasLowStock = product && product.stock < item.quantity;
+                const currentStock = product?.stock ?? 0;
+                const hasLowStock = product && currentStock < item.quantity;
+                const hasNoStock = currentStock === 0;
                 
                 return (
                   <div
                     key={item.productId}
                     className={cn(
                       "flex items-center gap-3 p-3 rounded-lg border",
-                      hasLowStock 
-                        ? "bg-warning/5 border-warning/30" 
-                        : "bg-muted/50 border-border/50"
+                      hasNoStock
+                        ? "bg-destructive/5 border-destructive/30"
+                        : hasLowStock 
+                          ? "bg-warning/5 border-warning/30" 
+                          : "bg-muted/50 border-border/50"
                     )}
                   >
                     <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
@@ -189,11 +193,21 @@ export function BasketCompositionForm({
                       <p className="text-xs text-muted-foreground">
                         R$ {item.costPrice.toFixed(2)} cada • Subtotal: R$ {(item.costPrice * item.quantity).toFixed(2)}
                       </p>
-                      {hasLowStock && (
-                        <p className="text-xs text-warning mt-0.5">
-                          Estoque insuficiente (disponível: {product?.stock || 0})
-                        </p>
-                      )}
+                      <p className={cn(
+                        "text-xs mt-0.5",
+                        hasNoStock 
+                          ? "text-destructive font-medium" 
+                          : hasLowStock 
+                            ? "text-warning" 
+                            : "text-muted-foreground"
+                      )}>
+                        {hasNoStock 
+                          ? "Sem estoque" 
+                          : hasLowStock 
+                            ? `Estoque insuficiente: ${currentStock} un.`
+                            : `Estoque: ${currentStock} un.`
+                        }
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Input
