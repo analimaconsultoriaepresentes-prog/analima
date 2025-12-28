@@ -124,6 +124,7 @@ export type Database = {
           expiry_date: string | null
           id: string
           name: string
+          origin: string
           sale_price: number
           stock: number
           updated_at: string
@@ -137,6 +138,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           name: string
+          origin?: string
           sale_price?: number
           stock?: number
           updated_at?: string
@@ -150,6 +152,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           name?: string
+          origin?: string
           sale_price?: number
           stock?: number
           updated_at?: string
