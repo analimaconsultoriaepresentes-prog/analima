@@ -12,6 +12,11 @@ export interface Expense {
   due_date: string;
   status: "pago" | "pendente";
   expense_type: "fixa" | "variavel";
+  is_recurring: boolean;
+  recurring_day: number | null;
+  recurring_start_date: string | null;
+  recurring_end_date: string | null;
+  parent_expense_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -23,6 +28,10 @@ export interface ExpenseFormData {
   due_date: string;
   status: "pago" | "pendente";
   expense_type: "fixa" | "variavel";
+  is_recurring?: boolean;
+  recurring_day?: number | null;
+  recurring_start_date?: string | null;
+  recurring_end_date?: string | null;
 }
 
 export function useExpenses() {
@@ -54,6 +63,10 @@ export function useExpenses() {
         .insert({
           ...expenseData,
           user_id: user.id,
+          is_recurring: expenseData.is_recurring || false,
+          recurring_day: expenseData.recurring_day || null,
+          recurring_start_date: expenseData.recurring_start_date || null,
+          recurring_end_date: expenseData.recurring_end_date || null,
         })
         .select()
         .single();
@@ -130,25 +143,54 @@ export function useExpenses() {
     },
   });
 
-  // Cálculos
-  const totalPending = expenses
+  const stopRecurring = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("expenses")
+        .update({ 
+          is_recurring: false,
+          recurring_end_date: new Date().toISOString().split('T')[0]
+        })
+        .eq("id", id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      toast.success("Recorrência encerrada!");
+    },
+    onError: (error) => {
+      console.error("Erro ao encerrar recorrência:", error);
+      toast.error("Erro ao encerrar recorrência");
+    },
+  });
+
+  // Separate recurring templates from regular expenses
+  const recurringTemplates = expenses.filter((e) => e.is_recurring);
+  const regularExpenses = expenses.filter((e) => !e.is_recurring);
+
+  // Cálculos (only for regular expenses, not templates)
+  const totalPending = regularExpenses
     .filter((e) => e.status === "pendente")
     .reduce((acc, e) => acc + Number(e.amount), 0);
 
-  const totalPaid = expenses
+  const totalPaid = regularExpenses
     .filter((e) => e.status === "pago")
     .reduce((acc, e) => acc + Number(e.amount), 0);
 
   const totalMonth = totalPending + totalPaid;
 
   return {
-    expenses,
+    expenses: regularExpenses,
+    recurringTemplates,
+    allExpenses: expenses,
     isLoading,
     error,
     createExpense,
     updateExpense,
     deleteExpense,
     toggleExpenseStatus,
+    stopRecurring,
     totalPending,
     totalPaid,
     totalMonth,
