@@ -85,28 +85,19 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
     return digits;
   };
 
+  const getBirthdayMessage = (customer: BirthdayCustomer): string => {
+    const firstName = customer.name.split(" ")[0] || customer.name;
+    // Keep as plain UTF-8 string; no encoding/decoding here.
+    return birthdayMessage.replace(/\{NOME\}/g, firstName);
+  };
+
   const getWhatsAppUrl = (customer: BirthdayCustomer): string => {
     const phone = normalizePhone(customer.phone || "");
-    
-    // Ensure message is plain text (decode if already encoded from legacy data)
-    let plainMessage = birthdayMessage;
-    try {
-      // Check if message appears to be URL encoded (contains %XX patterns)
-      if (/%[0-9A-Fa-f]{2}/.test(birthdayMessage)) {
-        plainMessage = decodeURIComponent(birthdayMessage);
-      }
-    } catch {
-      // If decoding fails, use original message
-      plainMessage = birthdayMessage;
-    }
-    
-    // Replace placeholder with customer first name
-    const message = plainMessage.replace("{NOME}", customer.name.split(" ")[0]);
-    
-    // Apply encodeURIComponent ONLY ONCE here
-    const encodedMessage = encodeURIComponent(message);
-    
-    return `https://wa.me/${phone}?text=${encodedMessage}`;
+    const message = getBirthdayMessage(customer);
+
+    // Encode ONLY at URL creation time.
+    const params = new URLSearchParams({ text: message });
+    return `https://wa.me/${phone}?${params.toString()}`;
   };
 
   const currentMonthName = format(today, "MMMM", { locale: ptBR });
@@ -132,14 +123,13 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
         {/* Today's birthdays */}
         {todayBirthdays.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-primary uppercase tracking-wide">
-              🎉 Hoje
-            </p>
+            <p className="text-xs font-semibold text-primary uppercase tracking-wide">🎉 Hoje</p>
             <div className="space-y-2">
               {todayBirthdays.map((customer) => (
                 <BirthdayItem
                   key={customer.id}
                   customer={customer}
+                  previewMessage={getBirthdayMessage(customer)}
                   whatsappUrl={getWhatsAppUrl(customer)}
                   highlight
                 />
@@ -151,14 +141,13 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
         {/* Upcoming 7 days */}
         {upcomingBirthdays.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Próximos 7 dias
-            </p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Próximos 7 dias</p>
             <div className="space-y-2">
               {upcomingBirthdays.map((customer) => (
                 <BirthdayItem
                   key={customer.id}
                   customer={customer}
+                  previewMessage={getBirthdayMessage(customer)}
                   whatsappUrl={getWhatsAppUrl(customer)}
                 />
               ))}
@@ -178,14 +167,13 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
                 <BirthdayItem
                   key={customer.id}
                   customer={customer}
+                  previewMessage={getBirthdayMessage(customer)}
                   whatsappUrl={getWhatsAppUrl(customer)}
                 />
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground py-3 text-center">
-              Nenhum aniversariante neste mês.
-            </p>
+            <p className="text-sm text-muted-foreground py-3 text-center">Nenhum aniversariante neste mês.</p>
           )}
         </div>
       </CardContent>
@@ -195,10 +183,12 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
 
 function BirthdayItem({
   customer,
+  previewMessage,
   whatsappUrl,
   highlight = false,
 }: {
   customer: BirthdayCustomer;
+  previewMessage: string;
   whatsappUrl: string;
   highlight?: boolean;
 }) {
@@ -211,17 +201,13 @@ function BirthdayItem({
   return (
     <div
       className={cn(
-        "flex items-center justify-between p-3 rounded-lg border",
-        highlight
-          ? "bg-primary/10 border-primary/30"
-          : "bg-muted/30 border-border/50"
+        "flex flex-col gap-3 p-3 rounded-lg border sm:flex-row sm:items-center sm:justify-between",
+        highlight ? "bg-primary/10 border-primary/30" : "bg-muted/30 border-border/50"
       )}
     >
       <div className="flex-1 min-w-0">
-        <p className={cn("font-medium text-sm truncate", highlight && "text-primary")}>
-          {customer.name}
-        </p>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+        <p className={cn("font-medium text-sm truncate", highlight && "text-primary")}>{customer.name}</p>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-0.5">
           <span>{formattedDate}</span>
           {customer.phone && (
             <>
@@ -233,27 +219,35 @@ function BirthdayItem({
             </>
           )}
         </div>
+
+        {/* Debug: preview of the final (plain) message before opening WhatsApp */}
+        <details className="mt-2">
+          <summary className="text-xs text-muted-foreground cursor-pointer select-none">Preview da mensagem</summary>
+          <div className="mt-2 rounded-md border border-border/50 bg-background/50 p-2 text-xs text-foreground whitespace-pre-wrap break-words">
+            {previewMessage}
+          </div>
+        </details>
       </div>
-      
+
       {hasValidPhone ? (
         <a
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
           className={cn(
-            "inline-flex items-center justify-center gap-1.5 shrink-0 rounded-md text-sm font-medium h-9 px-3 transition-colors",
-            highlight 
-              ? "bg-green-600 text-white hover:bg-green-700" 
+            "inline-flex w-full items-center justify-center gap-1.5 shrink-0 rounded-md text-sm font-medium h-10 px-3 transition-colors sm:w-auto",
+            highlight
+              ? "bg-green-600 text-white hover:bg-green-700"
               : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
           )}
         >
           <MessageCircle className="w-4 h-4" />
-          <span className="hidden sm:inline">WhatsApp</span>
+          <span className="sm:inline">WhatsApp</span>
         </a>
       ) : (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground sm:justify-end">
           <AlertCircle className="w-3 h-3" />
-          <span className="hidden sm:inline">Sem WhatsApp</span>
+          <span className="sm:inline">Sem WhatsApp</span>
         </div>
       )}
     </div>
