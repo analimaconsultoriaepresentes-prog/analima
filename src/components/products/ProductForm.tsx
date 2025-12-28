@@ -105,8 +105,8 @@ function ProductFormContent({
 }) {
   const [desiredMargin, setDesiredMargin] = useState<string>("");
   const isManualSalePriceEdit = useRef(false);
-  const [basketItems, setBasketItems] = useState<BasketItemInput[]>(initialBasketItems);
-  const [basketPackagingCost, setBasketPackagingCost] = useState<number>(editProduct?.packagingCost || 0);
+  const [basketItems, setBasketItems] = useState<BasketItemInput[]>([]);
+  const [basketPackagingCost, setBasketPackagingCost] = useState<number>(0);
   const [basketDesiredMargin, setBasketDesiredMargin] = useState<number>(50);
   
   const costPrice = form.watch("costPrice");
@@ -115,8 +115,32 @@ function ProductFormContent({
   const isBasket = form.watch("isBasket");
   
   const isGift = origin === "gift";
+
+  // Initialize basket items when editing - runs when initialBasketItems changes
+  useEffect(() => {
+    if (initialBasketItems.length > 0) {
+      setBasketItems(initialBasketItems);
+    } else {
+      setBasketItems([]);
+    }
+  }, [initialBasketItems]);
+
+  // Initialize packaging cost when editing a basket
+  useEffect(() => {
+    if (editProduct?.isBasket) {
+      setBasketPackagingCost(editProduct.packagingCost);
+      // Calculate margin from existing prices
+      if (editProduct.costPrice > 0 && editProduct.salePrice > editProduct.costPrice) {
+        const existingMargin = ((editProduct.salePrice - editProduct.costPrice) / editProduct.costPrice) * 100;
+        setBasketDesiredMargin(Math.round(existingMargin * 10) / 10);
+      }
+    } else {
+      setBasketPackagingCost(0);
+      setBasketDesiredMargin(50);
+    }
+  }, [editProduct]);
   
-  // Update form values when basket composition changes
+  // Update form values when basket composition changes (only for NEW baskets or when items change)
   useEffect(() => {
     if (isBasket && basketItems.length > 0) {
       const totalItemsCost = basketItems.reduce((sum, item) => sum + item.costPrice * item.quantity, 0);
@@ -124,28 +148,25 @@ function ProductFormContent({
       form.setValue("costPrice", totalCost, { shouldValidate: true });
       form.setValue("packagingCost", basketPackagingCost, { shouldValidate: true });
       
-      if (basketDesiredMargin > 0) {
+      // Only auto-calculate price if margin is set and we're not editing with existing values
+      if (basketDesiredMargin > 0 && !editProduct?.isBasket) {
+        const suggestedPrice = totalCost * (1 + basketDesiredMargin / 100);
+        form.setValue("salePrice", Math.round(suggestedPrice * 100) / 100, { shouldValidate: true });
+      } else if (basketDesiredMargin > 0 && basketItems !== initialBasketItems) {
+        // When editing and composition changed, recalculate
         const suggestedPrice = totalCost * (1 + basketDesiredMargin / 100);
         form.setValue("salePrice", Math.round(suggestedPrice * 100) / 100, { shouldValidate: true });
       }
     }
-  }, [isBasket, basketItems, basketPackagingCost, basketDesiredMargin, form]);
+  }, [isBasket, basketItems, basketPackagingCost, basketDesiredMargin, form, editProduct?.isBasket, initialBasketItems]);
 
-  // Reset basket items when switching to non-basket
+  // Reset basket items when switching to non-basket (only for new products)
   useEffect(() => {
-    if (!isBasket) {
+    if (!isBasket && !editProduct) {
       setBasketItems([]);
       setBasketPackagingCost(0);
     }
-  }, [isBasket]);
-
-  // Initialize basket items when editing
-  useEffect(() => {
-    if (editProduct?.isBasket && initialBasketItems.length > 0) {
-      setBasketItems(initialBasketItems);
-      setBasketPackagingCost(editProduct.packagingCost);
-    }
-  }, [editProduct, initialBasketItems]);
+  }, [isBasket, editProduct]);
   
   // Auto-set cost to 0 when origin changes to gift
   useEffect(() => {
@@ -630,7 +651,7 @@ export function ProductForm({
   });
 
   // Reset form when editProduct changes
-  useState(() => {
+  useEffect(() => {
     if (editProduct) {
       form.reset({
         name: editProduct.name,
@@ -658,7 +679,7 @@ export function ProductForm({
         packagingCost: 0,
       });
     }
-  });
+  }, [editProduct, form]);
 
   const handleClose = () => {
     form.reset();
