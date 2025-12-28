@@ -131,7 +131,8 @@ export function useBaskets() {
     for (const item of items) {
       const product = products.find((p) => p.id === item.productId);
       if (!product || product.stock < item.quantity) {
-        missingItems.push(`${item.productName} (necessário: ${item.quantity}, disponível: ${product?.stock || 0})`);
+        const available = product?.stock || 0;
+        missingItems.push(`${item.productName}: disponível ${available}, necessário ${item.quantity}`);
       }
     }
 
