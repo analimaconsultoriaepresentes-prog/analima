@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
 import type { Product } from "./useProducts";
+import { useBaskets } from "./useBaskets";
 
 export interface SaleItem {
   id: string;
@@ -33,6 +34,7 @@ export interface CartItem {
 
 export function useSales() {
   const { user } = useAuth();
+  const { checkBasketStock, deductBasketStock } = useBaskets();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -108,9 +110,25 @@ export function useSales() {
     cartItems: CartItem[],
     paymentMethod: string,
     total: number,
-    updateStock: (id: string, quantity: number) => Promise<boolean>
+    updateStock: (id: string, quantity: number) => Promise<boolean>,
+    products: Product[] = []
   ): Promise<boolean> => {
     if (!user) return false;
+
+    // Check basket stock before proceeding
+    for (const item of cartItems) {
+      if (item.product.isBasket) {
+        const stockCheck = await checkBasketStock(item.product.id, products);
+        if (!stockCheck.hasStock) {
+          toast({
+            title: "Estoque insuficiente",
+            description: `Faltam itens para montar a cesta "${item.product.name}": ${stockCheck.missingItems.join(", ")}`,
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
+    }
 
     try {
       // Create sale
@@ -145,6 +163,13 @@ export function useSales() {
 
       // Update stock for each product
       for (const item of cartItems) {
+        if (item.product.isBasket) {
+          // For baskets, deduct stock of component items
+          for (let i = 0; i < item.quantity; i++) {
+            await deductBasketStock(item.product.id, updateStock);
+          }
+        }
+        // Always deduct the basket/product itself
         await updateStock(item.product.id, item.quantity);
       }
 

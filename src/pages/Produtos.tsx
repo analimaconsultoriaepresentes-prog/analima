@@ -1,12 +1,13 @@
-import { useState, useMemo } from "react";
-import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift, PackagePlus } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift, PackagePlus, ShoppingBasket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { ProductForm } from "@/components/products/ProductForm";
+import { ProductForm, type BasketItemInput } from "@/components/products/ProductForm";
 import { StockEntryModal } from "@/components/products/StockEntryModal";
 import { ProductFilters, type ProductFiltersState } from "@/components/products/ProductFilters";
 import { useProducts, type Product, type ProductFormData } from "@/hooks/useProducts";
+import { useBaskets } from "@/hooks/useBaskets";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +39,7 @@ export default function Produtos() {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteProductState, setDeleteProductState] = useState<Product | null>(null);
   const [stockEntryProduct, setStockEntryProduct] = useState<Product | null>(null);
+  const [editBasketItems, setEditBasketItems] = useState<BasketItemInput[]>([]);
   const [filters, setFilters] = useState<ProductFiltersState>({
     categories: [],
     origins: [],
@@ -45,7 +47,13 @@ export default function Produtos() {
     cycle: "",
   });
 
-  const { products, loading, addProduct, updateProduct, deleteProduct, restoreStock } = useProducts();
+  const { products, loading, addProduct, updateProduct, deleteProduct, restoreStock, refetch } = useProducts();
+  const { saveBasketItems, fetchBasketItems } = useBaskets();
+
+  // Filter out baskets for the available products in basket composition
+  const availableProductsForBasket = useMemo(() => {
+    return products.filter((p) => !p.isBasket);
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -90,19 +98,50 @@ export default function Produtos() {
   }, [filters]);
 
   const calculateMargin = (cost: number, sale: number) => {
+    if (cost <= 0) return "100.0";
     return ((sale - cost) / sale * 100).toFixed(1);
   };
 
-  const handleAddProduct = async (data: ProductFormData) => {
+  const handleAddProduct = async (data: ProductFormData, basketItems?: BasketItemInput[]) => {
     const success = await addProduct(data);
-    if (success) setIsFormOpen(false);
+    if (success) {
+      // If it's a basket, we need to save the basket items after getting the product ID
+      if (data.isBasket && basketItems && basketItems.length > 0) {
+        // Refetch to get the new product
+        await refetch();
+        const newProduct = products.find(
+          (p) => p.name === data.name && p.isBasket
+        );
+        if (newProduct) {
+          await saveBasketItems(
+            newProduct.id,
+            basketItems.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            }))
+          );
+        }
+      }
+      setIsFormOpen(false);
+    }
   };
 
-  const handleEditProduct = async (data: ProductFormData) => {
+  const handleEditProduct = async (data: ProductFormData, basketItems?: BasketItemInput[]) => {
     if (!editProduct) return;
     const success = await updateProduct(editProduct.id, data);
     if (success) {
+      // Update basket items if it's a basket
+      if (data.isBasket && basketItems) {
+        await saveBasketItems(
+          editProduct.id,
+          basketItems.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          }))
+        );
+      }
       setEditProduct(null);
+      setEditBasketItems([]);
       setIsFormOpen(false);
     }
   };
@@ -113,8 +152,25 @@ export default function Produtos() {
     setDeleteProductState(null);
   };
 
-  const openEditModal = (product: Product) => {
+  const openEditModal = async (product: Product) => {
     setEditProduct(product);
+    
+    // Load basket items if it's a basket
+    if (product.isBasket) {
+      const items = await fetchBasketItems(product.id);
+      setEditBasketItems(
+        items.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          costPrice: item.costPrice,
+          salePrice: item.salePrice,
+        }))
+      );
+    } else {
+      setEditBasketItems([]);
+    }
+    
     setIsFormOpen(true);
   };
 
@@ -122,6 +178,7 @@ export default function Produtos() {
     setIsFormOpen(open);
     if (!open) {
       setEditProduct(null);
+      setEditBasketItems([]);
     }
   };
 
@@ -196,13 +253,20 @@ export default function Produtos() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
-                    <Package className="w-6 h-6 text-muted-foreground" />
+                  <div className={cn(
+                    "w-12 h-12 rounded-lg flex items-center justify-center",
+                    product.isBasket ? "bg-primary/10" : "bg-muted"
+                  )}>
+                    {product.isBasket ? (
+                      <ShoppingBasket className="w-6 h-6 text-primary" />
+                    ) : (
+                      <Package className="w-6 h-6 text-muted-foreground" />
+                    )}
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground line-clamp-1 flex items-center gap-1.5">
                       {product.name}
-                      {product.origin === "gift" && (
+                      {product.origin === "gift" && !product.isBasket && (
                         <Gift className="w-4 h-4 text-primary flex-shrink-0" />
                       )}
                     </h3>
@@ -216,10 +280,12 @@ export default function Produtos() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setStockEntryProduct(product)}>
-                      <PackagePlus className="w-4 h-4 mr-2" />
-                      Entrada de estoque
-                    </DropdownMenuItem>
+                    {!product.isBasket && (
+                      <DropdownMenuItem onClick={() => setStockEntryProduct(product)}>
+                        <PackagePlus className="w-4 h-4 mr-2" />
+                        Entrada de estoque
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => openEditModal(product)}>
                       <Pencil className="w-4 h-4 mr-2" />
                       Editar
@@ -236,10 +302,16 @@ export default function Produtos() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 mb-4">
+                {product.isBasket && (
+                  <span className="alert-badge bg-primary/10 text-primary flex items-center gap-1">
+                    <ShoppingBasket className="w-3 h-3" />
+                    Cesta
+                  </span>
+                )}
                 <span className={cn("alert-badge", categoryColors[product.category])}>
                   {product.category}
                 </span>
-                {product.origin === "gift" && (
+                {product.origin === "gift" && !product.isBasket && (
                   <span className="alert-badge bg-primary/10 text-primary flex items-center gap-1">
                     <Gift className="w-3 h-3" />
                     Brinde
@@ -268,7 +340,7 @@ export default function Produtos() {
                   <p className="font-semibold text-success">R$ {product.salePrice.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Estoque</p>
+                  <p className="text-muted-foreground">{product.isBasket ? "Montadas" : "Estoque"}</p>
                   <p className={cn("font-semibold", product.stock <= 5 ? "text-warning" : "text-foreground")}>
                     {product.stock} un.
                   </p>
@@ -289,13 +361,15 @@ export default function Produtos() {
         onOpenChange={handleFormClose}
         onSubmit={editProduct ? handleEditProduct : handleAddProduct}
         editProduct={editProduct}
+        availableProducts={availableProductsForBasket}
+        initialBasketItems={editBasketItems}
       />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteProductState} onOpenChange={(open) => !open && setDeleteProductState(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir produto?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir {deleteProductState?.isBasket ? "cesta" : "produto"}?</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir <strong>{deleteProductState?.name}</strong>?
               Esta ação não pode ser desfeita.

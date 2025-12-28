@@ -53,6 +53,45 @@ export type Database = {
         }
         Relationships: []
       }
+      basket_items: {
+        Row: {
+          basket_id: string
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          basket_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity?: number
+        }
+        Update: {
+          basket_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "basket_items_basket_id_fkey"
+            columns: ["basket_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "basket_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -124,8 +163,10 @@ export type Database = {
           cycle: number | null
           expiry_date: string | null
           id: string
+          is_basket: boolean
           name: string
           origin: string
+          packaging_cost: number
           sale_price: number
           stock: number
           updated_at: string
@@ -139,8 +180,10 @@ export type Database = {
           cycle?: number | null
           expiry_date?: string | null
           id?: string
+          is_basket?: boolean
           name: string
           origin?: string
+          packaging_cost?: number
           sale_price?: number
           stock?: number
           updated_at?: string
@@ -154,8 +197,10 @@ export type Database = {
           cycle?: number | null
           expiry_date?: string | null
           id?: string
+          is_basket?: boolean
           name?: string
           origin?: string
+          packaging_cost?: number
           sale_price?: number
           stock?: number
           updated_at?: string
