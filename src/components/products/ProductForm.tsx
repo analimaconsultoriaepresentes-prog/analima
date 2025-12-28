@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Package } from "lucide-react";
+import { CalendarIcon, Package, Percent } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,14 +80,58 @@ function ProductFormContent({
   onCancel: () => void;
   editProduct?: Product | null;
 }) {
+  const [desiredMargin, setDesiredMargin] = useState<string>("");
+  const isManualSalePriceEdit = useRef(false);
+  
   const costPrice = form.watch("costPrice");
   const salePrice = form.watch("salePrice");
   
-  const margin = salePrice > 0 && costPrice > 0 && salePrice > costPrice
-    ? ((salePrice - costPrice) / salePrice * 100).toFixed(1)
+  // Calculate actual margin for display
+  const actualMargin = salePrice > 0 && costPrice > 0 && salePrice > costPrice
+    ? ((salePrice - costPrice) / costPrice * 100).toFixed(1)
     : "0.0";
   
   const profit = salePrice > costPrice ? (salePrice - costPrice).toFixed(2) : "0.00";
+
+  // Auto-calculate sale price when cost or desired margin changes
+  useEffect(() => {
+    if (isManualSalePriceEdit.current) {
+      isManualSalePriceEdit.current = false;
+      return;
+    }
+    
+    const marginValue = parseFloat(desiredMargin);
+    if (!isNaN(marginValue) && marginValue > 0 && costPrice > 0) {
+      const calculatedSalePrice = costPrice * (1 + marginValue / 100);
+      const roundedPrice = Math.round(calculatedSalePrice * 100) / 100;
+      form.setValue("salePrice", roundedPrice, { shouldValidate: true });
+    }
+  }, [costPrice, desiredMargin, form]);
+
+  // Initialize desired margin when editing a product
+  useEffect(() => {
+    if (editProduct && costPrice > 0 && salePrice > costPrice) {
+      const calculatedMargin = ((salePrice - costPrice) / costPrice * 100).toFixed(1);
+      setDesiredMargin(calculatedMargin);
+    }
+  }, [editProduct]);
+
+  const handleSalePriceChange = (e: React.ChangeEvent<HTMLInputElement>, onChange: (value: number) => void) => {
+    isManualSalePriceEdit.current = true;
+    const value = parseFloat(e.target.value) || 0;
+    onChange(value);
+    
+    // Update desired margin based on manual input
+    if (value > 0 && costPrice > 0 && value > costPrice) {
+      const newMargin = ((value - costPrice) / costPrice * 100).toFixed(1);
+      setDesiredMargin(newMargin);
+    }
+  };
+
+  const handleDesiredMarginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDesiredMargin(value);
+  };
 
   function handleSubmit(data: ProductFormData) {
     onSubmit(data);
@@ -160,36 +204,59 @@ function ProductFormContent({
           />
         </div>
 
-        {/* Preços */}
+        {/* Preço de Custo */}
+        <FormField
+          control={form.control}
+          name="costPrice"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Preço de Custo (R$)</FormLabel>
+              <FormControl>
+                <Input 
+                  type="number" 
+                  step="0.01"
+                  min="0"
+                  inputMode="decimal"
+                  placeholder="0,00" 
+                  className="input-styled min-h-[44px]"
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Margem e Preço de Venda */}
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="costPrice"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Custo (R$)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    step="0.01"
-                    min="0"
-                    inputMode="decimal"
-                    placeholder="0,00" 
-                    className="input-styled min-h-[44px]"
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="space-y-2">
+            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Margem desejada (%)
+            </label>
+            <div className="relative">
+              <Input 
+                type="number" 
+                step="0.1"
+                min="0"
+                inputMode="decimal"
+                placeholder="Ex: 50" 
+                className="input-styled min-h-[44px] pr-8"
+                value={desiredMargin}
+                onChange={handleDesiredMarginChange}
+              />
+              <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Venda = Custo + Margem
+            </p>
+          </div>
 
           <FormField
             control={form.control}
             name="salePrice"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Venda (R$)</FormLabel>
+                <FormLabel>Preço de Venda (R$)</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -198,7 +265,11 @@ function ProductFormContent({
                     inputMode="decimal"
                     placeholder="0,00" 
                     className="input-styled min-h-[44px]"
-                    {...field} 
+                    value={field.value || ""}
+                    onChange={(e) => handleSalePriceChange(e, field.onChange)}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
                   />
                 </FormControl>
                 <FormMessage />
@@ -216,8 +287,8 @@ function ProductFormContent({
                 <p className="font-bold text-success text-base sm:text-lg">R$ {profit}</p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs sm:text-sm">Margem</p>
-                <p className="font-bold text-success text-base sm:text-lg">{margin}%</p>
+                <p className="text-muted-foreground text-xs sm:text-sm">Margem real</p>
+                <p className="font-bold text-success text-base sm:text-lg">{actualMargin}%</p>
               </div>
             </div>
           </div>
