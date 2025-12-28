@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift, PackagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ProductForm } from "@/components/products/ProductForm";
 import { StockEntryModal } from "@/components/products/StockEntryModal";
+import { ProductFilters, type ProductFiltersState } from "@/components/products/ProductFilters";
 import { useProducts, type Product, type ProductFormData } from "@/hooks/useProducts";
 import {
   DropdownMenu,
@@ -27,22 +28,66 @@ const categoryColors: Record<string, string> = {
   Perfume: "bg-primary/10 text-primary",
   Presente: "bg-accent/10 text-accent",
   Cosmético: "bg-success/10 text-success",
+  Utensílios: "bg-muted text-muted-foreground",
 };
 
 export default function Produtos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteProductState, setDeleteProductState] = useState<Product | null>(null);
   const [stockEntryProduct, setStockEntryProduct] = useState<Product | null>(null);
+  const [filters, setFilters] = useState<ProductFiltersState>({
+    categories: [],
+    origins: [],
+    stockFilter: "all",
+    cycle: "",
+  });
 
   const { products, loading, addProduct, updateProduct, deleteProduct, restoreStock } = useProducts();
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.brand.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      // Text search
+      const matchesSearch =
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.brand.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
+
+      // Category filter
+      if (filters.categories.length > 0 && !filters.categories.includes(product.category)) {
+        return false;
+      }
+
+      // Origin filter
+      if (filters.origins.length > 0 && !filters.origins.includes(product.origin)) {
+        return false;
+      }
+
+      // Stock filter
+      if (filters.stockFilter === "inStock" && product.stock <= 0) return false;
+      if (filters.stockFilter === "lowStock" && (product.stock > 5 || product.stock <= 0)) return false;
+      if (filters.stockFilter === "outOfStock" && product.stock > 0) return false;
+
+      // Cycle filter
+      if (filters.cycle !== "") {
+        const cycleNum = parseInt(filters.cycle, 10);
+        if (!isNaN(cycleNum) && product.cycle !== cycleNum) return false;
+      }
+
+      return true;
+    });
+  }, [products, searchTerm, filters]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filters.categories.length > 0) count++;
+    if (filters.origins.length > 0) count++;
+    if (filters.stockFilter !== "all") count++;
+    if (filters.cycle !== "") count++;
+    return count;
+  }, [filters]);
 
   const calculateMargin = (cost: number, sale: number) => {
     return ((sale - cost) / sale * 100).toFixed(1);
@@ -105,9 +150,18 @@ export default function Produtos() {
             className="pl-10 input-styled"
           />
         </div>
-        <Button variant="outline" className="gap-2">
+        <Button 
+          variant="outline" 
+          className="gap-2 relative"
+          onClick={() => setIsFiltersOpen(true)}
+        >
           <Filter className="w-4 h-4" />
           Filtros
+          {activeFiltersCount > 0 && (
+            <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium">
+              {activeFiltersCount}
+            </span>
+          )}
         </Button>
       </div>
 
@@ -269,6 +323,14 @@ export default function Produtos() {
           if (!stockEntryProduct) return false;
           return await restoreStock(stockEntryProduct.id, quantity);
         }}
+      />
+
+      {/* Product Filters */}
+      <ProductFilters
+        open={isFiltersOpen}
+        onOpenChange={setIsFiltersOpen}
+        filters={filters}
+        onFiltersChange={setFilters}
       />
     </div>
   );
