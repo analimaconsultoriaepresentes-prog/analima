@@ -186,6 +186,11 @@ export default function Produtos() {
                     Estoque baixo
                   </span>
                 )}
+                {product.cycle && (
+                  <span className="alert-badge bg-muted text-muted-foreground">
+                    Ciclo {product.cycle}
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">

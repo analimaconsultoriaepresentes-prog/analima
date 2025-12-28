@@ -170,7 +170,19 @@ export default function Vendas() {
                         <ShoppingCart className="w-5 h-5 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="font-medium text-foreground">{sale.products.join(", ")}</p>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          {sale.items.map((item, idx) => (
+                            <span key={item.id} className="font-medium text-foreground">
+                              {item.productName} ({item.quantity}x)
+                              {item.cycle && (
+                                <span className="ml-1 text-xs text-muted-foreground">
+                                  C{item.cycle}
+                                </span>
+                              )}
+                              {idx < sale.items.length - 1 && ","}
+                            </span>
+                          ))}
+                        </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className={cn("alert-badge", paymentColors[sale.paymentMethod])}>
                             {paymentLabels[sale.paymentMethod]}
