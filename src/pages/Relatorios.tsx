@@ -14,24 +14,52 @@ export default function Relatorios() {
       return;
     }
 
-    // Create CSV content
-    let csv = "Mês,Receitas,Despesas,Lucro\n";
+    // Use semicolon as separator for Excel compatibility (especially in PT-BR locale)
+    const sep = ";";
+    const lines: string[] = [];
+
+    // SEÇÃO 1 - Evolução Mensal
+    lines.push("EVOLUÇÃO MENSAL (Receitas, Despesas, Lucro)");
+    lines.push(["Mês", "Receita", "Despesa", "Lucro"].join(sep));
     monthlyData.forEach((m) => {
-      csv += `${m.name},${m.receitas.toFixed(2)},${m.despesas.toFixed(2)},${m.lucro.toFixed(2)}\n`;
+      lines.push([
+        m.name,
+        m.receitas.toFixed(2).replace(".", ","),
+        m.despesas.toFixed(2).replace(".", ","),
+        m.lucro.toFixed(2).replace(".", ","),
+      ].join(sep));
     });
 
-    csv += "\n\nCategoria,Receita,Margem (%)\n";
+    // Linha em branco entre seções
+    lines.push("");
+
+    // SEÇÃO 2 - Margem por Categoria
+    lines.push("MARGEM POR CATEGORIA");
+    lines.push(["Categoria", "Receita", "Margem (%)"].join(sep));
     categoryData.forEach((c) => {
-      csv += `${c.name},${c.receita.toFixed(2)},${c.margem}\n`;
+      lines.push([
+        c.name,
+        c.receita.toFixed(2).replace(".", ","),
+        c.margem.toString(),
+      ].join(sep));
     });
 
-    csv += `\n\nResumo (6 meses)\n`;
-    csv += `Total Receitas,${totalReceita.toFixed(2)}\n`;
-    csv += `Total Despesas,${totalDespesa.toFixed(2)}\n`;
-    csv += `Lucro Total,${totalLucro.toFixed(2)}\n`;
+    // Linha em branco entre seções
+    lines.push("");
 
-    // Download
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    // SEÇÃO 3 - Resumo
+    lines.push("RESUMO (últimos 6 meses)");
+    lines.push(["Indicador", "Valor"].join(sep));
+    lines.push(["Total Receitas", totalReceita.toFixed(2).replace(".", ",")].join(sep));
+    lines.push(["Total Despesas", totalDespesa.toFixed(2).replace(".", ",")].join(sep));
+    lines.push(["Lucro Total", totalLucro.toFixed(2).replace(".", ",")].join(sep));
+
+    // Join all lines with CRLF for Windows/Excel compatibility
+    const csv = lines.join("\r\n");
+
+    // Add BOM for UTF-8 Excel compatibility
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
