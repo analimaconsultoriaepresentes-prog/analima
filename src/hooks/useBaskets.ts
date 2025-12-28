@@ -144,18 +144,72 @@ export function useBaskets() {
 
   const deductBasketStock = async (
     basketId: string,
-    updateStock: (id: string, quantity: number) => Promise<boolean>
+    quantity: number,
+    updateStock: (id: string, quantity: number) => Promise<boolean>,
+    saleId: string,
+    saleItemId: string
   ): Promise<boolean> => {
     const items = await fetchBasketItems(basketId);
     
+    // Deduct stock for each component item (multiplied by basket quantity)
     for (const item of items) {
-      const success = await updateStock(item.productId, item.quantity);
+      const totalQuantity = item.quantity * quantity;
+      const success = await updateStock(item.productId, totalQuantity);
       if (!success) {
         return false;
       }
     }
+
+    // Record the deducted components for future cancellation
+    const componentsToInsert = items.map((item) => ({
+      sale_id: saleId,
+      sale_item_id: saleItemId,
+      component_product_id: item.productId,
+      component_product_name: item.productName,
+      quantity_deducted: item.quantity * quantity,
+    }));
+
+    if (componentsToInsert.length > 0) {
+      const { error } = await supabase
+        .from("sale_basket_components")
+        .insert(componentsToInsert);
+
+      if (error) {
+        console.error("Error recording basket components:", error);
+        // Don't fail the sale, just log the error
+      }
+    }
     
     return true;
+  };
+
+  const restoreBasketStock = async (
+    saleId: string,
+    restoreStock: (id: string, quantity: number, cycle?: number) => Promise<boolean>
+  ): Promise<boolean> => {
+    try {
+      // Fetch the recorded basket components for this sale
+      const { data: components, error } = await supabase
+        .from("sale_basket_components")
+        .select("component_product_id, quantity_deducted")
+        .eq("sale_id", saleId);
+
+      if (error) throw error;
+
+      if (!components || components.length === 0) {
+        return true; // No components to restore
+      }
+
+      // Restore stock for each component
+      for (const component of components) {
+        await restoreStock(component.component_product_id, component.quantity_deducted);
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error restoring basket stock:", error);
+      return false;
+    }
   };
 
   return {
@@ -165,5 +219,6 @@ export function useBaskets() {
     getBasketComposition,
     checkBasketStock,
     deductBasketStock,
+    restoreBasketStock,
   };
 }

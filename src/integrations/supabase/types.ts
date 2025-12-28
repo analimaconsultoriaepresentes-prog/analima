@@ -265,6 +265,58 @@ export type Database = {
         }
         Relationships: []
       }
+      sale_basket_components: {
+        Row: {
+          component_product_id: string
+          component_product_name: string
+          created_at: string
+          id: string
+          quantity_deducted: number
+          sale_id: string
+          sale_item_id: string
+        }
+        Insert: {
+          component_product_id: string
+          component_product_name: string
+          created_at?: string
+          id?: string
+          quantity_deducted?: number
+          sale_id: string
+          sale_item_id: string
+        }
+        Update: {
+          component_product_id?: string
+          component_product_name?: string
+          created_at?: string
+          id?: string
+          quantity_deducted?: number
+          sale_id?: string
+          sale_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_basket_components_component_product_id_fkey"
+            columns: ["component_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_basket_components_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_basket_components_sale_item_id_fkey"
+            columns: ["sale_item_id"]
+            isOneToOne: false
+            referencedRelation: "sale_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_items: {
         Row: {
           created_at: string
