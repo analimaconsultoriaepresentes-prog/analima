@@ -88,16 +88,18 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
   const getBirthdayMessage = (customer: BirthdayCustomer): string => {
     const firstName = customer.name.split(" ")[0] || customer.name;
     // Keep as plain UTF-8 string; no encoding/decoding here.
-    return birthdayMessage.replace(/\{NOME\}/g, firstName);
+    return birthdayMessage.replace("{NOME}", firstName);
   };
 
   const getWhatsAppUrl = (customer: BirthdayCustomer): string => {
-    const phone = normalizePhone(customer.phone || "");
+    const normalizedPhone = normalizePhone(customer.phone || "");
     const message = getBirthdayMessage(customer);
 
-    // Encode ONLY at URL creation time.
-    const params = new URLSearchParams({ text: message });
-    return `https://wa.me/${phone}?${params.toString()}`;
+    // Encode ONLY at URL creation time via URLSearchParams.
+    const params = new URLSearchParams();
+    params.set("text", message);
+
+    return `https://wa.me/${normalizedPhone}?${params.toString()}`;
   };
 
   const currentMonthName = format(today, "MMMM", { locale: ptBR });
@@ -234,6 +236,10 @@ function BirthdayItem({
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => {
+            console.log("[WhatsApp] mensagem final:", previewMessage);
+            console.log("[WhatsApp] url:", whatsappUrl);
+          }}
           className={cn(
             "inline-flex w-full items-center justify-center gap-1.5 shrink-0 rounded-md text-sm font-medium h-10 px-3 transition-colors sm:w-auto",
             highlight
