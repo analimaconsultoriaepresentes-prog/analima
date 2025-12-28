@@ -310,7 +310,7 @@ export default function Produtos() {
                     Brinde
                   </span>
                 )}
-                {product.stock <= 5 && (
+                {!product.isBasket && product.stock < 3 && (
                   <span className="alert-badge alert-badge-warning flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
                     Estoque baixo
@@ -334,7 +334,7 @@ export default function Produtos() {
                 </div>
                 <div>
                   <p className="text-muted-foreground">{product.isBasket ? "Montadas" : "Estoque"}</p>
-                  <p className={cn("font-semibold", product.stock <= 5 ? "text-warning" : "text-foreground")}>
+                  <p className={cn("font-semibold", !product.isBasket && product.stock < 3 ? "text-warning" : "text-foreground")}>
                     {product.stock} un.
                   </p>
                 </div>
