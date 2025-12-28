@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Package, ShoppingBasket, AlertCircle } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Minus, Package, ShoppingBasket, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Product } from "@/hooks/useProducts";
 
 interface BasketItemInput {
@@ -42,6 +43,7 @@ export function BasketCompositionForm({
   onDesiredMarginChange,
 }: BasketCompositionFormProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedRemoveProductId, setSelectedRemoveProductId] = useState<string>("");
 
   // Filter out products that are already in the basket or are baskets themselves
   const selectableProducts = useMemo(() => {
@@ -84,6 +86,16 @@ export function BasketCompositionForm({
 
   const handleRemoveItem = (productId: string) => {
     onItemsChange(items.filter((i) => i.productId !== productId));
+  };
+
+  const handleRemoveFromDropdown = () => {
+    if (!selectedRemoveProductId) {
+      toast.error("Selecione um produto para retirar da cesta");
+      return;
+    }
+    handleRemoveItem(selectedRemoveProductId);
+    setSelectedRemoveProductId("");
+    toast.success("Produto removido da cesta");
   };
 
   const handleQuantityChange = (productId: string, quantity: number) => {
@@ -136,6 +148,42 @@ export function BasketCompositionForm({
         </div>
       </div>
 
+      {/* Remove Product Section - Only show if there are items */}
+      {items.length > 0 && (
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Retirar Produto da Cesta</Label>
+          <div className="flex gap-2">
+            <Select value={selectedRemoveProductId} onValueChange={setSelectedRemoveProductId}>
+              <SelectTrigger className="flex-1 input-styled min-h-[44px]">
+                <SelectValue placeholder="Selecione um produto para retirar" />
+              </SelectTrigger>
+              <SelectContent>
+                {items.map((item) => (
+                  <SelectItem key={item.productId} value={item.productId}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{item.productName}</span>
+                      <span className="text-xs text-muted-foreground">
+                        (qtd: {item.quantity})
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleRemoveFromDropdown}
+              disabled={!selectedRemoveProductId}
+              className="min-h-[44px] gap-2"
+            >
+              <Minus className="w-4 h-4" />
+              <span className="hidden sm:inline">Retirar</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Items List */}
       {items.length > 0 ? (
         <div className="space-y-3">
@@ -155,7 +203,7 @@ export function BasketCompositionForm({
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{item.productName}</p>
                     <p className="text-xs text-muted-foreground">
-                      R$ {item.costPrice.toFixed(2)} cada
+                      R$ {item.costPrice.toFixed(2)} cada • Subtotal: R$ {(item.costPrice * item.quantity).toFixed(2)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -168,15 +216,6 @@ export function BasketCompositionForm({
                       }
                       className="w-16 h-8 text-center input-styled"
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveItem(item.productId)}
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
                   </div>
                 </div>
               ))}
@@ -187,7 +226,7 @@ export function BasketCompositionForm({
         <div className="flex flex-col items-center justify-center py-8 px-4 bg-muted/30 rounded-lg border border-dashed border-border">
           <ShoppingBasket className="w-10 h-10 text-muted-foreground/50 mb-2" />
           <p className="text-sm text-muted-foreground text-center">
-            Adicione produtos para compor a cesta
+            Nenhum item na cesta
           </p>
         </div>
       )}
