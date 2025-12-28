@@ -1,12 +1,21 @@
-import { Download, TrendingUp, TrendingDown, DollarSign, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Download, TrendingUp, TrendingDown, DollarSign, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from "recharts";
-import { useReportsData } from "@/hooks/useReportsData";
+import { useReportsData, PeriodOption, periodLabels } from "@/hooks/useReportsData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Relatorios() {
-  const { totalReceita, totalDespesa, totalLucro, monthlyData, categoryData, loading } = useReportsData();
+  const [period, setPeriod] = useState<PeriodOption>("6months");
+  const { totalReceita, totalDespesa, totalLucro, monthlyData, categoryData, loading } = useReportsData(period);
 
   const handleExport = () => {
     if (monthlyData.length === 0) {
@@ -14,12 +23,11 @@ export default function Relatorios() {
       return;
     }
 
-    // Use semicolon as separator for Excel compatibility (especially in PT-BR locale)
     const sep = ";";
     const lines: string[] = [];
 
     // SEÇÃO 1 - Evolução Mensal
-    lines.push("EVOLUÇÃO MENSAL (Receitas, Despesas, Lucro)");
+    lines.push(`EVOLUÇÃO MENSAL (${periodLabels[period]})`);
     lines.push(["Mês", "Receita", "Despesa", "Lucro"].join(sep));
     monthlyData.forEach((m) => {
       lines.push([
@@ -30,7 +38,6 @@ export default function Relatorios() {
       ].join(sep));
     });
 
-    // Linha em branco entre seções
     lines.push("");
 
     // SEÇÃO 2 - Margem por Categoria
@@ -44,26 +51,22 @@ export default function Relatorios() {
       ].join(sep));
     });
 
-    // Linha em branco entre seções
     lines.push("");
 
     // SEÇÃO 3 - Resumo
-    lines.push("RESUMO (últimos 6 meses)");
+    lines.push(`RESUMO (${periodLabels[period]})`);
     lines.push(["Indicador", "Valor"].join(sep));
     lines.push(["Total Receitas", totalReceita.toFixed(2).replace(".", ",")].join(sep));
     lines.push(["Total Despesas", totalDespesa.toFixed(2).replace(".", ",")].join(sep));
     lines.push(["Lucro Total", totalLucro.toFixed(2).replace(".", ",")].join(sep));
 
-    // Join all lines with CRLF for Windows/Excel compatibility
     const csv = lines.join("\r\n");
-
-    // Add BOM for UTF-8 Excel compatibility
     const BOM = "\uFEFF";
     const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `relatorio-${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `relatorio-${period}-${new Date().toISOString().split("T")[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -103,14 +106,28 @@ export default function Relatorios() {
             <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Relatórios</h1>
             <p className="text-muted-foreground mt-1">Análise financeira do seu negócio</p>
           </div>
-          <Button 
-            variant="outline" 
-            className="gap-2 min-h-[48px] w-full sm:w-auto"
-            onClick={handleExport}
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Select value={period} onValueChange={(v) => setPeriod(v as PeriodOption)}>
+              <SelectTrigger className="min-h-[48px] w-full sm:w-[180px] gap-2">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30days">{periodLabels["30days"]}</SelectItem>
+                <SelectItem value="3months">{periodLabels["3months"]}</SelectItem>
+                <SelectItem value="6months">{periodLabels["6months"]}</SelectItem>
+                <SelectItem value="1year">{periodLabels["1year"]}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button 
+              variant="outline" 
+              className="gap-2 min-h-[48px] w-full sm:w-auto"
+              onClick={handleExport}
+            >
+              <Download className="w-4 h-4" />
+              Exportar
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -122,7 +139,7 @@ export default function Relatorios() {
               <TrendingUp className="w-5 h-5 text-success" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-muted-foreground">Receita Total (6 meses)</p>
+              <p className="text-sm text-muted-foreground">Receita Total ({periodLabels[period]})</p>
               <p className="text-xl font-bold text-success truncate">
                 R$ {totalReceita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
@@ -135,7 +152,7 @@ export default function Relatorios() {
               <TrendingDown className="w-5 h-5 text-destructive" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-muted-foreground">Despesas Total (6 meses)</p>
+              <p className="text-sm text-muted-foreground">Despesas Total ({periodLabels[period]})</p>
               <p className="text-xl font-bold text-destructive truncate">
                 R$ {totalDespesa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
@@ -148,7 +165,7 @@ export default function Relatorios() {
               <DollarSign className="w-5 h-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-muted-foreground">Lucro Total (6 meses)</p>
+              <p className="text-sm text-muted-foreground">Lucro Total ({periodLabels[period]})</p>
               <p className="text-xl font-bold text-primary truncate">
                 R$ {totalLucro.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
@@ -289,7 +306,7 @@ export default function Relatorios() {
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
-            Nenhuma venda registrada nos últimos 6 meses
+            Nenhuma venda registrada no período selecionado
           </div>
         )}
       </div>
