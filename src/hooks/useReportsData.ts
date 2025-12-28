@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
-import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+export type PeriodOption = "30days" | "3months" | "6months" | "1year";
+
+export const periodLabels: Record<PeriodOption, string> = {
+  "30days": "Últimos 30 dias",
+  "3months": "Últimos 3 meses",
+  "6months": "Últimos 6 meses",
+  "1year": "Último 1 ano",
+};
 
 interface MonthlyData {
   name: string;
@@ -25,7 +34,7 @@ interface ReportStats {
   categoryData: CategoryData[];
 }
 
-export function useReportsData() {
+export function useReportsData(period: PeriodOption = "6months") {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<ReportStats>({
@@ -36,6 +45,16 @@ export function useReportsData() {
     categoryData: [],
   });
 
+  const getMonthsCount = (p: PeriodOption): number => {
+    switch (p) {
+      case "30days": return 1;
+      case "3months": return 3;
+      case "6months": return 6;
+      case "1year": return 12;
+      default: return 6;
+    }
+  };
+
   const fetchReportData = async () => {
     if (!user) {
       setLoading(false);
@@ -43,18 +62,32 @@ export function useReportsData() {
     }
 
     try {
+      setLoading(true);
       const today = new Date();
       const monthlyData: MonthlyData[] = [];
       let totalReceita = 0;
       let totalDespesa = 0;
 
-      // Fetch data for last 6 months
-      for (let i = 5; i >= 0; i--) {
-        const monthDate = subMonths(today, i);
-        const mStart = startOfMonth(monthDate);
-        const mEnd = endOfMonth(monthDate);
+      const monthsCount = getMonthsCount(period);
 
-        // Fetch sales for this month
+      // For 30 days, we still show 1 month of data
+      const loopCount = period === "30days" ? 1 : monthsCount;
+
+      for (let i = loopCount - 1; i >= 0; i--) {
+        const monthDate = subMonths(today, i);
+        let mStart: Date;
+        let mEnd: Date;
+
+        if (period === "30days" && i === 0) {
+          // For 30 days, use the last 30 days
+          mStart = subDays(today, 30);
+          mEnd = today;
+        } else {
+          mStart = startOfMonth(monthDate);
+          mEnd = endOfMonth(monthDate);
+        }
+
+        // Fetch sales for this period
         const { data: salesData } = await supabase
           .from("sales")
           .select("total")
@@ -67,7 +100,7 @@ export function useReportsData() {
           0
         );
 
-        // Fetch expenses for this month
+        // Fetch expenses for this period
         const { data: expensesData } = await supabase
           .from("expenses")
           .select("amount, status")
@@ -82,9 +115,13 @@ export function useReportsData() {
         totalReceita += monthRevenue;
         totalDespesa += monthExpenses;
 
+        const monthName = period === "30days" 
+          ? "30 dias"
+          : format(monthDate, "MMM", { locale: ptBR }).charAt(0).toUpperCase() + 
+            format(monthDate, "MMM", { locale: ptBR }).slice(1);
+
         monthlyData.push({
-          name: format(monthDate, "MMM", { locale: ptBR }).charAt(0).toUpperCase() + 
-                format(monthDate, "MMM", { locale: ptBR }).slice(1),
+          name: monthName,
           receitas: monthRevenue,
           despesas: monthExpenses,
           lucro: monthRevenue - monthExpenses,
@@ -92,12 +129,15 @@ export function useReportsData() {
       }
 
       // Fetch category data from sale_items
-      const sixMonthsAgo = subMonths(today, 6);
+      const periodStart = period === "30days" 
+        ? subDays(today, 30) 
+        : subMonths(today, monthsCount);
+
       const { data: salesData } = await supabase
         .from("sales")
         .select("id, total")
         .eq("status", "completed")
-        .gte("created_at", sixMonthsAgo.toISOString());
+        .gte("created_at", periodStart.toISOString());
 
       const saleIds = (salesData || []).map((s) => s.id);
       
@@ -123,7 +163,6 @@ export function useReportsData() {
         
         categoryTotals[category].receita += Number(item.subtotal);
         if (product) {
-          // Estimate cost based on product cost_price ratio
           const margin = product.sale_price > 0 
             ? ((product.sale_price - product.cost_price) / product.sale_price) * 100 
             : 0;
@@ -158,11 +197,12 @@ export function useReportsData() {
 
   useEffect(() => {
     fetchReportData();
-  }, [user]);
+  }, [user, period]);
 
   return {
     ...stats,
     loading,
     refetch: fetchReportData,
+    period,
   };
 }
