@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { format, isSameDay, addDays, parseISO, isAfter, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Cake, MessageCircle, Phone, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Customer } from "@/hooks/useCustomers";
@@ -66,20 +65,21 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
   const todayBirthdays = birthdayCustomers.filter((c) => c.isToday);
   const upcomingBirthdays = birthdayCustomers.filter((c) => !c.isToday);
 
-  const formatPhone = (phone: string) => {
+  const normalizePhone = (phone: string): string => {
     // Remove all non-digits
-    return phone.replace(/\D/g, "");
+    const digits = phone.replace(/\D/g, "");
+    // Add 55 prefix if not present
+    if (!digits.startsWith("55")) {
+      return `55${digits}`;
+    }
+    return digits;
   };
 
-  const handleWhatsApp = (customer: BirthdayCustomer) => {
-    if (!customer.phone) return;
-    
-    const phone = formatPhone(customer.phone);
+  const getWhatsAppUrl = (customer: BirthdayCustomer): string => {
+    const phone = normalizePhone(customer.phone || "");
     const message = birthdayMessage.replace("{NOME}", customer.name.split(" ")[0]);
     const encodedMessage = encodeURIComponent(message);
-    const url = `https://wa.me/55${phone}?text=${encodedMessage}`;
-    
-    window.open(url, "_blank");
+    return `https://wa.me/${phone}?text=${encodedMessage}`;
   };
 
   if (birthdayCustomers.length === 0) {
@@ -108,8 +108,7 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
                 <BirthdayItem
                   key={customer.id}
                   customer={customer}
-                  birthdayMessage={birthdayMessage}
-                  onWhatsApp={handleWhatsApp}
+                  whatsappUrl={getWhatsAppUrl(customer)}
                   highlight
                 />
               ))}
@@ -128,8 +127,7 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
                 <BirthdayItem
                   key={customer.id}
                   customer={customer}
-                  birthdayMessage={birthdayMessage}
-                  onWhatsApp={handleWhatsApp}
+                  whatsappUrl={getWhatsAppUrl(customer)}
                 />
               ))}
             </div>
@@ -142,17 +140,18 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
 
 function BirthdayItem({
   customer,
-  onWhatsApp,
+  whatsappUrl,
   highlight = false,
 }: {
   customer: BirthdayCustomer;
-  birthdayMessage: string;
-  onWhatsApp: (customer: BirthdayCustomer) => void;
+  whatsappUrl: string;
   highlight?: boolean;
 }) {
   const formattedDate = format(customer.birthdayThisYear, "dd 'de' MMMM", {
     locale: ptBR,
   });
+
+  const hasValidPhone = !!customer.phone && customer.phone.replace(/\D/g, "").length >= 10;
 
   return (
     <div
@@ -181,16 +180,21 @@ function BirthdayItem({
         </div>
       </div>
       
-      {customer.phone ? (
-        <Button
-          size="sm"
-          variant={highlight ? "default" : "outline"}
-          className={cn("gap-1.5 shrink-0", highlight && "bg-success hover:bg-success/90")}
-          onClick={() => onWhatsApp(customer)}
+      {hasValidPhone ? (
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            "inline-flex items-center justify-center gap-1.5 shrink-0 rounded-md text-sm font-medium h-9 px-3 transition-colors",
+            highlight 
+              ? "bg-green-600 text-white hover:bg-green-700" 
+              : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+          )}
         >
           <MessageCircle className="w-4 h-4" />
           <span className="hidden sm:inline">WhatsApp</span>
-        </Button>
+        </a>
       ) : (
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <AlertCircle className="w-3 h-3" />
