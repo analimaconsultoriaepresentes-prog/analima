@@ -393,9 +393,10 @@ export default function Produtos() {
         onOpenChange={(open) => !open && setStockEntryProduct(null)}
         productName={stockEntryProduct?.name || ""}
         currentStock={stockEntryProduct?.stock || 0}
-        onConfirm={async (quantity) => {
+        currentCycle={stockEntryProduct?.cycle ?? null}
+        onConfirm={async (quantity, cycle) => {
           if (!stockEntryProduct) return false;
-          return await restoreStock(stockEntryProduct.id, quantity);
+          return await restoreStock(stockEntryProduct.id, quantity, cycle);
         }}
       />
 
