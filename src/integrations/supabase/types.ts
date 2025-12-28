@@ -121,6 +121,7 @@ export type Database = {
           category: string
           cost_price: number
           created_at: string
+          cycle: number | null
           expiry_date: string | null
           id: string
           name: string
@@ -135,6 +136,7 @@ export type Database = {
           category: string
           cost_price?: number
           created_at?: string
+          cycle?: number | null
           expiry_date?: string | null
           id?: string
           name: string
@@ -149,6 +151,7 @@ export type Database = {
           category?: string
           cost_price?: number
           created_at?: string
+          cycle?: number | null
           expiry_date?: string | null
           id?: string
           name?: string
