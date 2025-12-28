@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -140,7 +140,16 @@ function ProductFormContent({
     }
   }, [editProduct]);
   
-  // Update form values when basket composition changes (only for NEW baskets or when items change)
+  // Track if basket composition has changed from initial state
+  const hasBasketChanged = useMemo(() => {
+    if (basketItems.length !== initialBasketItems.length) return true;
+    return basketItems.some((item, index) => {
+      const initial = initialBasketItems.find(i => i.productId === item.productId);
+      return !initial || initial.quantity !== item.quantity;
+    });
+  }, [basketItems, initialBasketItems]);
+
+  // Update form values when basket composition changes
   useEffect(() => {
     if (isBasket && basketItems.length > 0) {
       const totalItemsCost = basketItems.reduce((sum, item) => sum + item.costPrice * item.quantity, 0);
@@ -148,17 +157,17 @@ function ProductFormContent({
       form.setValue("costPrice", totalCost, { shouldValidate: true });
       form.setValue("packagingCost", basketPackagingCost, { shouldValidate: true });
       
-      // Only auto-calculate price if margin is set and we're not editing with existing values
-      if (basketDesiredMargin > 0 && !editProduct?.isBasket) {
-        const suggestedPrice = totalCost * (1 + basketDesiredMargin / 100);
-        form.setValue("salePrice", Math.round(suggestedPrice * 100) / 100, { shouldValidate: true });
-      } else if (basketDesiredMargin > 0 && basketItems !== initialBasketItems) {
-        // When editing and composition changed, recalculate
+      // Recalculate price when composition changes
+      if (basketDesiredMargin > 0 && (!editProduct?.isBasket || hasBasketChanged)) {
         const suggestedPrice = totalCost * (1 + basketDesiredMargin / 100);
         form.setValue("salePrice", Math.round(suggestedPrice * 100) / 100, { shouldValidate: true });
       }
+    } else if (isBasket && basketItems.length === 0) {
+      // Handle empty basket case
+      form.setValue("costPrice", basketPackagingCost, { shouldValidate: true });
+      form.setValue("packagingCost", basketPackagingCost, { shouldValidate: true });
     }
-  }, [isBasket, basketItems, basketPackagingCost, basketDesiredMargin, form, editProduct?.isBasket, initialBasketItems]);
+  }, [isBasket, basketItems, basketPackagingCost, basketDesiredMargin, form, editProduct?.isBasket, hasBasketChanged]);
 
   // Reset basket items when switching to non-basket (only for new products)
   useEffect(() => {
