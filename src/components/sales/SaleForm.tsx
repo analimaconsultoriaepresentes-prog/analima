@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Minus, Plus, ShoppingCart, Trash2, Search } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2, Search, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Customer } from "@/hooks/useCustomers";
 
 interface Product {
   id: string;
@@ -46,7 +47,8 @@ interface SaleFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   products: Product[];
-  onSubmit: (items: CartItem[], paymentMethod: string, total: number) => void;
+  customers: Customer[];
+  onSubmit: (items: CartItem[], paymentMethod: string, total: number, customerId?: string) => void;
 }
 
 const paymentMethods = [
@@ -58,22 +60,32 @@ const paymentMethods = [
 
 function SaleFormContent({
   products,
+  customers,
   onSubmit,
   onClose,
 }: {
   products: Product[];
-  onSubmit: (items: CartItem[], paymentMethod: string, total: number) => void;
+  customers: Customer[];
+  onSubmit: (items: CartItem[], paymentMethod: string, total: number, customerId?: string) => void;
   onClose: () => void;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [customerSearch, setCustomerSearch] = useState("");
 
   const availableProducts = products.filter(
     (p) =>
       p.stock > 0 &&
       (p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.brand.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const filteredCustomers = customers.filter(
+    (c) =>
+      c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      (c.phone && c.phone.includes(customerSearch))
   );
 
   const addToCart = (product: Product) => {
@@ -151,15 +163,83 @@ function SaleFormContent({
       return;
     }
 
-    onSubmit(cart, paymentMethod, total);
+    onSubmit(cart, paymentMethod, total, selectedCustomerId || undefined);
     setCart([]);
     setPaymentMethod("");
     setSearchTerm("");
+    setSelectedCustomerId("");
+    setCustomerSearch("");
     onClose();
   };
 
+  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
+
   return (
     <div className="flex flex-col gap-4 h-full">
+      {/* Cliente (opcional) */}
+      <div>
+        <Label className="mb-2 block text-sm font-medium flex items-center gap-2">
+          <User className="w-4 h-4" />
+          Cliente (opcional)
+        </Label>
+        {selectedCustomer ? (
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
+            <div>
+              <p className="font-medium text-sm">{selectedCustomer.name}</p>
+              {selectedCustomer.phone && (
+                <p className="text-xs text-muted-foreground">{selectedCustomer.phone}</p>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedCustomerId("")}
+            >
+              Remover
+            </Button>
+          </div>
+        ) : (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar cliente..."
+              value={customerSearch}
+              onChange={(e) => setCustomerSearch(e.target.value)}
+              className="pl-10"
+            />
+            {customerSearch && (
+              <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-32 overflow-y-auto border border-border rounded-lg bg-card shadow-lg divide-y divide-border">
+                {filteredCustomers.length === 0 ? (
+                  <div className="p-3 text-sm text-muted-foreground text-center">
+                    Nenhum cliente encontrado
+                  </div>
+                ) : (
+                  filteredCustomers.slice(0, 5).map((customer) => (
+                    <button
+                      key={customer.id}
+                      type="button"
+                      className="w-full p-3 flex items-center justify-between hover:bg-muted/50 text-left"
+                      onClick={() => {
+                        setSelectedCustomerId(customer.id);
+                        setCustomerSearch("");
+                      }}
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{customer.name}</p>
+                        {customer.phone && (
+                          <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Busca de produtos */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -211,7 +291,7 @@ function SaleFormContent({
         <Label className="mb-2 block text-sm font-medium">
           Carrinho ({cart.length} {cart.length === 1 ? "item" : "itens"})
         </Label>
-        <div className="max-h-[200px] sm:max-h-[240px] overflow-y-auto border border-border rounded-lg divide-y divide-border">
+        <div className="max-h-[160px] sm:max-h-[200px] overflow-y-auto border border-border rounded-lg divide-y divide-border">
           {cart.length === 0 ? (
             <div className="p-6 text-sm text-muted-foreground text-center">
               Adicione produtos
@@ -320,7 +400,7 @@ function SaleFormContent({
   );
 }
 
-export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormProps) {
+export function SaleForm({ open, onOpenChange, products, customers, onSubmit }: SaleFormProps) {
   const isMobile = useIsMobile();
 
   const handleClose = () => {
@@ -345,7 +425,7 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
             <DrawerDescription>Adicione produtos e finalize a venda.</DrawerDescription>
           </DrawerHeader>
           <div className="px-4 pb-6 overflow-y-auto flex-1">
-            <SaleFormContent products={products} onSubmit={onSubmit} onClose={handleClose} />
+            <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} />
           </div>
         </DrawerContent>
       </Drawer>
@@ -360,7 +440,7 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
           <DialogDescription>Adicione produtos e finalize a venda.</DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto">
-          <SaleFormContent products={products} onSubmit={onSubmit} onClose={handleClose} />
+          <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} />
         </div>
       </DialogContent>
     </Dialog>
