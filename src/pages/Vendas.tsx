@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, ShoppingCart, Calendar, XCircle, Loader2, Package } from "lucide-react";
+import { Plus, Search, ShoppingCart, Calendar, XCircle, Loader2, Package, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -172,8 +172,12 @@ export default function Vendas() {
                       <div>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           {sale.items.map((item, idx) => (
-                            <span key={item.id} className="font-medium text-foreground">
-                              {item.productName} ({item.quantity}x)
+                            <span key={item.id} className="font-medium text-foreground inline-flex items-center">
+                              {item.productName}
+                              {item.origin === "gift" && (
+                                <Gift className="w-3.5 h-3.5 text-primary mx-0.5 flex-shrink-0" />
+                              )}
+                              ({item.quantity}x)
                               {item.cycle && (
                                 <span className="ml-1 text-xs text-muted-foreground">
                                   C{item.cycle}

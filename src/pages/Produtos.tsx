@@ -144,7 +144,12 @@ export default function Produtos() {
                     <Package className="w-6 h-6 text-muted-foreground" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground line-clamp-1">{product.name}</h3>
+                    <h3 className="font-semibold text-foreground line-clamp-1 flex items-center gap-1.5">
+                      {product.name}
+                      {product.origin === "gift" && (
+                        <Gift className="w-4 h-4 text-primary flex-shrink-0" />
+                      )}
+                    </h3>
                     <p className="text-sm text-muted-foreground">{product.brand}</p>
                   </div>
                 </div>
