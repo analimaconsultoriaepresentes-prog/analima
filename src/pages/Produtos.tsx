@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift } from "lucide-react";
+import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift, PackagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ProductForm } from "@/components/products/ProductForm";
+import { StockEntryModal } from "@/components/products/StockEntryModal";
 import { useProducts, type Product, type ProductFormData } from "@/hooks/useProducts";
 import {
   DropdownMenu,
@@ -33,8 +34,9 @@ export default function Produtos() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteProductState, setDeleteProductState] = useState<Product | null>(null);
+  const [stockEntryProduct, setStockEntryProduct] = useState<Product | null>(null);
 
-  const { products, loading, addProduct, updateProduct, deleteProduct } = useProducts();
+  const { products, loading, addProduct, updateProduct, deleteProduct, restoreStock } = useProducts();
 
   const filteredProducts = products.filter(
     (product) =>
@@ -160,6 +162,10 @@ export default function Produtos() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setStockEntryProduct(product)}>
+                      <PackagePlus className="w-4 h-4 mr-2" />
+                      Entrada de estoque
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => openEditModal(product)}>
                       <Pencil className="w-4 h-4 mr-2" />
                       Editar
@@ -252,6 +258,18 @@ export default function Produtos() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Stock Entry Modal */}
+      <StockEntryModal
+        open={!!stockEntryProduct}
+        onOpenChange={(open) => !open && setStockEntryProduct(null)}
+        productName={stockEntryProduct?.name || ""}
+        currentStock={stockEntryProduct?.stock || 0}
+        onConfirm={async (quantity) => {
+          if (!stockEntryProduct) return false;
+          return await restoreStock(stockEntryProduct.id, quantity);
+        }}
+      />
     </div>
   );
 }
