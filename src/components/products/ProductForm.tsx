@@ -49,7 +49,7 @@ import type { Product, ProductFormData } from "@/hooks/useProducts";
 
 const productSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
-  category: z.enum(["Presente", "Perfume", "Cosmético"], {
+  category: z.enum(["Presente", "Perfume", "Cosmético", "Utensílios"], {
     required_error: "Selecione uma categoria",
   }),
   brand: z.string().min(1, "Informe a marca").max(50, "Marca muito longa"),
@@ -226,6 +226,7 @@ function ProductFormContent({
                     <SelectItem value="Presente">Presente</SelectItem>
                     <SelectItem value="Perfume">Perfume</SelectItem>
                     <SelectItem value="Cosmético">Cosmético</SelectItem>
+                    <SelectItem value="Utensílios">Utensílios</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
