@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { format, isSameDay, addDays, parseISO, isAfter, isBefore } from "date-fns";
+import { format, isSameDay, addDays, parseISO, isAfter, isBefore, getMonth, getDate } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Cake, MessageCircle, Phone, AlertCircle } from "lucide-react";
+import { Cake, MessageCircle, Phone, AlertCircle, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Customer } from "@/hooks/useCustomers";
@@ -15,15 +15,18 @@ interface BirthdayCustomer extends Customer {
   birthdayThisYear: Date;
   isToday: boolean;
   daysUntil: number;
+  dayOfMonth: number;
 }
 
 export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlertsCardProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
+  const currentMonth = getMonth(today);
   const nextWeek = addDays(today, 7);
 
-  const birthdayCustomers = useMemo(() => {
+  // Process all customers with birthdays
+  const allBirthdayCustomers = useMemo(() => {
     const result: BirthdayCustomer[] = [];
     
     customers.forEach((customer) => {
@@ -37,38 +40,45 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
           birthdayDate.getDate()
         );
         
-        // If birthday already passed this year, consider next year for sorting
-        // But we only show the next 7 days, so we focus on upcoming dates
         const isToday = isSameDay(birthdayThisYear, today);
-        const isUpcoming = isAfter(birthdayThisYear, today) && isBefore(birthdayThisYear, nextWeek);
+        const timeDiff = birthdayThisYear.getTime() - today.getTime();
+        const daysUntil = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
         
-        if (isToday || isUpcoming) {
-          const timeDiff = birthdayThisYear.getTime() - today.getTime();
-          const daysUntil = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-          
-          result.push({
-            ...customer,
-            birthdayThisYear,
-            isToday,
-            daysUntil: isToday ? 0 : daysUntil,
-          });
-        }
+        result.push({
+          ...customer,
+          birthdayThisYear,
+          isToday,
+          daysUntil: isToday ? 0 : daysUntil,
+          dayOfMonth: getDate(birthdayDate),
+        });
       } catch (e) {
         console.error("Error parsing birthday:", e);
       }
     });
     
-    // Sort by days until birthday
-    return result.sort((a, b) => a.daysUntil - b.daysUntil);
-  }, [customers, today, nextWeek]);
+    return result;
+  }, [customers, today]);
 
-  const todayBirthdays = birthdayCustomers.filter((c) => c.isToday);
-  const upcomingBirthdays = birthdayCustomers.filter((c) => !c.isToday);
+  // Filter for today and upcoming 7 days
+  const todayBirthdays = useMemo(() => 
+    allBirthdayCustomers.filter((c) => c.isToday),
+  [allBirthdayCustomers]);
+
+  const upcomingBirthdays = useMemo(() => 
+    allBirthdayCustomers
+      .filter((c) => !c.isToday && isAfter(c.birthdayThisYear, today) && isBefore(c.birthdayThisYear, nextWeek))
+      .sort((a, b) => a.daysUntil - b.daysUntil),
+  [allBirthdayCustomers, today, nextWeek]);
+
+  // Filter for current month (excluding today's birthdays to avoid duplication)
+  const monthBirthdays = useMemo(() => 
+    allBirthdayCustomers
+      .filter((c) => getMonth(c.birthdayThisYear) === currentMonth && !c.isToday)
+      .sort((a, b) => a.dayOfMonth - b.dayOfMonth),
+  [allBirthdayCustomers, currentMonth]);
 
   const normalizePhone = (phone: string): string => {
-    // Remove all non-digits
     const digits = phone.replace(/\D/g, "");
-    // Add 55 prefix if not present
     if (!digits.startsWith("55")) {
       return `55${digits}`;
     }
@@ -82,7 +92,12 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
     return `https://wa.me/${phone}?text=${encodedMessage}`;
   };
 
-  if (birthdayCustomers.length === 0) {
+  const currentMonthName = format(today, "MMMM", { locale: ptBR });
+
+  // Show card if there are any birthdays (today, upcoming, or this month)
+  const hasBirthdays = todayBirthdays.length > 0 || upcomingBirthdays.length > 0 || monthBirthdays.length > 0;
+
+  if (!hasBirthdays) {
     return null;
   }
 
@@ -116,7 +131,7 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
           </div>
         )}
 
-        {/* Upcoming birthdays */}
+        {/* Upcoming 7 days */}
         {upcomingBirthdays.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -133,6 +148,29 @@ export function BirthdayAlertsCard({ customers, birthdayMessage }: BirthdayAlert
             </div>
           </div>
         )}
+
+        {/* Month birthdays */}
+        <div className="space-y-2 pt-2 border-t border-border/50">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+            <CalendarDays className="w-3.5 h-3.5" />
+            🎂 Aniversariantes de {currentMonthName}
+          </p>
+          {monthBirthdays.length > 0 ? (
+            <div className="space-y-2">
+              {monthBirthdays.map((customer) => (
+                <BirthdayItem
+                  key={customer.id}
+                  customer={customer}
+                  whatsappUrl={getWhatsAppUrl(customer)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-3 text-center">
+              Nenhum aniversariante neste mês.
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
