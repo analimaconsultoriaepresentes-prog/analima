@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Produtos from "./pages/Produtos";
 import Vendas from "./pages/Vendas";
+import Clientes from "./pages/Clientes";
 import Despesas from "./pages/Despesas";
 import Contas from "./pages/Contas";
 import Relatorios from "./pages/Relatorios";
@@ -80,6 +81,7 @@ const AppRoutes = () => {
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/produtos" element={<ProtectedRoute><Produtos /></ProtectedRoute>} />
       <Route path="/vendas" element={<ProtectedRoute><Vendas /></ProtectedRoute>} />
+      <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
       <Route path="/despesas" element={<ProtectedRoute><Despesas /></ProtectedRoute>} />
       <Route path="/contas" element={<ProtectedRoute><Contas /></ProtectedRoute>} />
       <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />

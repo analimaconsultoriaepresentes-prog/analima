@@ -25,6 +25,7 @@ export interface Sale {
   date: string;
   time: string;
   items: SaleItem[];
+  customerId?: string;
 }
 
 export interface CartItem {
@@ -86,6 +87,7 @@ export function useSales() {
             minute: "2-digit",
           }),
           items: saleItems,
+          customerId: (s as { customer_id?: string }).customer_id || undefined,
         };
       });
 
@@ -111,7 +113,8 @@ export function useSales() {
     paymentMethod: string,
     total: number,
     updateStock: (id: string, quantity: number) => Promise<boolean>,
-    products: Product[] = []
+    products: Product[] = [],
+    customerId?: string
   ): Promise<boolean> => {
     if (!user) return false;
 
@@ -139,6 +142,7 @@ export function useSales() {
           payment_method: paymentMethod,
           status: "completed",
           user_id: user.id,
+          customer_id: customerId || null,
         })
         .select()
         .single();

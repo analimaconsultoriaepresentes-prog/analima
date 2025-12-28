@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { SaleForm } from "@/components/sales/SaleForm";
 import { useProducts } from "@/hooks/useProducts";
 import { useSales } from "@/hooks/useSales";
+import { useCustomers } from "@/hooks/useCustomers";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,13 +40,15 @@ export default function Vendas() {
 
   const { products, loading: loadingProducts, updateStock, restoreStock } = useProducts();
   const { sales, loading: loadingSales, addSale, cancelSale: cancelSaleAction, stats } = useSales();
+  const { customers } = useCustomers();
 
   const handleNewSale = async (
     cartItems: { product: typeof products[0]; quantity: number }[],
     paymentMethod: string,
-    total: number
+    total: number,
+    customerId?: string
   ) => {
-    await addSale(cartItems, paymentMethod, total, updateStock);
+    await addSale(cartItems, paymentMethod, total, updateStock, products, customerId);
   };
 
   const handleCancelSale = async () => {
@@ -225,6 +228,7 @@ export default function Vendas() {
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         products={products}
+        customers={customers}
         onSubmit={handleNewSale}
       />
 

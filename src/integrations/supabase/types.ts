@@ -92,6 +92,42 @@ export type Database = {
           },
         ]
       }
+      customers: {
+        Row: {
+          birthday: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          birthday?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          birthday?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
@@ -280,6 +316,7 @@ export type Database = {
       sales: {
         Row: {
           created_at: string
+          customer_id: string | null
           id: string
           payment_method: string
           status: string
@@ -288,6 +325,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customer_id?: string | null
           id?: string
           payment_method: string
           status?: string
@@ -296,13 +334,22 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customer_id?: string | null
           id?: string
           payment_method?: string
           status?: string
           total?: number
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stores: {
         Row: {
