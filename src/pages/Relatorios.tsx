@@ -1,35 +1,89 @@
-import { BarChart3, Download, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, DollarSign, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-
-const monthlyData = [
-  { name: "Jan", receitas: 28000, despesas: 12000, lucro: 16000 },
-  { name: "Fev", receitas: 25000, despesas: 11000, lucro: 14000 },
-  { name: "Mar", receitas: 32000, despesas: 14000, lucro: 18000 },
-  { name: "Abr", receitas: 29000, despesas: 13000, lucro: 16000 },
-  { name: "Mai", receitas: 35000, despesas: 15000, lucro: 20000 },
-  { name: "Jun", receitas: 38000, despesas: 16000, lucro: 22000 },
-];
-
-const categoryData = [
-  { name: "Perfumes", receita: 45000, margem: 42 },
-  { name: "Presentes", receita: 28000, margem: 35 },
-  { name: "Cosméticos", receita: 22000, margem: 38 },
-];
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from "recharts";
+import { useReportsData } from "@/hooks/useReportsData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 export default function Relatorios() {
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Relatórios</h1>
-          <p className="text-muted-foreground mt-1">Análise financeira do seu negócio</p>
+  const { totalReceita, totalDespesa, totalLucro, monthlyData, categoryData, loading } = useReportsData();
+
+  const handleExport = () => {
+    if (monthlyData.length === 0) {
+      toast.error("Nenhum dado para exportar");
+      return;
+    }
+
+    // Create CSV content
+    let csv = "Mês,Receitas,Despesas,Lucro\n";
+    monthlyData.forEach((m) => {
+      csv += `${m.name},${m.receitas.toFixed(2)},${m.despesas.toFixed(2)},${m.lucro.toFixed(2)}\n`;
+    });
+
+    csv += "\n\nCategoria,Receita,Margem (%)\n";
+    categoryData.forEach((c) => {
+      csv += `${c.name},${c.receita.toFixed(2)},${c.margem}\n`;
+    });
+
+    csv += `\n\nResumo (6 meses)\n`;
+    csv += `Total Receitas,${totalReceita.toFixed(2)}\n`;
+    csv += `Total Despesas,${totalDespesa.toFixed(2)}\n`;
+    csv += `Lucro Total,${totalLucro.toFixed(2)}\n`;
+
+    // Download
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `relatorio-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success("Relatório exportado com sucesso!");
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Relatórios</h1>
+            <p className="text-muted-foreground mt-1">Análise financeira do seu negócio</p>
+          </div>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="w-4 h-4" />
-          Exportar
-        </Button>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-[400px] w-full rounded-xl" />
+          <Skeleton className="h-[400px] w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 overflow-x-hidden">
+      {/* Header */}
+      <div className="flex flex-col gap-4 animate-fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Relatórios</h1>
+            <p className="text-muted-foreground mt-1">Análise financeira do seu negócio</p>
+          </div>
+          <Button 
+            variant="outline" 
+            className="gap-2 min-h-[48px] w-full sm:w-auto"
+            onClick={handleExport}
+          >
+            <Download className="w-4 h-4" />
+            Exportar
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -39,9 +93,11 @@ export default function Relatorios() {
             <div className="p-3 rounded-xl bg-success/10">
               <TrendingUp className="w-5 h-5 text-success" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-muted-foreground">Receita Total (6 meses)</p>
-              <p className="text-xl font-bold text-success">R$ 187.000</p>
+              <p className="text-xl font-bold text-success truncate">
+                R$ {totalReceita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
             </div>
           </div>
         </div>
@@ -50,9 +106,11 @@ export default function Relatorios() {
             <div className="p-3 rounded-xl bg-destructive/10">
               <TrendingDown className="w-5 h-5 text-destructive" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-muted-foreground">Despesas Total (6 meses)</p>
-              <p className="text-xl font-bold text-destructive">R$ 81.000</p>
+              <p className="text-xl font-bold text-destructive truncate">
+                R$ {totalDespesa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
             </div>
           </div>
         </div>
@@ -61,9 +119,11 @@ export default function Relatorios() {
             <div className="p-3 rounded-xl bg-primary/10">
               <DollarSign className="w-5 h-5 text-primary" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-muted-foreground">Lucro Total (6 meses)</p>
-              <p className="text-xl font-bold text-primary">R$ 106.000</p>
+              <p className="text-xl font-bold text-primary truncate">
+                R$ {totalLucro.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
             </div>
           </div>
         </div>
@@ -72,95 +132,138 @@ export default function Relatorios() {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue vs Expenses */}
-        <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm animate-slide-up">
-          <div className="mb-6">
+        <div className="bg-card rounded-xl border border-border/50 p-4 sm:p-6 shadow-sm animate-slide-up">
+          <div className="mb-4 sm:mb-6">
             <h3 className="text-lg font-semibold text-foreground">Receitas vs Despesas</h3>
             <p className="text-sm text-muted-foreground">Comparativo mensal</p>
           </div>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `R$${v/1000}k`} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                  }}
-                  formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, '']}
-                />
-                <Bar dataKey="receitas" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} name="Receitas" />
-                <Bar dataKey="despesas" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Despesas" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-[250px] sm:h-[300px] -ml-2 sm:ml-0">
+            {monthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="hsl(var(--muted-foreground))" 
+                    fontSize={11}
+                    tickMargin={8}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))" 
+                    fontSize={10} 
+                    tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+                    width={45}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
+                  />
+                  <Legend 
+                    wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }}
+                  />
+                  <Bar dataKey="receitas" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} name="Receitas" />
+                  <Bar dataKey="despesas" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Despesas" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                Nenhum dado disponível
+              </div>
+            )}
           </div>
         </div>
 
         {/* Profit Trend */}
-        <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm animate-slide-up">
-          <div className="mb-6">
+        <div className="bg-card rounded-xl border border-border/50 p-4 sm:p-6 shadow-sm animate-slide-up">
+          <div className="mb-4 sm:mb-6">
             <h3 className="text-lg font-semibold text-foreground">Evolução do Lucro</h3>
             <p className="text-sm text-muted-foreground">Tendência mensal</p>
           </div>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `R$${v/1000}k`} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                  }}
-                  formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, '']}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="lucro" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={3}
-                  dot={{ fill: "hsl(var(--primary))", strokeWidth: 2 }}
-                  name="Lucro"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="h-[250px] sm:h-[300px] -ml-2 sm:ml-0">
+            {monthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlyData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="hsl(var(--muted-foreground))" 
+                    fontSize={11}
+                    tickMargin={8}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))" 
+                    fontSize={10} 
+                    tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+                    width={45}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="lucro" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={3}
+                    dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
+                    name="Lucro"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                Nenhum dado disponível
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Category Performance */}
-      <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm animate-slide-up">
-        <div className="mb-6">
+      <div className="bg-card rounded-xl border border-border/50 p-4 sm:p-6 shadow-sm animate-slide-up">
+        <div className="mb-4 sm:mb-6">
           <h3 className="text-lg font-semibold text-foreground">Desempenho por Categoria</h3>
           <p className="text-sm text-muted-foreground">Receita e margem de lucro</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {categoryData.map((category, index) => (
-            <div
-              key={category.name}
-              className="p-4 rounded-lg border border-border/50 bg-muted/20"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-medium text-foreground">{category.name}</span>
-                <span className="alert-badge bg-primary/10 text-primary">{category.margem}% margem</span>
+        {categoryData.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {categoryData.map((category, index) => (
+              <div
+                key={category.name}
+                className="p-4 rounded-lg border border-border/50 bg-muted/20"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <span className="font-medium text-foreground truncate">{category.name}</span>
+                  <span className="alert-badge bg-primary/10 text-primary shrink-0">{category.margem}% margem</span>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold text-foreground">
+                  R$ {category.receita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+                <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min((category.receita / (categoryData[0]?.receita || 1)) * 100, 100)}%` }}
+                  />
+                </div>
               </div>
-              <p className="text-2xl font-bold text-foreground">
-                R$ {category.receita.toLocaleString('pt-BR')}
-              </p>
-              <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary rounded-full transition-all duration-500"
-                  style={{ width: `${(category.receita / 45000) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            Nenhuma venda registrada nos últimos 6 meses
+          </div>
+        )}
       </div>
     </div>
   );
