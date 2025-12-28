@@ -66,19 +66,18 @@ export default function Vendas() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 animate-fade-in">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Vendas</h1>
             <p className="text-muted-foreground mt-1 text-sm sm:text-base">Registre e acompanhe suas vendas</p>
           </div>
-          {/* Desktop button - always visible */}
+          {/* Button - stacked on mobile, inline on desktop */}
           <Button 
-            className="btn-primary gap-2 min-h-[48px] px-4 sm:px-6 shrink-0" 
+            className="btn-primary gap-2 min-h-[48px] px-4 sm:px-6 w-full sm:w-auto sm:shrink-0" 
             onClick={() => setIsFormOpen(true)}
           >
             <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Nova Venda</span>
-            <span className="sm:hidden">Nova</span>
+            Nova Venda
           </Button>
         </div>
       </div>
