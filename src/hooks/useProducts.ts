@@ -6,7 +6,7 @@ import { useAuth } from "./useAuth";
 export interface Product {
   id: string;
   name: string;
-  category: "Presente" | "Perfume" | "Cosmético";
+  category: "Presente" | "Perfume" | "Cosmético" | "Utensílios";
   brand: string;
   costPrice: number;
   salePrice: number;
@@ -14,11 +14,13 @@ export interface Product {
   expiryDate?: string;
   origin: "purchased" | "gift";
   cycle?: number;
+  isBasket: boolean;
+  packagingCost: number;
 }
 
 export interface ProductFormData {
   name: string;
-  category: "Presente" | "Perfume" | "Cosmético";
+  category: "Presente" | "Perfume" | "Cosmético" | "Utensílios";
   brand: string;
   costPrice: number;
   salePrice: number;
@@ -26,6 +28,8 @@ export interface ProductFormData {
   expiryDate?: Date;
   origin: "purchased" | "gift";
   cycle?: number;
+  isBasket: boolean;
+  packagingCost: number;
 }
 
 export function useProducts() {
@@ -59,6 +63,8 @@ export function useProducts() {
         expiryDate: p.expiry_date || undefined,
         origin: (p.origin as Product["origin"]) || "purchased",
         cycle: p.cycle ?? undefined,
+        isBasket: p.is_basket || false,
+        packagingCost: Number(p.packaging_cost) || 0,
       }));
 
       setProducts(mapped);
@@ -93,6 +99,8 @@ export function useProducts() {
         user_id: user.id,
         origin: data.origin,
         cycle: data.cycle || null,
+        is_basket: data.isBasket,
+        packaging_cost: data.packagingCost || 0,
       });
 
       if (error) throw error;
@@ -128,6 +136,8 @@ export function useProducts() {
           expiry_date: data.expiryDate?.toISOString().split("T")[0] || null,
           origin: data.origin,
           cycle: data.cycle || null,
+          is_basket: data.isBasket,
+          packaging_cost: data.packagingCost || 0,
         })
         .eq("id", id);
 

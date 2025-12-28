@@ -4,11 +4,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Package, Percent, Gift } from "lucide-react";
+import { CalendarIcon, Package, Percent, Gift, ShoppingBasket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
+import { Switch } from "@/components/ui/switch";
 import {
   Drawer,
   DrawerContent,
@@ -45,6 +46,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { BasketCompositionForm, type BasketItemInput } from "./BasketCompositionForm";
 import type { Product, ProductFormData } from "@/hooks/useProducts";
 
 const productSchema = z.object({
@@ -59,7 +61,13 @@ const productSchema = z.object({
   expiryDate: z.date().optional(),
   origin: z.enum(["purchased", "gift"]),
   cycle: z.coerce.number().int().min(1, "Ciclo deve ser maior que zero").optional().or(z.literal("")),
+  isBasket: z.boolean(),
+  packagingCost: z.coerce.number().min(0, "Custo de embalagem não pode ser negativo"),
 }).refine((data) => {
+  // For baskets, sale price just needs to be > 0
+  if (data.isBasket) {
+    return data.salePrice > 0;
+  }
   // For gifts (cost = 0), only require sale price > 0
   if (data.origin === "gift") {
     return data.salePrice > 0;
@@ -74,37 +82,78 @@ const productSchema = z.object({
 interface ProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: ProductFormData) => void;
+  onSubmit: (data: ProductFormData, basketItems?: BasketItemInput[]) => void;
   editProduct?: Product | null;
+  availableProducts?: Product[];
+  initialBasketItems?: BasketItemInput[];
 }
 
 function ProductFormContent({ 
   form, 
   onSubmit, 
   onCancel, 
-  editProduct 
+  editProduct,
+  availableProducts = [],
+  initialBasketItems = [],
 }: { 
   form: ReturnType<typeof useForm<ProductFormData>>; 
-  onSubmit: (data: ProductFormData) => void;
+  onSubmit: (data: ProductFormData, basketItems?: BasketItemInput[]) => void;
   onCancel: () => void;
   editProduct?: Product | null;
+  availableProducts?: Product[];
+  initialBasketItems?: BasketItemInput[];
 }) {
   const [desiredMargin, setDesiredMargin] = useState<string>("");
   const isManualSalePriceEdit = useRef(false);
+  const [basketItems, setBasketItems] = useState<BasketItemInput[]>(initialBasketItems);
+  const [basketPackagingCost, setBasketPackagingCost] = useState<number>(editProduct?.packagingCost || 0);
+  const [basketDesiredMargin, setBasketDesiredMargin] = useState<number>(50);
   
   const costPrice = form.watch("costPrice");
   const salePrice = form.watch("salePrice");
   const origin = form.watch("origin");
+  const isBasket = form.watch("isBasket");
   
   const isGift = origin === "gift";
   
+  // Update form values when basket composition changes
+  useEffect(() => {
+    if (isBasket && basketItems.length > 0) {
+      const totalItemsCost = basketItems.reduce((sum, item) => sum + item.costPrice * item.quantity, 0);
+      const totalCost = totalItemsCost + basketPackagingCost;
+      form.setValue("costPrice", totalCost, { shouldValidate: true });
+      form.setValue("packagingCost", basketPackagingCost, { shouldValidate: true });
+      
+      if (basketDesiredMargin > 0) {
+        const suggestedPrice = totalCost * (1 + basketDesiredMargin / 100);
+        form.setValue("salePrice", Math.round(suggestedPrice * 100) / 100, { shouldValidate: true });
+      }
+    }
+  }, [isBasket, basketItems, basketPackagingCost, basketDesiredMargin, form]);
+
+  // Reset basket items when switching to non-basket
+  useEffect(() => {
+    if (!isBasket) {
+      setBasketItems([]);
+      setBasketPackagingCost(0);
+    }
+  }, [isBasket]);
+
+  // Initialize basket items when editing
+  useEffect(() => {
+    if (editProduct?.isBasket && initialBasketItems.length > 0) {
+      setBasketItems(initialBasketItems);
+      setBasketPackagingCost(editProduct.packagingCost);
+    }
+  }, [editProduct, initialBasketItems]);
+  
   // Auto-set cost to 0 when origin changes to gift
   useEffect(() => {
-    if (isGift) {
+    if (isGift && !isBasket) {
       form.setValue("costPrice", 0, { shouldValidate: true });
       setDesiredMargin("");
     }
-  }, [isGift, form]);
+  }, [isGift, isBasket, form]);
   
   // Calculate actual margin for display
   const actualMargin = salePrice > 0 && costPrice > 0 && salePrice > costPrice
@@ -113,8 +162,9 @@ function ProductFormContent({
   
   const profit = salePrice > costPrice ? (salePrice - costPrice).toFixed(2) : "0.00";
 
-  // Auto-calculate sale price when cost or desired margin changes
+  // Auto-calculate sale price when cost or desired margin changes (for non-baskets)
   useEffect(() => {
+    if (isBasket) return;
     if (isManualSalePriceEdit.current) {
       isManualSalePriceEdit.current = false;
       return;
@@ -126,11 +176,11 @@ function ProductFormContent({
       const roundedPrice = Math.round(calculatedSalePrice * 100) / 100;
       form.setValue("salePrice", roundedPrice, { shouldValidate: true });
     }
-  }, [costPrice, desiredMargin, form]);
+  }, [costPrice, desiredMargin, form, isBasket]);
 
   // Initialize desired margin when editing a product
   useEffect(() => {
-    if (editProduct && costPrice > 0 && salePrice > costPrice) {
+    if (editProduct && !editProduct.isBasket && costPrice > 0 && salePrice > costPrice) {
       const calculatedMargin = ((salePrice - costPrice) / costPrice * 100).toFixed(1);
       setDesiredMargin(calculatedMargin);
     }
@@ -154,23 +204,49 @@ function ProductFormContent({
   };
 
   function handleSubmit(data: ProductFormData) {
-    onSubmit(data);
+    onSubmit(data, isBasket ? basketItems : undefined);
     form.reset();
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-5">
+        {/* Tipo de Produto - Switch para Cesta */}
+        <FormField
+          control={form.control}
+          name="isBasket"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border/50 p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base flex items-center gap-2">
+                  <ShoppingBasket className="w-4 h-4" />
+                  Cesta / Combo
+                </FormLabel>
+                <FormDescription>
+                  Produto composto por outros itens
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={!!editProduct}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
         {/* Nome do Produto */}
         <FormField
           control={form.control}
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nome do Produto</FormLabel>
+              <FormLabel>{isBasket ? "Nome da Cesta" : "Nome do Produto"}</FormLabel>
               <FormControl>
                 <Input 
-                  placeholder="Ex: Perfume Dolce & Gabbana" 
+                  placeholder={isBasket ? "Ex: Kit Presente Natal" : "Ex: Perfume Dolce & Gabbana"}
                   className="input-styled min-h-[44px]"
                   {...field} 
                 />
@@ -180,33 +256,48 @@ function ProductFormContent({
           )}
         />
 
-        {/* Origem do Produto */}
-        <FormField
-          control={form.control}
-          name="origin"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Origem do Produto</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger className="input-styled min-h-[44px]">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="purchased">Comprado</SelectItem>
-                  <SelectItem value="gift">
-                    <span className="flex items-center gap-2">
-                      <Gift className="w-4 h-4" />
-                      Brinde
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Basket Composition - Only show for baskets */}
+        {isBasket && (
+          <BasketCompositionForm
+            availableProducts={availableProducts}
+            items={basketItems}
+            onItemsChange={setBasketItems}
+            packagingCost={basketPackagingCost}
+            onPackagingCostChange={setBasketPackagingCost}
+            desiredMargin={basketDesiredMargin}
+            onDesiredMarginChange={setBasketDesiredMargin}
+          />
+        )}
+
+        {/* Origem do Produto - Hide for baskets */}
+        {!isBasket && (
+          <FormField
+            control={form.control}
+            name="origin"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Origem do Produto</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="input-styled min-h-[44px]">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="purchased">Comprado</SelectItem>
+                    <SelectItem value="gift">
+                      <span className="flex items-center gap-2">
+                        <Gift className="w-4 h-4" />
+                        Brinde
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {/* Categoria e Marca - stack on mobile */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -253,99 +344,137 @@ function ProductFormContent({
           />
         </div>
 
-        {/* Ciclo e Preço de Custo */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="cycle"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Ciclo (opcional)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    min="1"
-                    inputMode="numeric"
-                    placeholder="Ex: 1, 2, 3..." 
-                    className="input-styled min-h-[44px]"
-                    {...field}
-                    value={field.value ?? ""}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      field.onChange(val === "" ? undefined : parseInt(val, 10));
-                    }}
-                  />
-                </FormControl>
-                <FormDescription className="text-xs">
-                  Número do ciclo/campanha da revista.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {/* Ciclo e Preço de Custo - Only for non-baskets */}
+        {!isBasket && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="cycle"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ciclo (opcional)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min="1"
+                      inputMode="numeric"
+                      placeholder="Ex: 1, 2, 3..." 
+                      className="input-styled min-h-[44px]"
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        field.onChange(val === "" ? undefined : parseInt(val, 10));
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Número do ciclo/campanha da revista.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="costPrice"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Preço de Custo (R$)</FormLabel>
-                <FormControl>
+            <FormField
+              control={form.control}
+              name="costPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Preço de Custo (R$)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.01"
+                      min="0"
+                      inputMode="decimal"
+                      placeholder="0,00" 
+                      className="input-styled min-h-[44px]"
+                      disabled={isGift}
+                      {...field} 
+                      value={isGift ? 0 : field.value}
+                    />
+                  </FormControl>
+                  {isGift && (
+                    <FormDescription className="text-xs">
+                      Produtos recebidos como brinde têm custo zero.
+                    </FormDescription>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
+
+        {/* Margem e Preço de Venda - for non-baskets */}
+        {!isBasket && (
+          <div className={cn("grid gap-4", isGift ? "grid-cols-1" : "grid-cols-2")}>
+            {!isGift && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Margem desejada (%)
+                </label>
+                <div className="relative">
                   <Input 
                     type="number" 
-                    step="0.01"
+                    step="0.1"
                     min="0"
                     inputMode="decimal"
-                    placeholder="0,00" 
-                    className="input-styled min-h-[44px]"
-                    disabled={isGift}
-                    {...field} 
-                    value={isGift ? 0 : field.value}
+                    placeholder="Ex: 50" 
+                    className="input-styled min-h-[44px] pr-8"
+                    value={desiredMargin}
+                    onChange={handleDesiredMarginChange}
                   />
-                </FormControl>
-                {isGift && (
-                  <FormDescription className="text-xs">
-                    Produtos recebidos como brinde têm custo zero.
-                  </FormDescription>
-                )}
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Margem e Preço de Venda */}
-        <div className={cn("grid gap-4", isGift ? "grid-cols-1" : "grid-cols-2")}>
-          {!isGift && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Margem desejada (%)
-              </label>
-              <div className="relative">
-                <Input 
-                  type="number" 
-                  step="0.1"
-                  min="0"
-                  inputMode="decimal"
-                  placeholder="Ex: 50" 
-                  className="input-styled min-h-[44px] pr-8"
-                  value={desiredMargin}
-                  onChange={handleDesiredMarginChange}
-                />
-                <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Venda = Custo + Margem
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Venda = Custo + Margem
-              </p>
-            </div>
-          )}
+            )}
 
+            <FormField
+              control={form.control}
+              name="salePrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Preço de Venda (R$)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.01"
+                      min="0"
+                      inputMode="decimal"
+                      placeholder="0,00" 
+                      className="input-styled min-h-[44px]"
+                      value={field.value || ""}
+                      onChange={(e) => handleSalePriceChange(e, field.onChange)}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  {isGift && (
+                    <FormDescription className="text-xs">
+                      Margem não se aplica para brinde (custo zero).
+                    </FormDescription>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
+
+        {/* Preço de Venda for baskets - editable override */}
+        {isBasket && (
           <FormField
             control={form.control}
             name="salePrice"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Preço de Venda (R$)</FormLabel>
+                <FormLabel>Preço de Venda Final (R$)</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -354,26 +483,20 @@ function ProductFormContent({
                     inputMode="decimal"
                     placeholder="0,00" 
                     className="input-styled min-h-[44px]"
-                    value={field.value || ""}
-                    onChange={(e) => handleSalePriceChange(e, field.onChange)}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                    ref={field.ref}
+                    {...field}
                   />
                 </FormControl>
-                {isGift && (
-                  <FormDescription className="text-xs">
-                    Margem não se aplica para brinde (custo zero).
-                  </FormDescription>
-                )}
+                <FormDescription className="text-xs">
+                  Calculado automaticamente pela margem, mas pode ser ajustado.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
+        )}
 
-        {/* Cálculos automáticos */}
-        {costPrice > 0 && salePrice > 0 && salePrice > costPrice && (
+        {/* Cálculos automáticos - for non-baskets */}
+        {!isBasket && costPrice > 0 && salePrice > 0 && salePrice > costPrice && (
           <div className="bg-success/5 border border-success/20 rounded-lg p-3 sm:p-4 animate-fade-in">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -395,7 +518,7 @@ function ProductFormContent({
             name="stock"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Estoque</FormLabel>
+                <FormLabel>{isBasket ? "Cestas montadas" : "Estoque"}</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -406,6 +529,11 @@ function ProductFormContent({
                     {...field} 
                   />
                 </FormControl>
+                {isBasket && (
+                  <FormDescription className="text-xs">
+                    Quantidade de cestas prontas para venda.
+                  </FormDescription>
+                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -463,7 +591,11 @@ function ProductFormContent({
           >
             Cancelar
           </Button>
-          <Button type="submit" className="flex-1 btn-primary min-h-[48px] text-base">
+          <Button 
+            type="submit" 
+            className="flex-1 btn-primary min-h-[48px] text-base"
+            disabled={isBasket && basketItems.length === 0}
+          >
             {editProduct ? "Salvar" : "Cadastrar"}
           </Button>
         </div>
@@ -472,7 +604,14 @@ function ProductFormContent({
   );
 }
 
-export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: ProductFormProps) {
+export function ProductForm({ 
+  open, 
+  onOpenChange, 
+  onSubmit, 
+  editProduct,
+  availableProducts = [],
+  initialBasketItems = [],
+}: ProductFormProps) {
   const isMobile = useIsMobile();
   
   const form = useForm<ProductFormData>({
@@ -485,6 +624,8 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
       stock: 0,
       origin: "purchased",
       cycle: undefined,
+      isBasket: false,
+      packagingCost: 0,
     },
   });
 
@@ -501,6 +642,8 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
         expiryDate: editProduct.expiryDate ? new Date(editProduct.expiryDate) : undefined,
         origin: editProduct.origin,
         cycle: editProduct.cycle,
+        isBasket: editProduct.isBasket,
+        packagingCost: editProduct.packagingCost,
       });
     } else {
       form.reset({
@@ -511,6 +654,8 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
         stock: 0,
         origin: "purchased",
         cycle: undefined,
+        isBasket: false,
+        packagingCost: 0,
       });
     }
   });
@@ -520,25 +665,32 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
     onOpenChange(false);
   };
 
-  const handleSubmit = (data: ProductFormData) => {
-    onSubmit(data);
+  const handleSubmit = (data: ProductFormData, basketItems?: BasketItemInput[]) => {
+    onSubmit(data, basketItems);
     form.reset();
   };
 
   const header = (
     <div className="flex items-center gap-2">
       <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-        <Package className="w-5 h-5 text-primary-foreground" />
+        {editProduct?.isBasket || form.watch("isBasket") ? (
+          <ShoppingBasket className="w-5 h-5 text-primary-foreground" />
+        ) : (
+          <Package className="w-5 h-5 text-primary-foreground" />
+        )}
       </div>
       <span className="text-xl font-semibold">
-        {editProduct ? "Editar Produto" : "Novo Produto"}
+        {editProduct 
+          ? (editProduct.isBasket ? "Editar Cesta" : "Editar Produto")
+          : "Novo Produto"
+        }
       </span>
     </div>
   );
 
   const description = editProduct 
     ? "Atualize os dados do produto."
-    : "Preencha os dados do produto.";
+    : "Preencha os dados do produto ou crie uma cesta personalizada.";
 
   if (isMobile) {
     return (
@@ -554,6 +706,8 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
               onSubmit={handleSubmit} 
               onCancel={handleClose}
               editProduct={editProduct}
+              availableProducts={availableProducts}
+              initialBasketItems={initialBasketItems}
             />
           </div>
         </DrawerContent>
@@ -563,7 +717,7 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{header}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -573,8 +727,12 @@ export function ProductForm({ open, onOpenChange, onSubmit, editProduct }: Produ
           onSubmit={handleSubmit} 
           onCancel={handleClose}
           editProduct={editProduct}
+          availableProducts={availableProducts}
+          initialBasketItems={initialBasketItems}
         />
       </DialogContent>
     </Dialog>
   );
 }
+
+export type { BasketItemInput };
