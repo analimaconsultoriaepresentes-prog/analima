@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Search, ShoppingCart, Calendar, XCircle, Loader2, Package, Gift, Globe, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,13 @@ export default function Vendas() {
   const { products, loading: loadingProducts, updateStock, restoreStock } = useProducts();
   const { sales, loading: loadingSales, addSale, cancelSale: cancelSaleAction, stats } = useSales();
   const { customers, addCustomer } = useCustomers();
+
+  // Calcular custo médio de embalagem dos produtos tipo "packaging"
+  const avgPackagingCostPerItem = useMemo(() => {
+    const packagingProducts = products.filter(p => p.productType === 'packaging' && p.isActive);
+    if (packagingProducts.length === 0) return 0;
+    return packagingProducts.reduce((acc, p) => acc + p.costPrice, 0) / packagingProducts.length;
+  }, [products]);
 
   const handleNewSale = async (
     cartItems: { product: typeof products[0]; quantity: number }[],
@@ -324,6 +331,7 @@ export default function Vendas() {
         onSubmit={handleNewSale}
         onAddCustomer={addCustomer}
         defaultChannel={defaultChannel}
+        defaultPackagingCostPerItem={avgPackagingCostPerItem}
       />
 
       {/* Cancel Confirmation Dialog */}
