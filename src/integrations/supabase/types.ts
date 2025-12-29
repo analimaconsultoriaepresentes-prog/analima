@@ -197,8 +197,10 @@ export type Database = {
           cost_price: number
           created_at: string
           cycle: number | null
+          deleted_at: string | null
           expiry_date: string | null
           id: string
+          is_active: boolean
           is_basket: boolean
           name: string
           origin: string
@@ -214,8 +216,10 @@ export type Database = {
           cost_price?: number
           created_at?: string
           cycle?: number | null
+          deleted_at?: string | null
           expiry_date?: string | null
           id?: string
+          is_active?: boolean
           is_basket?: boolean
           name: string
           origin?: string
@@ -231,8 +235,10 @@ export type Database = {
           cost_price?: number
           created_at?: string
           cycle?: number | null
+          deleted_at?: string | null
           expiry_date?: string | null
           id?: string
+          is_active?: boolean
           is_basket?: boolean
           name?: string
           origin?: string

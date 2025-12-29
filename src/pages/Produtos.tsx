@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift, PackagePlus, ShoppingBasket } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift, PackagePlus, ShoppingBasket, Archive, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,7 @@ export default function Produtos() {
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteProductState, setDeleteProductState] = useState<Product | null>(null);
+  const [archiveConfirmState, setArchiveConfirmState] = useState<Product | null>(null);
   const [stockEntryProduct, setStockEntryProduct] = useState<Product | null>(null);
   const [editBasketItems, setEditBasketItems] = useState<BasketItemInput[]>([]);
   const [filters, setFilters] = useState<ProductFiltersState>({
@@ -45,18 +46,23 @@ export default function Produtos() {
     origins: [],
     stockFilter: "all",
     cycle: "",
+    statusFilter: "active",
   });
 
-  const { products, loading, addProduct, updateProduct, deleteProduct, restoreStock, refetch } = useProducts();
+  const { products, loading, addProduct, updateProduct, deleteProduct, archiveProduct, reactivateProduct, checkProductDependencies, restoreStock, refetch } = useProducts();
   const { saveBasketItems, fetchBasketItems } = useBaskets();
 
-  // Filter out baskets for the available products in basket composition
+  // Filter out baskets and archived products for basket composition
   const availableProductsForBasket = useMemo(() => {
-    return products.filter((p) => !p.isBasket);
+    return products.filter((p) => !p.isBasket && p.isActive);
   }, [products]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
+      // Status filter (active/archived/all)
+      if (filters.statusFilter === "active" && !product.isActive) return false;
+      if (filters.statusFilter === "archived" && product.isActive) return false;
+
       // Text search
       const matchesSearch =
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,6 +100,7 @@ export default function Produtos() {
     if (filters.origins.length > 0) count++;
     if (filters.stockFilter !== "all") count++;
     if (filters.cycle !== "") count++;
+    if (filters.statusFilter !== "active") count++;
     return count;
   }, [filters]);
 
@@ -141,8 +148,38 @@ export default function Produtos() {
 
   const handleDeleteProduct = async () => {
     if (!deleteProductState) return;
-    await deleteProduct(deleteProductState.id, deleteProductState.name);
+    await deleteProduct(deleteProductState.id, deleteProductState.name, deleteProductState.isBasket);
     setDeleteProductState(null);
+  };
+
+  const handleArchiveProduct = async () => {
+    if (!archiveConfirmState) return;
+    await archiveProduct(archiveConfirmState.id, archiveConfirmState.name);
+    setArchiveConfirmState(null);
+  };
+
+  const handleReactivateProduct = async (product: Product) => {
+    await reactivateProduct(product.id, product.name);
+  };
+
+  const handleProductAction = async (product: Product, action: "archive" | "delete") => {
+    if (action === "archive") {
+      setArchiveConfirmState(product);
+    } else {
+      // Check dependencies before showing delete confirmation
+      const deps = await checkProductDependencies(product.id);
+      
+      if (deps.hasSales) {
+        // If has sales, offer to archive instead
+        setArchiveConfirmState(product);
+      } else if (deps.hasBasketUsage) {
+        // Cannot delete - show error toast (already handled in deleteProduct)
+        await deleteProduct(product.id, product.name, product.isBasket);
+      } else {
+        // Can delete - show confirmation
+        setDeleteProductState(product);
+      }
+    }
   };
 
   const openEditModal = async (product: Product) => {
@@ -273,28 +310,55 @@ export default function Produtos() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {!product.isBasket && (
+                    {!product.isBasket && product.isActive && (
                       <DropdownMenuItem onClick={() => setStockEntryProduct(product)}>
                         <PackagePlus className="w-4 h-4 mr-2" />
                         Entrada de estoque
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => openEditModal(product)}>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setDeleteProductState(product)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Excluir
-                    </DropdownMenuItem>
+                    {product.isActive && (
+                      <DropdownMenuItem onClick={() => openEditModal(product)}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                    )}
+                    {product.isActive ? (
+                      <>
+                        <DropdownMenuItem
+                          onClick={() => handleProductAction(product, "archive")}
+                          className="text-warning focus:text-warning"
+                        >
+                          <Archive className="w-4 h-4 mr-2" />
+                          Arquivar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleProductAction(product, "delete")}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Excluir definitivamente
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <DropdownMenuItem
+                        onClick={() => handleReactivateProduct(product)}
+                        className="text-success focus:text-success"
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Reativar
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 mb-4">
+                {!product.isActive && (
+                  <span className="alert-badge bg-muted text-muted-foreground flex items-center gap-1">
+                    <Archive className="w-3 h-3" />
+                    Arquivado
+                  </span>
+                )}
                 {product.isBasket && (
                   <span className="alert-badge bg-primary/10 text-primary flex items-center gap-1">
                     <ShoppingBasket className="w-3 h-3" />
@@ -310,7 +374,7 @@ export default function Produtos() {
                     Brinde
                   </span>
                 )}
-                {!product.isBasket && product.stock < 3 && (
+                {!product.isBasket && product.stock < 3 && product.isActive && (
                   <span className="alert-badge alert-badge-warning flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
                     Estoque baixo
@@ -362,9 +426,9 @@ export default function Produtos() {
       <AlertDialog open={!!deleteProductState} onOpenChange={(open) => !open && setDeleteProductState(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir {deleteProductState?.isBasket ? "cesta" : "produto"}?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir {deleteProductState?.isBasket ? "cesta" : "produto"} definitivamente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{deleteProductState?.name}</strong>?
+              Tem certeza que deseja excluir <strong>{deleteProductState?.name}</strong> permanentemente?
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -374,7 +438,29 @@ export default function Produtos() {
               onClick={handleDeleteProduct}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Excluir
+              Excluir definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={!!archiveConfirmState} onOpenChange={(open) => !open && setArchiveConfirmState(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Arquivar {archiveConfirmState?.isBasket ? "cesta" : "produto"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{archiveConfirmState?.name}</strong> será arquivado e não aparecerá mais na lista de produtos ativos, 
+              nem estará disponível para novas vendas. Você pode reativá-lo a qualquer momento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleArchiveProduct}
+              className="bg-warning text-warning-foreground hover:bg-warning/90"
+            >
+              Arquivar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
