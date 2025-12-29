@@ -13,6 +13,11 @@ export interface AlertSettings {
   billsDaysBefore: number;
 }
 
+export interface PackagingCosts {
+  packagingCost1Bag: number;
+  packagingCost2Bags: number;
+}
+
 export interface Store {
   id: string;
   name: string;
@@ -20,6 +25,7 @@ export interface Store {
   primaryColor: string;
   birthdayMessage: string;
   alertSettings: AlertSettings;
+  packagingCosts: PackagingCosts;
 }
 
 const DEFAULT_ALERT_SETTINGS: AlertSettings = {
@@ -30,6 +36,11 @@ const DEFAULT_ALERT_SETTINGS: AlertSettings = {
   lowStockThreshold: 3,
   expiryDaysBefore: 30,
   billsDaysBefore: 3,
+};
+
+const DEFAULT_PACKAGING_COSTS: PackagingCosts = {
+  packagingCost1Bag: 0,
+  packagingCost2Bags: 0,
 };
 
 export function useStore() {
@@ -68,6 +79,10 @@ export function useStore() {
             lowStockThreshold: data.low_stock_threshold ?? 3,
             expiryDaysBefore: data.expiry_days_before ?? 30,
             billsDaysBefore: data.bills_days_before ?? 3,
+          },
+          packagingCosts: {
+            packagingCost1Bag: Number(data.packaging_cost_1_bag) || 0,
+            packagingCost2Bags: Number(data.packaging_cost_2_bags) || 0,
           },
         });
       }
@@ -156,6 +171,37 @@ export function useStore() {
     }
   };
 
+  const updatePackagingCosts = async (costs: PackagingCosts): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from("stores")
+        .update({
+          packaging_cost_1_bag: costs.packagingCost1Bag,
+          packaging_cost_2_bags: costs.packagingCost2Bags,
+        })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setStore(prev => prev ? { ...prev, packagingCosts: costs } : null);
+      toast({
+        title: "Configurações salvas",
+        description: "Os custos de embalagem foram atualizados.",
+      });
+      return true;
+    } catch (error) {
+      console.error("Error updating packaging costs:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const uploadLogo = async (file: File): Promise<string | null> => {
     if (!user) return null;
 
@@ -205,6 +251,7 @@ export function useStore() {
     loading,
     updateStore,
     updateAlertSettings,
+    updatePackagingCosts,
     uploadLogo,
     refetch: fetchStore,
   };

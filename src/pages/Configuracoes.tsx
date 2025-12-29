@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle } from "lucide-react";
+import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { useStore, AlertSettings } from "@/hooks/useStore";
+import { useStore, AlertSettings, PackagingCosts } from "@/hooks/useStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
@@ -27,7 +27,7 @@ const EMAIL_CONFIGURED = true; // Will be controlled by actual secret check
 export default function Configuracoes() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { store, loading, updateStore, updateAlertSettings, uploadLogo } = useStore();
+  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [storeName, setStoreName] = useState("");
@@ -35,6 +35,7 @@ export default function Configuracoes() {
   const [birthdayMessage, setBirthdayMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [savingAlerts, setSavingAlerts] = useState(false);
+  const [savingPackaging, setSavingPackaging] = useState(false);
   
   // Alert settings state - controlled components
   const [alertSettings, setAlertSettings] = useState<AlertSettings>({
@@ -48,6 +49,13 @@ export default function Configuracoes() {
   });
   const [alertsLoaded, setAlertsLoaded] = useState(false);
 
+  // Packaging costs state
+  const [packagingCosts, setPackagingCosts] = useState<PackagingCosts>({
+    packagingCost1Bag: 0,
+    packagingCost2Bags: 0,
+  });
+  const [packagingLoaded, setPackagingLoaded] = useState(false);
+
   // Load store data only once on mount or when store changes
   useEffect(() => {
     if (store && !alertsLoaded) {
@@ -57,11 +65,16 @@ export default function Configuracoes() {
       setAlertSettings(store.alertSettings);
       setAlertsLoaded(true);
     }
-  }, [store, alertsLoaded]);
+    if (store && !packagingLoaded) {
+      setPackagingCosts(store.packagingCosts);
+      setPackagingLoaded(true);
+    }
+  }, [store, alertsLoaded, packagingLoaded]);
 
-  // Reset alertsLoaded when user changes
+  // Reset loaded flags when user changes
   useEffect(() => {
     setAlertsLoaded(false);
+    setPackagingLoaded(false);
   }, [user?.id]);
 
   const handleSave = async () => {
@@ -95,6 +108,18 @@ export default function Configuracoes() {
       // If save failed, reload from store to reset local state
       if (store) {
         setAlertSettings(store.alertSettings);
+      }
+    }
+  };
+
+  const handleSavePackaging = async () => {
+    setSavingPackaging(true);
+    const success = await updatePackagingCosts(packagingCosts);
+    setSavingPackaging(false);
+    
+    if (!success) {
+      if (store) {
+        setPackagingCosts(store.packagingCosts);
       }
     }
   };
@@ -305,6 +330,71 @@ export default function Configuracoes() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Packaging Costs */}
+          <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              Custo de Embalagem (Interno)
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Configure o custo interno de embalagem para cálculo de lucro real. Esses valores não são cobrados do cliente.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="packaging1Bag">Custo (1-2 itens avulsos)</Label>
+                <div className="relative mt-1.5">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                  <Input
+                    id="packaging1Bag"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={packagingCosts.packagingCost1Bag}
+                    onChange={(e) => setPackagingCosts(prev => ({
+                      ...prev,
+                      packagingCost1Bag: parseFloat(e.target.value) || 0
+                    }))}
+                    className="pl-10"
+                    placeholder="0,00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">1 sacola</p>
+              </div>
+              <div>
+                <Label htmlFor="packaging2Bags">Custo (3-5 itens avulsos)</Label>
+                <div className="relative mt-1.5">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                  <Input
+                    id="packaging2Bags"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={packagingCosts.packagingCost2Bags}
+                    onChange={(e) => setPackagingCosts(prev => ({
+                      ...prev,
+                      packagingCost2Bags: parseFloat(e.target.value) || 0
+                    }))}
+                    className="pl-10"
+                    placeholder="0,00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">2 sacolas</p>
+              </div>
+            </div>
+            <Button 
+              className="btn-primary gap-2 mt-4" 
+              onClick={handleSavePackaging}
+              disabled={savingPackaging}
+            >
+              {savingPackaging ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Salvar Custos de Embalagem
+            </Button>
           </div>
 
           {/* Alert Settings */}

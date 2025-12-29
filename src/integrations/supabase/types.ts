@@ -485,6 +485,8 @@ export type Database = {
           low_stock_enabled: boolean
           low_stock_threshold: number
           name: string
+          packaging_cost_1_bag: number
+          packaging_cost_2_bags: number
           primary_color: string | null
           updated_at: string
           user_id: string
@@ -502,6 +504,8 @@ export type Database = {
           low_stock_enabled?: boolean
           low_stock_threshold?: number
           name?: string
+          packaging_cost_1_bag?: number
+          packaging_cost_2_bags?: number
           primary_color?: string | null
           updated_at?: string
           user_id: string
@@ -519,6 +523,8 @@ export type Database = {
           low_stock_enabled?: boolean
           low_stock_threshold?: number
           name?: string
+          packaging_cost_1_bag?: number
+          packaging_cost_2_bags?: number
           primary_color?: string | null
           updated_at?: string
           user_id?: string
