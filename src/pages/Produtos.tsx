@@ -508,6 +508,7 @@ export default function Produtos() {
             await saveBasketItems(productId, basketItems);
           }
         }}
+        onCreateProduct={addProduct}
       />
     </div>
   );
