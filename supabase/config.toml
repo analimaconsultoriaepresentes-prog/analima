@@ -2,3 +2,6 @@ project_id = "sytmmkzlhylgdtwhjwkn"
 
 [functions.generate-recurring-expenses]
 verify_jwt = false
+
+[functions.send-daily-summary]
+verify_jwt = false
