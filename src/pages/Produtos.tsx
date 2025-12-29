@@ -3,7 +3,7 @@ import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVerti
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { ProductForm, type BasketItemInput } from "@/components/products/ProductForm";
+import { ProductForm, type BasketItemInput, type BasketExtraInput } from "@/components/products/ProductForm";
 import { StockEntryModal } from "@/components/products/StockEntryModal";
 import { ProductFilters, type ProductFiltersState } from "@/components/products/ProductFilters";
 import { useProducts, type Product, type ProductFormData } from "@/hooks/useProducts";
@@ -41,6 +41,7 @@ export default function Produtos() {
   const [archiveConfirmState, setArchiveConfirmState] = useState<Product | null>(null);
   const [stockEntryProduct, setStockEntryProduct] = useState<Product | null>(null);
   const [editBasketItems, setEditBasketItems] = useState<BasketItemInput[]>([]);
+  const [editBasketExtras, setEditBasketExtras] = useState<BasketExtraInput[]>([]);
   const [filters, setFilters] = useState<ProductFiltersState>({
     categories: [],
     origins: [],

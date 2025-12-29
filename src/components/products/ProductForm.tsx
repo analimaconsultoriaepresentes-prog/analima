@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Package, Percent, Gift, ShoppingBasket } from "lucide-react";
+import { CalendarIcon, Package, Percent, Gift, ShoppingBasket, Box, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,8 +46,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { BasketCompositionForm, type BasketItemInput } from "./BasketCompositionForm";
-import type { Product, ProductFormData } from "@/hooks/useProducts";
+import { BasketCompositionForm, type BasketItemInput, type BasketExtraInput } from "./BasketCompositionForm";
+import type { Product, ProductFormData, ProductType } from "@/hooks/useProducts";
 
 const productSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
@@ -63,9 +63,16 @@ const productSchema = z.object({
   cycle: z.coerce.number().int().min(1, "Ciclo deve ser maior que zero").optional().or(z.literal("")),
   isBasket: z.boolean(),
   packagingCost: z.coerce.number().min(0, "Custo de embalagem não pode ser negativo"),
+  productType: z.enum(["item", "packaging", "extra", "basket"]),
+  packagingProductId: z.string().optional(),
+  packagingQty: z.coerce.number().int().min(1, "Quantidade deve ser maior que zero"),
 }).refine((data) => {
   // For baskets, sale price just needs to be > 0
   if (data.isBasket) {
+    return data.salePrice > 0;
+  }
+  // For packaging/extra, just need sale price > 0
+  if (data.productType === "packaging" || data.productType === "extra") {
     return data.salePrice > 0;
   }
   // For gifts (cost = 0), only require sale price > 0
@@ -82,10 +89,11 @@ const productSchema = z.object({
 interface ProductFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: ProductFormData, basketItems?: BasketItemInput[]) => void;
+  onSubmit: (data: ProductFormData, basketItems?: BasketItemInput[], basketExtras?: BasketExtraInput[]) => void;
   editProduct?: Product | null;
   availableProducts?: Product[];
   initialBasketItems?: BasketItemInput[];
+  initialBasketExtras?: BasketExtraInput[];
 }
 
 function ProductFormContent({ 
@@ -95,28 +103,34 @@ function ProductFormContent({
   editProduct,
   availableProducts = [],
   initialBasketItems = [],
+  initialBasketExtras = [],
 }: { 
   form: ReturnType<typeof useForm<ProductFormData>>; 
-  onSubmit: (data: ProductFormData, basketItems?: BasketItemInput[]) => void;
+  onSubmit: (data: ProductFormData, basketItems?: BasketItemInput[], basketExtras?: BasketExtraInput[]) => void;
   onCancel: () => void;
   editProduct?: Product | null;
   availableProducts?: Product[];
   initialBasketItems?: BasketItemInput[];
+  initialBasketExtras?: BasketExtraInput[];
 }) {
   const [desiredMargin, setDesiredMargin] = useState<string>("");
   const isManualSalePriceEdit = useRef(false);
   const [basketItems, setBasketItems] = useState<BasketItemInput[]>([]);
-  const [basketPackagingCost, setBasketPackagingCost] = useState<number>(0);
+  const [basketExtras, setBasketExtras] = useState<BasketExtraInput[]>([]);
+  const [basketPackagingProductId, setBasketPackagingProductId] = useState<string | undefined>();
+  const [basketPackagingQty, setBasketPackagingQty] = useState<number>(1);
   const [basketDesiredMargin, setBasketDesiredMargin] = useState<number>(50);
   
   const costPrice = form.watch("costPrice");
   const salePrice = form.watch("salePrice");
   const origin = form.watch("origin");
   const isBasket = form.watch("isBasket");
+  const productType = form.watch("productType");
   
   const isGift = origin === "gift";
+  const isPackagingOrExtra = productType === "packaging" || productType === "extra";
 
-  // Initialize basket items when editing - runs when initialBasketItems changes
+  // Initialize basket items when editing
   useEffect(() => {
     if (initialBasketItems.length > 0) {
       setBasketItems(initialBasketItems);
@@ -125,65 +139,99 @@ function ProductFormContent({
     }
   }, [initialBasketItems]);
 
-  // Initialize packaging cost when editing a basket
+  // Initialize basket extras when editing
+  useEffect(() => {
+    if (initialBasketExtras.length > 0) {
+      setBasketExtras(initialBasketExtras);
+    } else {
+      setBasketExtras([]);
+    }
+  }, [initialBasketExtras]);
+
+  // Initialize packaging when editing a basket
   useEffect(() => {
     if (editProduct?.isBasket) {
-      setBasketPackagingCost(editProduct.packagingCost);
+      setBasketPackagingProductId(editProduct.packagingProductId);
+      setBasketPackagingQty(editProduct.packagingQty || 1);
       // Calculate margin from existing prices
       if (editProduct.costPrice > 0 && editProduct.salePrice > editProduct.costPrice) {
         const existingMargin = ((editProduct.salePrice - editProduct.costPrice) / editProduct.costPrice) * 100;
         setBasketDesiredMargin(Math.round(existingMargin * 10) / 10);
       }
     } else {
-      setBasketPackagingCost(0);
+      setBasketPackagingProductId(undefined);
+      setBasketPackagingQty(1);
       setBasketDesiredMargin(50);
     }
   }, [editProduct]);
+
+  // Get the selected packaging product for cost calculation
+  const selectedPackaging = useMemo(() => {
+    if (!basketPackagingProductId) return null;
+    return availableProducts.find((p) => p.id === basketPackagingProductId);
+  }, [availableProducts, basketPackagingProductId]);
+
+  // Calculate basket costs
+  const basketCosts = useMemo(() => {
+    const totalItemsCost = basketItems.reduce((sum, item) => sum + item.costPrice * item.quantity, 0);
+    const packagingCost = selectedPackaging ? selectedPackaging.costPrice * basketPackagingQty : 0;
+    const totalExtrasCost = basketExtras.reduce((sum, extra) => sum + extra.unitCost * extra.quantity, 0);
+    const totalCost = totalItemsCost + packagingCost + totalExtrasCost;
+    return { totalItemsCost, packagingCost, totalExtrasCost, totalCost };
+  }, [basketItems, basketExtras, selectedPackaging, basketPackagingQty]);
   
   // Track if basket composition has changed from initial state
   const hasBasketChanged = useMemo(() => {
     if (basketItems.length !== initialBasketItems.length) return true;
-    return basketItems.some((item, index) => {
+    if (basketExtras.length !== initialBasketExtras.length) return true;
+    return basketItems.some((item) => {
       const initial = initialBasketItems.find(i => i.productId === item.productId);
       return !initial || initial.quantity !== item.quantity;
     });
-  }, [basketItems, initialBasketItems]);
+  }, [basketItems, basketExtras, initialBasketItems, initialBasketExtras]);
 
   // Update form values when basket composition changes
   useEffect(() => {
-    if (isBasket && basketItems.length > 0) {
-      const totalItemsCost = basketItems.reduce((sum, item) => sum + item.costPrice * item.quantity, 0);
-      const totalCost = totalItemsCost + basketPackagingCost;
-      form.setValue("costPrice", totalCost, { shouldValidate: true });
-      form.setValue("packagingCost", basketPackagingCost, { shouldValidate: true });
+    if (isBasket) {
+      form.setValue("costPrice", basketCosts.totalCost, { shouldValidate: true });
+      form.setValue("packagingCost", basketCosts.packagingCost, { shouldValidate: true });
+      form.setValue("packagingProductId", basketPackagingProductId, { shouldValidate: true });
+      form.setValue("packagingQty", basketPackagingQty, { shouldValidate: true });
       
       // Recalculate price when composition changes
-      if (basketDesiredMargin > 0 && (!editProduct?.isBasket || hasBasketChanged)) {
-        const suggestedPrice = totalCost * (1 + basketDesiredMargin / 100);
+      if (basketDesiredMargin > 0 && basketCosts.totalCost > 0 && (!editProduct?.isBasket || hasBasketChanged)) {
+        const suggestedPrice = basketCosts.totalCost * (1 + basketDesiredMargin / 100);
         form.setValue("salePrice", Math.round(suggestedPrice * 100) / 100, { shouldValidate: true });
       }
-    } else if (isBasket && basketItems.length === 0) {
-      // Handle empty basket case
-      form.setValue("costPrice", basketPackagingCost, { shouldValidate: true });
-      form.setValue("packagingCost", basketPackagingCost, { shouldValidate: true });
     }
-  }, [isBasket, basketItems, basketPackagingCost, basketDesiredMargin, form, editProduct?.isBasket, hasBasketChanged]);
+  }, [isBasket, basketCosts, basketDesiredMargin, basketPackagingProductId, basketPackagingQty, form, editProduct?.isBasket, hasBasketChanged]);
 
   // Reset basket items when switching to non-basket (only for new products)
   useEffect(() => {
     if (!isBasket && !editProduct) {
       setBasketItems([]);
-      setBasketPackagingCost(0);
+      setBasketExtras([]);
+      setBasketPackagingProductId(undefined);
+      setBasketPackagingQty(1);
     }
   }, [isBasket, editProduct]);
+
+  // Sync productType with isBasket
+  useEffect(() => {
+    if (isBasket && productType !== "basket") {
+      form.setValue("productType", "basket");
+    } else if (!isBasket && productType === "basket") {
+      form.setValue("productType", "item");
+    }
+  }, [isBasket, productType, form]);
   
   // Auto-set cost to 0 when origin changes to gift
   useEffect(() => {
-    if (isGift && !isBasket) {
+    if (isGift && !isBasket && !isPackagingOrExtra) {
       form.setValue("costPrice", 0, { shouldValidate: true });
       setDesiredMargin("");
     }
-  }, [isGift, isBasket, form]);
+  }, [isGift, isBasket, isPackagingOrExtra, form]);
   
   // Calculate actual margin for display
   const actualMargin = salePrice > 0 && costPrice > 0 && salePrice > costPrice
@@ -234,7 +282,7 @@ function ProductFormContent({
   };
 
   function handleSubmit(data: ProductFormData) {
-    onSubmit(data, isBasket ? basketItems : undefined);
+    onSubmit(data, isBasket ? basketItems : undefined, isBasket ? basketExtras : undefined);
     form.reset();
   }
 
@@ -267,16 +315,78 @@ function ProductFormContent({
           )}
         />
 
+        {/* Product Type Selector - Only show for non-baskets */}
+        {!isBasket && (
+          <FormField
+            control={form.control}
+            name="productType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2">
+                  <Tag className="w-4 h-4" />
+                  Tipo do Produto
+                </FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  value={field.value}
+                  disabled={!!editProduct}
+                >
+                  <FormControl>
+                    <SelectTrigger className="input-styled min-h-[44px]">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="item">
+                      <span className="flex items-center gap-2">
+                        <Package className="w-4 h-4" />
+                        Item (Produto padrão)
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="packaging">
+                      <span className="flex items-center gap-2">
+                        <Box className="w-4 h-4" />
+                        Embalagem (Sacola, Caixa, Cesta)
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="extra">
+                      <span className="flex items-center gap-2">
+                        <Gift className="w-4 h-4" />
+                        Extra (Fita, Laço, Cartão)
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription className="text-xs">
+                  {productType === "packaging" && "Embalagens serão usadas para montar cestas/combos."}
+                  {productType === "extra" && "Extras são itens opcionais que podem ser adicionados às cestas."}
+                  {productType === "item" && "Itens padrão que podem ser vendidos ou usados em cestas."}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
         {/* Nome do Produto */}
         <FormField
           control={form.control}
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{isBasket ? "Nome da Cesta" : "Nome do Produto"}</FormLabel>
+              <FormLabel>
+                {isBasket ? "Nome da Cesta" : 
+                 productType === "packaging" ? "Nome da Embalagem" :
+                 productType === "extra" ? "Nome do Extra" : "Nome do Produto"}
+              </FormLabel>
               <FormControl>
                 <Input 
-                  placeholder={isBasket ? "Ex: Kit Presente Natal" : "Ex: Perfume Dolce & Gabbana"}
+                  placeholder={
+                    isBasket ? "Ex: Kit Presente Natal" : 
+                    productType === "packaging" ? "Ex: Sacola M, Caixa P" :
+                    productType === "extra" ? "Ex: Fita, Laço, Papel" :
+                    "Ex: Perfume Dolce & Gabbana"
+                  }
                   className="input-styled min-h-[44px]"
                   {...field} 
                 />
@@ -292,16 +402,20 @@ function ProductFormContent({
             availableProducts={availableProducts}
             items={basketItems}
             onItemsChange={setBasketItems}
-            packagingCost={basketPackagingCost}
-            onPackagingCostChange={setBasketPackagingCost}
+            packagingProductId={basketPackagingProductId}
+            onPackagingProductIdChange={setBasketPackagingProductId}
+            packagingQty={basketPackagingQty}
+            onPackagingQtyChange={setBasketPackagingQty}
+            extras={basketExtras}
+            onExtrasChange={setBasketExtras}
             desiredMargin={basketDesiredMargin}
             onDesiredMarginChange={setBasketDesiredMargin}
             isEditing={!!editProduct}
           />
         )}
 
-        {/* Origem do Produto - Hide for baskets */}
-        {!isBasket && (
+        {/* Origem do Produto - Hide for baskets and packaging/extra */}
+        {!isBasket && !isPackagingOrExtra && (
           <FormField
             control={form.control}
             name="origin"
@@ -364,7 +478,7 @@ function ProductFormContent({
                 <FormLabel>Marca</FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder="Ex: D&G" 
+                    placeholder={isPackagingOrExtra ? "Ex: Genérico" : "Ex: D&G"} 
                     className="input-styled min-h-[44px]"
                     {...field} 
                   />
@@ -378,40 +492,42 @@ function ProductFormContent({
         {/* Ciclo e Preço de Custo - Only for non-baskets */}
         {!isBasket && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="cycle"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ciclo (opcional)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      min="1"
-                      inputMode="numeric"
-                      placeholder="Ex: 1, 2, 3..." 
-                      className="input-styled min-h-[44px]"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        field.onChange(val === "" ? undefined : parseInt(val, 10));
-                      }}
-                    />
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                    Número do ciclo/campanha da revista.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!isPackagingOrExtra && (
+              <FormField
+                control={form.control}
+                name="cycle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ciclo (opcional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="1"
+                        inputMode="numeric"
+                        placeholder="Ex: 1, 2, 3..." 
+                        className="input-styled min-h-[44px]"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          field.onChange(val === "" ? undefined : parseInt(val, 10));
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Número do ciclo/campanha da revista.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
               name="costPrice"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={isPackagingOrExtra ? "col-span-1 sm:col-span-2" : ""}>
                   <FormLabel>Preço de Custo (R$)</FormLabel>
                   <FormControl>
                     <Input 
@@ -421,12 +537,12 @@ function ProductFormContent({
                       inputMode="decimal"
                       placeholder="0,00" 
                       className="input-styled min-h-[44px]"
-                      disabled={isGift}
+                      disabled={isGift && !isPackagingOrExtra}
                       {...field} 
-                      value={isGift ? 0 : field.value}
+                      value={(isGift && !isPackagingOrExtra) ? 0 : field.value}
                     />
                   </FormControl>
-                  {isGift && (
+                  {isGift && !isPackagingOrExtra && (
                     <FormDescription className="text-xs">
                       Produtos recebidos como brinde têm custo zero.
                     </FormDescription>
@@ -440,8 +556,8 @@ function ProductFormContent({
 
         {/* Margem e Preço de Venda - for non-baskets */}
         {!isBasket && (
-          <div className={cn("grid gap-4", isGift ? "grid-cols-1" : "grid-cols-2")}>
-            {!isGift && (
+          <div className={cn("grid gap-4", (isGift && !isPackagingOrExtra) ? "grid-cols-1" : "grid-cols-2")}>
+            {(!isGift || isPackagingOrExtra) && (
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Margem desejada (%)
@@ -486,7 +602,7 @@ function ProductFormContent({
                       ref={field.ref}
                     />
                   </FormControl>
-                  {isGift && (
+                  {isGift && !isPackagingOrExtra && (
                     <FormDescription className="text-xs">
                       Margem não se aplica para brinde (custo zero).
                     </FormDescription>
@@ -549,7 +665,11 @@ function ProductFormContent({
             name="stock"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{isBasket ? "Cestas montadas" : "Estoque"}</FormLabel>
+                <FormLabel>
+                  {isBasket ? "Cestas montadas" : 
+                   productType === "packaging" ? "Estoque embalagens" :
+                   productType === "extra" ? "Estoque extras" : "Estoque"}
+                </FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -642,6 +762,7 @@ export function ProductForm({
   editProduct,
   availableProducts = [],
   initialBasketItems = [],
+  initialBasketExtras = [],
 }: ProductFormProps) {
   const isMobile = useIsMobile();
   
@@ -657,6 +778,9 @@ export function ProductForm({
       cycle: undefined,
       isBasket: false,
       packagingCost: 0,
+      productType: "item",
+      packagingProductId: undefined,
+      packagingQty: 1,
     },
   });
 
@@ -675,6 +799,9 @@ export function ProductForm({
         cycle: editProduct.cycle,
         isBasket: editProduct.isBasket,
         packagingCost: editProduct.packagingCost,
+        productType: editProduct.productType || "item",
+        packagingProductId: editProduct.packagingProductId,
+        packagingQty: editProduct.packagingQty || 1,
       });
     } else {
       form.reset({
@@ -687,6 +814,9 @@ export function ProductForm({
         cycle: undefined,
         isBasket: false,
         packagingCost: 0,
+        productType: "item",
+        packagingProductId: undefined,
+        packagingQty: 1,
       });
     }
   }, [editProduct, form]);
@@ -696,8 +826,8 @@ export function ProductForm({
     onOpenChange(false);
   };
 
-  const handleSubmit = (data: ProductFormData, basketItems?: BasketItemInput[]) => {
-    onSubmit(data, basketItems);
+  const handleSubmit = (data: ProductFormData, basketItems?: BasketItemInput[], basketExtras?: BasketExtraInput[]) => {
+    onSubmit(data, basketItems, basketExtras);
     form.reset();
   };
 
@@ -706,13 +836,19 @@ export function ProductForm({
       <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
         {editProduct?.isBasket || form.watch("isBasket") ? (
           <ShoppingBasket className="w-5 h-5 text-primary-foreground" />
+        ) : form.watch("productType") === "packaging" ? (
+          <Box className="w-5 h-5 text-primary-foreground" />
+        ) : form.watch("productType") === "extra" ? (
+          <Gift className="w-5 h-5 text-primary-foreground" />
         ) : (
           <Package className="w-5 h-5 text-primary-foreground" />
         )}
       </div>
       <span className="text-xl font-semibold">
         {editProduct 
-          ? (editProduct.isBasket ? "Editar Cesta" : "Editar Produto")
+          ? (editProduct.isBasket ? "Editar Cesta" : 
+             editProduct.productType === "packaging" ? "Editar Embalagem" :
+             editProduct.productType === "extra" ? "Editar Extra" : "Editar Produto")
           : "Novo Produto"
         }
       </span>
@@ -739,6 +875,7 @@ export function ProductForm({
               editProduct={editProduct}
               availableProducts={availableProducts}
               initialBasketItems={initialBasketItems}
+              initialBasketExtras={initialBasketExtras}
             />
           </div>
         </DrawerContent>
@@ -760,10 +897,11 @@ export function ProductForm({
           editProduct={editProduct}
           availableProducts={availableProducts}
           initialBasketItems={initialBasketItems}
+          initialBasketExtras={initialBasketExtras}
         />
       </DialogContent>
     </Dialog>
   );
 }
 
-export type { BasketItemInput };
+export type { BasketItemInput, BasketExtraInput };

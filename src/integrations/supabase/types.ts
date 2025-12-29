@@ -53,6 +53,48 @@ export type Database = {
         }
         Relationships: []
       }
+      basket_extras: {
+        Row: {
+          basket_id: string
+          created_at: string
+          extra_product_id: string
+          id: string
+          quantity: number
+          unit_cost: number
+        }
+        Insert: {
+          basket_id: string
+          created_at?: string
+          extra_product_id: string
+          id?: string
+          quantity?: number
+          unit_cost?: number
+        }
+        Update: {
+          basket_id?: string
+          created_at?: string
+          extra_product_id?: string
+          id?: string
+          quantity?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "basket_extras_basket_id_fkey"
+            columns: ["basket_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "basket_extras_extra_product_id_fkey"
+            columns: ["extra_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       basket_items: {
         Row: {
           basket_id: string
@@ -205,6 +247,9 @@ export type Database = {
           name: string
           origin: string
           packaging_cost: number
+          packaging_product_id: string | null
+          packaging_qty: number
+          product_type: string
           sale_price: number
           stock: number
           updated_at: string
@@ -224,6 +269,9 @@ export type Database = {
           name: string
           origin?: string
           packaging_cost?: number
+          packaging_product_id?: string | null
+          packaging_qty?: number
+          product_type?: string
           sale_price?: number
           stock?: number
           updated_at?: string
@@ -243,12 +291,23 @@ export type Database = {
           name?: string
           origin?: string
           packaging_cost?: number
+          packaging_product_id?: string | null
+          packaging_qty?: number
+          product_type?: string
           sale_price?: number
           stock?: number
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_packaging_product_id_fkey"
+            columns: ["packaging_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

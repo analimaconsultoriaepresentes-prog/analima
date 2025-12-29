@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
 
+export type ProductType = "item" | "packaging" | "extra" | "basket";
+
 export interface Product {
   id: string;
   name: string;
@@ -18,6 +20,9 @@ export interface Product {
   packagingCost: number;
   isActive: boolean;
   deletedAt?: string;
+  productType: ProductType;
+  packagingProductId?: string;
+  packagingQty: number;
 }
 
 export interface ProductFormData {
@@ -32,6 +37,9 @@ export interface ProductFormData {
   cycle?: number;
   isBasket: boolean;
   packagingCost: number;
+  productType: ProductType;
+  packagingProductId?: string;
+  packagingQty: number;
 }
 
 export function useProducts() {
@@ -69,6 +77,9 @@ export function useProducts() {
         packagingCost: Number(p.packaging_cost) || 0,
         isActive: p.is_active ?? true,
         deletedAt: p.deleted_at || undefined,
+        productType: (p.product_type as ProductType) || "item",
+        packagingProductId: p.packaging_product_id || undefined,
+        packagingQty: p.packaging_qty || 1,
       }));
 
       setProducts(mapped);
@@ -105,6 +116,9 @@ export function useProducts() {
         cycle: data.cycle || null,
         is_basket: data.isBasket,
         packaging_cost: data.packagingCost || 0,
+        product_type: data.productType || "item",
+        packaging_product_id: data.packagingProductId || null,
+        packaging_qty: data.packagingQty || 1,
       }).select('id').single();
 
       if (error) throw error;
@@ -142,6 +156,9 @@ export function useProducts() {
           cycle: data.cycle || null,
           is_basket: data.isBasket,
           packaging_cost: data.packagingCost || 0,
+          product_type: data.productType || "item",
+          packaging_product_id: data.packagingProductId || null,
+          packaging_qty: data.packagingQty || 1,
         })
         .eq("id", id);
 
