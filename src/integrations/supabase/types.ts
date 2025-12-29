@@ -367,6 +367,7 @@ export type Database = {
       }
       sales: {
         Row: {
+          channel: string
           created_at: string
           customer_id: string | null
           id: string
@@ -376,6 +377,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          channel?: string
           created_at?: string
           customer_id?: string | null
           id?: string
@@ -385,6 +387,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          channel?: string
           created_at?: string
           customer_id?: string | null
           id?: string
