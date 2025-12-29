@@ -141,7 +141,7 @@ export default function Auth() {
           </div>
           <h1 className="text-2xl font-bold text-foreground">ANA LIMA</h1>
           <p className="text-muted-foreground mt-1">
-            Consultoria e Presentes
+            Perfumaria e Presentes
           </p>
         </div>
 
