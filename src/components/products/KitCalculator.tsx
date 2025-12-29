@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Calculator, Plus, Trash2, Package, Save, Loader2, ShoppingBasket } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Calculator, Plus, Trash2, Package, Save, Loader2, ShoppingBasket, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,10 +62,39 @@ export function KitCalculator({
   const [kitName, setKitName] = useState("");
   const [comboName, setComboName] = useState("");
   const [kitFullPrice, setKitFullPrice] = useState("");
+  const [kitFullPriceManual, setKitFullPriceManual] = useState(false);
   const [kitPrice, setKitPrice] = useState("");
   const [kitCost, setKitCost] = useState("");
   const [items, setItems] = useState<KitItem[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Calculate auto sum of items
+  const autoSum = useMemo(() => {
+    return items.reduce((sum, item) => sum + (item.fullPrice * item.quantity), 0);
+  }, [items]);
+
+  // Auto-update kitFullPrice when items change (if not manual)
+  useEffect(() => {
+    if (!kitFullPriceManual && items.length > 0) {
+      setKitFullPrice(autoSum > 0 ? autoSum.toFixed(2) : "");
+    }
+  }, [autoSum, kitFullPriceManual, items.length]);
+
+  // Handle manual edit of kitFullPrice
+  const handleKitFullPriceChange = (value: string) => {
+    setKitFullPrice(value);
+    const numValue = parseFloat(value) || 0;
+    // Mark as manual if user edits and value differs from auto sum
+    if (numValue !== autoSum) {
+      setKitFullPriceManual(true);
+    }
+  };
+
+  // Reset manual flag when value matches auto sum
+  const resetToAutoSum = () => {
+    setKitFullPriceManual(false);
+    setKitFullPrice(autoSum > 0 ? autoSum.toFixed(2) : "");
+  };
 
   const addItem = () => {
     setItems([
@@ -109,26 +138,36 @@ export function KitCalculator({
     }
   };
 
+  // Check if an item is valid: (name OR productId) AND fullPrice > 0 AND quantity >= 1
+  const isItemValid = (item: KitItem): boolean => {
+    const hasNameOrProduct = (item.name && item.name.trim().length > 0) || !!item.productId;
+    return hasNameOrProduct && item.fullPrice > 0 && item.quantity >= 1;
+  };
+
+  // Get valid items for calculations
+  const validItems = useMemo(() => items.filter(isItemValid), [items]);
+
   const calculations = useMemo(() => {
     const kitFullPriceNum = parseFloat(kitFullPrice) || 0;
     const kitPriceNum = parseFloat(kitPrice) || 0;
     const kitCostNum = parseFloat(kitCost) || 0;
 
-    // All fields are now required for calculations
-    if (kitFullPriceNum <= 0 || kitPriceNum <= 0 || kitCostNum <= 0 || items.length === 0) {
+    // Need at least one valid item and all required fields
+    if (validItems.length === 0 || kitFullPriceNum <= 0 || kitPriceNum <= 0 || kitCostNum < 0) {
       return { 
         items: [], 
         kitFullPriceNum,
         kitPriceNum, 
         kitCostNum, 
         totalProfit: 0,
-        totalMargin: 0
+        totalMargin: 0,
+        hasValidResults: false
       };
     }
 
-    const calculatedItems = items.map((item) => {
+    const calculatedItems = validItems.map((item) => {
       const itemTotal = item.fullPrice * item.quantity;
-      const proportion = itemTotal / kitFullPriceNum;
+      const proportion = kitFullPriceNum > 0 ? itemTotal / kitFullPriceNum : 0;
       const priceInKit = kitPriceNum * proportion;
       const costInKit = kitCostNum * proportion;
       const profit = priceInKit - costInKit;
@@ -155,24 +194,42 @@ export function KitCalculator({
       kitCostNum,
       totalProfit,
       totalMargin,
+      hasValidResults: true
     };
-  }, [items, kitFullPrice, kitPrice, kitCost]);
+  }, [validItems, kitFullPrice, kitPrice, kitCost]);
 
-  // Check if we can save as basket (all items must have productId and required fields)
-  const canSaveAsBasket = useMemo(() => {
-    if (!kitFullPrice || parseFloat(kitFullPrice) <= 0) return false;
-    if (!kitPrice || parseFloat(kitPrice) <= 0) return false;
-    if (!kitCost || parseFloat(kitCost) <= 0) return false;
-    if (items.length === 0) return false;
-    // All items must be linked to existing products
-    return items.every((item) => item.productId);
-  }, [kitFullPrice, kitPrice, kitCost, items]);
-
-  // Check if combo name is filled for the save button
-  const canSave = canSaveAsBasket && comboName.trim().length > 0;
+  // Validation for save
+  const validation = useMemo(() => {
+    const errors: string[] = [];
+    
+    if (!comboName.trim()) {
+      errors.push("Nome do combo é obrigatório");
+    }
+    
+    const validItemsWithProduct = validItems.filter(item => item.productId);
+    if (validItemsWithProduct.length === 0) {
+      errors.push("Pelo menos 1 item válido vinculado a produto");
+    }
+    
+    const kitPriceNum = parseFloat(kitPrice) || 0;
+    if (kitPriceNum <= 0) {
+      errors.push("Preço para cliente deve ser maior que 0");
+    }
+    
+    const kitCostNum = parseFloat(kitCost);
+    if (isNaN(kitCostNum) || kitCostNum < 0) {
+      errors.push("Custo para loja deve ser >= 0");
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      validItemsWithProduct
+    };
+  }, [comboName, validItems, kitPrice, kitCost]);
 
   const handleSaveAsBasket = async () => {
-    if (!onSaveAsBasket || !canSave) return;
+    if (!onSaveAsBasket || !validation.isValid) return;
 
     setSaving(true);
     try {
@@ -194,26 +251,25 @@ export function KitCalculator({
         packagingCost: 0,
       };
 
-      const basketItems = items
-        .filter((item) => item.productId)
-        .map((item) => ({
-          productId: item.productId!,
-          quantity: item.quantity,
-        }));
+      const basketItems = validation.validItemsWithProduct.map((item) => ({
+        productId: item.productId!,
+        quantity: item.quantity,
+      }));
 
       await onSaveAsBasket(basketData, basketItems);
       
       toast({
-        title: "Cesta criada com sucesso!",
+        title: "Kit salvo com sucesso!",
         description: `"${comboName}" foi salva como cesta/combo.`,
       });
 
       handleClose();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
       console.error("Error saving basket:", error);
       toast({
-        title: "Erro ao salvar cesta",
-        description: "Tente novamente.",
+        title: "Erro ao salvar kit",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -225,6 +281,7 @@ export function KitCalculator({
     setKitName("");
     setComboName("");
     setKitFullPrice("");
+    setKitFullPriceManual(false);
     setKitPrice("");
     setKitCost("");
     setItems([]);
@@ -256,9 +313,26 @@ export function KitCalculator({
               min="0"
               placeholder="0,00"
               value={kitFullPrice}
-              onChange={(e) => setKitFullPrice(e.target.value)}
+              onChange={(e) => handleKitFullPriceChange(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Soma dos preços cheios dos itens</p>
+            {kitFullPriceManual && autoSum > 0 && Math.abs(parseFloat(kitFullPrice) - autoSum) > 0.01 && (
+              <div className="flex items-start gap-1.5 text-xs text-warning">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>
+                  Valor manual. Soma dos itens: R$ {autoSum.toFixed(2)}.{" "}
+                  <button 
+                    type="button"
+                    onClick={resetToAutoSum}
+                    className="underline hover:no-underline"
+                  >
+                    Usar soma automática
+                  </button>
+                </span>
+              </div>
+            )}
+            {!kitFullPriceManual && (
+              <p className="text-xs text-muted-foreground">Calculado automaticamente</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="kitPrice">Preço para o Cliente *</Label>
@@ -393,8 +467,18 @@ export function KitCalculator({
         )}
       </div>
 
-      {/* Results Table */}
-      {calculations.items.length > 0 && (
+      {/* Results Section */}
+      {validItems.length === 0 ? (
+        <div className="border border-dashed border-border rounded-lg p-8 text-center">
+          <Calculator className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+          <p className="text-muted-foreground">
+            Adicione itens para ver o cálculo do kit.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Item válido = nome ou produto selecionado + preço cheio {">"} 0 + qtd {">"}= 1
+          </p>
+        </div>
+      ) : calculations.hasValidResults ? (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Calculator className="w-5 h-5 text-primary" />
@@ -482,58 +566,69 @@ export function KitCalculator({
             </Table>
           </div>
 
-          {/* Save as Basket Button */}
+          {/* Save as Basket Section */}
           {onSaveAsBasket && (
             <div className="pt-4 border-t border-border space-y-4">
-              {canSaveAsBasket && (
-                <div className="space-y-2">
-                  <Label htmlFor="comboName">Nome do Produto (Combo) *</Label>
-                  <Input
-                    id="comboName"
-                    placeholder="Ex: Combo Perfumes Importados"
-                    value={comboName}
-                    onChange={(e) => setComboName(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Este será o nome exibido no catálogo e nas vendas
-                  </p>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="comboName">Nome do Produto (Combo) *</Label>
+                <Input
+                  id="comboName"
+                  placeholder="Ex: Combo Perfumes Importados"
+                  value={comboName}
+                  onChange={(e) => setComboName(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Este será o nome exibido no catálogo e nas vendas
+                </p>
+              </div>
               
               <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
                 <div className="text-sm text-muted-foreground">
-                  {canSaveAsBasket ? (
-                    comboName.trim() ? (
-                      <span className="flex items-center gap-2 text-success">
-                        <ShoppingBasket className="w-4 h-4" />
-                        Pronto para salvar como cesta
-                      </span>
-                    ) : (
-                      <span className="text-warning">
-                        Informe o nome do combo para salvar
-                      </span>
-                    )
+                  {validation.isValid ? (
+                    <span className="flex items-center gap-2 text-success">
+                      <ShoppingBasket className="w-4 h-4" />
+                      Pronto para salvar como cesta
+                    </span>
                   ) : (
-                    <span className="text-warning">
-                      Para salvar, todos os itens devem ser produtos cadastrados
+                    <span className="flex items-start gap-2 text-warning">
+                      <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                      <span>
+                        {validation.errors[0]}
+                        {validation.errors.length > 1 && ` (+${validation.errors.length - 1})`}
+                      </span>
                     </span>
                   )}
                 </div>
                 <Button
                   onClick={handleSaveAsBasket}
-                  disabled={!canSave || saving}
+                  disabled={!validation.isValid || saving}
                   className="gap-2"
                 >
                   {saving ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Salvando...
+                    </>
                   ) : (
-                    <Save className="w-4 h-4" />
+                    <>
+                      <Save className="w-4 h-4" />
+                      Salvar como Cesta
+                    </>
                   )}
-                  Salvar como Cesta
                 </Button>
               </div>
             </div>
           )}
+        </div>
+      ) : (
+        <div className="border border-dashed border-border rounded-lg p-8 text-center">
+          <Calculator className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+          <p className="text-muted-foreground">
+            Preencha os campos obrigatórios para ver o cálculo.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Preço Cheio {">"} 0, Preço Cliente {">"} 0, Custo Loja {">"}= 0
+          </p>
         </div>
       )}
     </div>
