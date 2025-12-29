@@ -241,14 +241,20 @@ export function useReportsData(period: PeriodOption = "6months") {
       
       const { data: saleItemsData } = await supabase
         .from("sale_items")
-        .select("product_id, product_name, subtotal")
+        .select("product_id, product_name, subtotal, quantity")
         .in("sale_id", saleIds.length > 0 ? saleIds : ["none"]);
 
       const { data: productsData } = await supabase
         .from("products")
-        .select("id, category, cost_price, sale_price");
+        .select("id, category, cost_price, sale_price, is_basket, product_type");
 
-      // Calculate category totals
+      // Find average packaging cost from packaging products
+      const packagingProducts = (productsData || []).filter(p => p.product_type === 'packaging');
+      const avgPackagingCost = packagingProducts.length > 0
+        ? packagingProducts.reduce((acc, p) => acc + Number(p.cost_price), 0) / packagingProducts.length
+        : 0;
+
+      // Calculate category totals with real cost including packaging
       const categoryTotals: Record<string, { receita: number; custo: number }> = {};
       
       (saleItemsData || []).forEach((item) => {
@@ -261,10 +267,14 @@ export function useReportsData(period: PeriodOption = "6months") {
         
         categoryTotals[category].receita += Number(item.subtotal);
         if (product) {
-          const margin = product.sale_price > 0 
-            ? ((product.sale_price - product.cost_price) / product.sale_price) * 100 
-            : 0;
-          categoryTotals[category].custo += Number(item.subtotal) * (1 - margin / 100);
+          // Custo do produto
+          const productCost = Number(product.cost_price) * item.quantity;
+          
+          // Custo de embalagem: apenas para itens avulsos (não cestas)
+          // Cestas já têm embalagem inclusa no cost_price
+          const packagingCost = product.is_basket ? 0 : avgPackagingCost * item.quantity;
+          
+          categoryTotals[category].custo += productCost + packagingCost;
         }
       });
 
@@ -272,6 +282,7 @@ export function useReportsData(period: PeriodOption = "6months") {
         .map(([name, data]) => ({
           name,
           receita: data.receita,
+          // Margem real = (receita - custo total) / receita * 100
           margem: data.receita > 0 
             ? Math.round(((data.receita - data.custo) / data.receita) * 100) 
             : 0,

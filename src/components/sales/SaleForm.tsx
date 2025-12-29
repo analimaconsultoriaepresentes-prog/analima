@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Minus, Plus, ShoppingCart, Trash2, Search, User, UserPlus, Phone, Loader2, Store, Globe } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Minus, Plus, ShoppingCart, Trash2, Search, User, UserPlus, Phone, Loader2, Store, Globe, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Customer, CustomerFormData } from "@/hooks/useCustomers";
@@ -37,7 +43,9 @@ interface Product {
   category: string;
   brand: string;
   salePrice: number;
+  costPrice: number;
   stock: number;
+  isBasket?: boolean;
 }
 
 interface CartItem {
@@ -53,6 +61,7 @@ interface SaleFormProps {
   onSubmit: (items: CartItem[], paymentMethod: string, total: number, customerId?: string, channel?: SaleChannel) => void;
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
   defaultChannel?: SaleChannel;
+  defaultPackagingCostPerItem?: number; // Custo médio de embalagem por item avulso
 }
 
 const paymentMethods = [
@@ -69,6 +78,7 @@ function SaleFormContent({
   onClose,
   onAddCustomer,
   defaultChannel = "store",
+  defaultPackagingCostPerItem = 0,
 }: {
   products: Product[];
   customers: Customer[];
@@ -76,6 +86,7 @@ function SaleFormContent({
   onClose: () => void;
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
   defaultChannel?: SaleChannel;
+  defaultPackagingCostPerItem?: number;
 }) {
   const isMobile = useIsMobile();
   const [channel, setChannel] = useState<SaleChannel>(defaultChannel);
@@ -160,10 +171,42 @@ function SaleFormContent({
     setCart(cart.filter((item) => item.product.id !== productId));
   };
 
+  // O cliente paga apenas a soma dos sale_price (sem embalagem)
   const total = cart.reduce(
     (sum, item) => sum + item.product.salePrice * item.quantity,
     0
   );
+
+  // Cálculo interno de custos e lucro (não exibido ao cliente)
+  const costBreakdown = useMemo(() => {
+    let custoItens = 0;
+    let looseItemCount = 0;
+
+    for (const item of cart) {
+      const qty = item.quantity;
+      custoItens += (item.product.costPrice || 0) * qty;
+      
+      // Conta apenas itens avulsos (não cestas) para embalagem
+      if (!item.product.isBasket) {
+        looseItemCount += qty;
+      }
+    }
+
+    // Custo de embalagem apenas para itens avulsos
+    const custoEmbalagem = looseItemCount * defaultPackagingCostPerItem;
+    const custoTotal = custoItens + custoEmbalagem;
+    const lucroReal = total - custoTotal;
+    const margemReal = total > 0 ? (lucroReal / total) * 100 : 0;
+
+    return {
+      custoItens,
+      custoEmbalagem,
+      custoTotal,
+      lucroReal,
+      margemReal,
+      looseItemCount,
+    };
+  }, [cart, total, defaultPackagingCostPerItem]);
 
   const handleSubmit = () => {
     if (cart.length === 0) {
@@ -550,12 +593,60 @@ function SaleFormContent({
         </Select>
       </div>
 
-      {/* Total */}
-      <div className="bg-muted/50 rounded-lg p-4 flex items-center justify-between">
-        <span className="text-lg font-medium text-foreground">Total</span>
-        <span className="text-2xl font-bold text-success">
-          R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-        </span>
+      {/* Total - O que o cliente paga */}
+      <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-medium text-foreground">Total Cliente</span>
+          <span className="text-2xl font-bold text-success">
+            R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          </span>
+        </div>
+        
+        {/* Breakdown interno (controle) */}
+        {cart.length > 0 && (
+          <div className="border-t border-border pt-3 space-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+              <Info className="w-3.5 h-3.5" />
+              <span>Controle interno (não aparece para o cliente)</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Custo produtos:</span>
+              <span className="text-foreground">
+                R$ {costBreakdown.custoItens.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            {costBreakdown.custoEmbalagem > 0 && (
+              <div className="flex justify-between text-sm">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-muted-foreground cursor-help underline decoration-dotted">
+                        Custo embalagem ({costBreakdown.looseItemCount} itens):
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Embalagem para itens avulsos (cestas já incluem)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <span className="text-foreground">
+                  R$ {costBreakdown.custoEmbalagem.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm font-medium border-t border-border/50 pt-1.5 mt-1.5">
+              <span className="text-primary">Lucro real:</span>
+              <span className={cn(
+                costBreakdown.lucroReal >= 0 ? "text-success" : "text-destructive"
+              )}>
+                R$ {costBreakdown.lucroReal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                <span className="text-xs ml-1 text-muted-foreground">
+                  ({costBreakdown.margemReal.toFixed(1)}%)
+                </span>
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Botões */}
@@ -581,7 +672,16 @@ function SaleFormContent({
   );
 }
 
-export function SaleForm({ open, onOpenChange, products, customers, onSubmit, onAddCustomer, defaultChannel = "store" }: SaleFormProps) {
+export function SaleForm({ 
+  open, 
+  onOpenChange, 
+  products, 
+  customers, 
+  onSubmit, 
+  onAddCustomer, 
+  defaultChannel = "store",
+  defaultPackagingCostPerItem = 0,
+}: SaleFormProps) {
   const isMobile = useIsMobile();
 
   const handleClose = () => {
@@ -608,7 +708,15 @@ export function SaleForm({ open, onOpenChange, products, customers, onSubmit, on
             <DrawerDescription>Adicione produtos e finalize a venda.</DrawerDescription>
           </DrawerHeader>
           <div className="px-4 pb-6 overflow-y-auto flex-1">
-            <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} onAddCustomer={onAddCustomer} defaultChannel={defaultChannel} />
+            <SaleFormContent 
+              products={products} 
+              customers={customers} 
+              onSubmit={onSubmit} 
+              onClose={handleClose} 
+              onAddCustomer={onAddCustomer} 
+              defaultChannel={defaultChannel}
+              defaultPackagingCostPerItem={defaultPackagingCostPerItem}
+            />
           </div>
         </DrawerContent>
       </Drawer>
@@ -623,7 +731,15 @@ export function SaleForm({ open, onOpenChange, products, customers, onSubmit, on
           <DialogDescription>Adicione produtos e finalize a venda.</DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto">
-          <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} onAddCustomer={onAddCustomer} defaultChannel={defaultChannel} />
+          <SaleFormContent 
+            products={products} 
+            customers={customers} 
+            onSubmit={onSubmit} 
+            onClose={handleClose} 
+            onAddCustomer={onAddCustomer} 
+            defaultChannel={defaultChannel}
+            defaultPackagingCostPerItem={defaultPackagingCostPerItem}
+          />
         </div>
       </DialogContent>
     </Dialog>
