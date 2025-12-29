@@ -60,6 +60,7 @@ export function KitCalculator({
 }: KitCalculatorProps) {
   const isMobile = useIsMobile();
   const [kitName, setKitName] = useState("");
+  const [comboName, setComboName] = useState("");
   const [kitPrice, setKitPrice] = useState("");
   const [kitCost, setKitCost] = useState("");
   const [items, setItems] = useState<KitItem[]>([]);
@@ -145,16 +146,19 @@ export function KitCalculator({
     };
   }, [items, kitPrice, kitCost]);
 
-  // Check if we can save as basket (all items must have productId)
+  // Check if we can save as basket (all items must have productId and comboName required)
   const canSaveAsBasket = useMemo(() => {
-    if (!kitName.trim() || !kitPrice || parseFloat(kitPrice) <= 0) return false;
+    if (!kitPrice || parseFloat(kitPrice) <= 0) return false;
     if (items.length === 0) return false;
     // All items must be linked to existing products
     return items.every((item) => item.productId);
-  }, [kitName, kitPrice, items]);
+  }, [kitPrice, items]);
+
+  // Check if combo name is filled for the save button
+  const canSave = canSaveAsBasket && comboName.trim().length > 0;
 
   const handleSaveAsBasket = async () => {
-    if (!onSaveAsBasket || !canSaveAsBasket) return;
+    if (!onSaveAsBasket || !canSave) return;
 
     setSaving(true);
     try {
@@ -162,7 +166,7 @@ export function KitCalculator({
       const kitCostNum = parseFloat(kitCost) || 0;
 
       const basketData: ProductFormData = {
-        name: kitName.trim(),
+        name: comboName.trim(),
         brand: "Combo",
         category: "Presente",
         costPrice: kitCostNum,
@@ -187,7 +191,7 @@ export function KitCalculator({
       
       toast({
         title: "Cesta criada com sucesso!",
-        description: `"${kitName}" foi salva como cesta/combo.`,
+        description: `"${comboName}" foi salva como cesta/combo.`,
       });
 
       handleClose();
@@ -205,6 +209,7 @@ export function KitCalculator({
 
   const handleClose = () => {
     setKitName("");
+    setComboName("");
     setKitPrice("");
     setKitCost("");
     setItems([]);
@@ -216,13 +221,14 @@ export function KitCalculator({
       {/* Kit Info */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="kitName">Nome do Kit *</Label>
+          <Label htmlFor="kitName">Nome do Kit (referência)</Label>
           <Input
             id="kitName"
-            placeholder="Ex: Kit Perfumes"
+            placeholder="Ex: Kit Dia das Mães"
             value={kitName}
             onChange={(e) => setKitName(e.target.value)}
           />
+          <p className="text-xs text-muted-foreground">Apenas para cálculo interno</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="kitPrice">Preço Promocional *</Label>
@@ -449,14 +455,35 @@ export function KitCalculator({
 
           {/* Save as Basket Button */}
           {onSaveAsBasket && (
-            <div className="pt-4 border-t border-border">
+            <div className="pt-4 border-t border-border space-y-4">
+              {canSaveAsBasket && (
+                <div className="space-y-2">
+                  <Label htmlFor="comboName">Nome do Produto (Combo) *</Label>
+                  <Input
+                    id="comboName"
+                    placeholder="Ex: Combo Perfumes Importados"
+                    value={comboName}
+                    onChange={(e) => setComboName(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Este será o nome exibido no catálogo e nas vendas
+                  </p>
+                </div>
+              )}
+              
               <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   {canSaveAsBasket ? (
-                    <span className="flex items-center gap-2 text-success">
-                      <ShoppingBasket className="w-4 h-4" />
-                      Pronto para salvar como cesta
-                    </span>
+                    comboName.trim() ? (
+                      <span className="flex items-center gap-2 text-success">
+                        <ShoppingBasket className="w-4 h-4" />
+                        Pronto para salvar como cesta
+                      </span>
+                    ) : (
+                      <span className="text-warning">
+                        Informe o nome do combo para salvar
+                      </span>
+                    )
                   ) : (
                     <span className="text-warning">
                       Para salvar, todos os itens devem ser produtos cadastrados
@@ -465,7 +492,7 @@ export function KitCalculator({
                 </div>
                 <Button
                   onClick={handleSaveAsBasket}
-                  disabled={!canSaveAsBasket || saving}
+                  disabled={!canSave || saving}
                   className="gap-2"
                 >
                   {saving ? (
