@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { Calculator, Plus, Trash2, Package, Save, Loader2, ShoppingBasket, AlertTriangle } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { Calculator, Plus, Trash2, Package, Save, Loader2, ShoppingBasket, AlertTriangle, Undo2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +33,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Product, ProductFormData } from "@/hooks/useProducts";
 import { toast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface KitItem {
   id: string;
@@ -40,6 +41,7 @@ interface KitItem {
   fullPrice: number;
   quantity: number;
   productId?: string;
+  manualMode: boolean;
 }
 
 interface KitCalculatorProps {
@@ -96,6 +98,9 @@ export function KitCalculator({
     setKitFullPrice(autoSum > 0 ? autoSum.toFixed(2) : "");
   };
 
+  // Refs for focusing on name input
+  const nameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
   const addItem = () => {
     setItems([
       ...items,
@@ -104,6 +109,7 @@ export function KitCalculator({
         name: "",
         fullPrice: 0,
         quantity: 1,
+        manualMode: false,
       },
     ]);
   };
@@ -112,10 +118,32 @@ export function KitCalculator({
     setItems(items.filter((item) => item.id !== id));
   };
 
-  const updateItem = (id: string, field: keyof KitItem, value: string | number) => {
+  const updateItem = (id: string, field: keyof KitItem, value: string | number | boolean) => {
     setItems(
       items.map((item) =>
         item.id === id ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
+  const setManualMode = (id: string) => {
+    setItems(
+      items.map((item) =>
+        item.id === id
+          ? { ...item, manualMode: true, productId: undefined }
+          : item
+      )
+    );
+    // Focus on name input after state update
+    setTimeout(() => {
+      nameInputRefs.current[id]?.focus();
+    }, 0);
+  };
+
+  const exitManualMode = (id: string) => {
+    setItems(
+      items.map((item) =>
+        item.id === id ? { ...item, manualMode: false } : item
       )
     );
   };
@@ -131,6 +159,7 @@ export function KitCalculator({
                 productId: product.id,
                 name: product.name,
                 fullPrice: product.salePrice,
+                manualMode: false,
               }
             : item
         )
@@ -389,36 +418,58 @@ export function KitCalculator({
               >
                 <div className="flex-1 space-y-2">
                   <Label className="text-xs text-muted-foreground">Produto</Label>
-                  <Select
-                    value={item.productId || ""}
-                    onValueChange={(value) => {
-                      if (value === "manual") {
-                        updateItem(item.id, "productId", "");
-                        updateItem(item.id, "name", "");
-                        updateItem(item.id, "fullPrice", 0);
-                      } else {
-                        selectProduct(item.id, value);
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione ou digite manualmente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manual">Digitar manualmente</SelectItem>
-                      {availableProducts.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} - R$ {product.salePrice.toFixed(2)}
+                  {item.manualMode ? (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="gap-1">
+                        <Pencil className="w-3 h-3" />
+                        Modo Manual
+                      </Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => exitManualMode(item.id)}
+                        className="gap-1 h-7 text-xs"
+                      >
+                        <Undo2 className="w-3 h-3" />
+                        Voltar para lista
+                      </Button>
+                    </div>
+                  ) : (
+                    <Select
+                      value={item.productId || ""}
+                      onValueChange={(value) => {
+                        if (value === "__manual__") {
+                          setManualMode(item.id);
+                        } else {
+                          selectProduct(item.id, value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um produto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__manual__">
+                          <span className="flex items-center gap-2">
+                            <Pencil className="w-3.5 h-3.5" />
+                            Digitar manualmente
+                          </span>
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        {availableProducts.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - R$ {product.salePrice.toFixed(2)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
-                {!item.productId && (
+                {(item.manualMode || !item.productId) && (
                   <div className="flex-1 space-y-2">
-                    <Label className="text-xs text-muted-foreground">Nome</Label>
+                    <Label className="text-xs text-muted-foreground">Nome do Item</Label>
                     <Input
+                      ref={(el) => { nameInputRefs.current[item.id] = el; }}
                       placeholder="Nome do item"
                       value={item.name}
                       onChange={(e) => updateItem(item.id, "name", e.target.value)}
@@ -436,6 +487,7 @@ export function KitCalculator({
                     onChange={(e) =>
                       updateItem(item.id, "fullPrice", parseFloat(e.target.value) || 0)
                     }
+                    disabled={!item.manualMode && !!item.productId}
                   />
                 </div>
 
