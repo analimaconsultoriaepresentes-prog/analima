@@ -16,6 +16,8 @@ export interface Product {
   cycle?: number;
   isBasket: boolean;
   packagingCost: number;
+  isActive: boolean;
+  deletedAt?: string;
 }
 
 export interface ProductFormData {
@@ -65,6 +67,8 @@ export function useProducts() {
         cycle: p.cycle ?? undefined,
         isBasket: p.is_basket || false,
         packagingCost: Number(p.packaging_cost) || 0,
+        isActive: p.is_active ?? true,
+        deletedAt: p.deleted_at || undefined,
       }));
 
       setProducts(mapped);
@@ -160,26 +164,155 @@ export function useProducts() {
     }
   };
 
-  const deleteProduct = async (id: string, name: string): Promise<boolean> => {
+  const checkProductDependencies = async (id: string): Promise<{ hasSales: boolean; hasBasketUsage: boolean }> => {
+    // Check if product is used in any sales
+    const { data: saleItems, error: saleError } = await supabase
+      .from("sale_items")
+      .select("id")
+      .eq("product_id", id)
+      .limit(1);
+
+    if (saleError) {
+      console.error("Error checking sale dependencies:", saleError);
+    }
+
+    // Check if product is used in any basket
+    const { data: basketItems, error: basketError } = await supabase
+      .from("basket_items")
+      .select("id")
+      .eq("product_id", id)
+      .limit(1);
+
+    if (basketError) {
+      console.error("Error checking basket dependencies:", basketError);
+    }
+
+    return {
+      hasSales: (saleItems?.length || 0) > 0,
+      hasBasketUsage: (basketItems?.length || 0) > 0,
+    };
+  };
+
+  const archiveProduct = async (id: string, name: string): Promise<boolean> => {
     try {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_active: false, deleted_at: new Date().toISOString() })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      await fetchProducts();
+      toast({
+        title: "Produto arquivado",
+        description: `${name} foi arquivado e não aparecerá mais na lista.`,
+      });
+      return true;
+    } catch (error) {
+      console.error("Error archiving product:", error);
+      toast({
+        title: "Erro ao arquivar produto",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const reactivateProduct = async (id: string, name: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_active: true, deleted_at: null })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      await fetchProducts();
+      toast({
+        title: "Produto reativado",
+        description: `${name} está ativo novamente.`,
+      });
+      return true;
+    } catch (error) {
+      console.error("Error reactivating product:", error);
+      toast({
+        title: "Erro ao reativar produto",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const deleteProduct = async (id: string, name: string, isBasket: boolean): Promise<{ success: boolean; archived: boolean; message: string }> => {
+    try {
+      // Check dependencies
+      const deps = await checkProductDependencies(id);
+
+      // If product has sales, archive instead of delete
+      if (deps.hasSales) {
+        await archiveProduct(id, name);
+        return {
+          success: true,
+          archived: true,
+          message: "Este item já foi usado em vendas. Para manter o histórico, ele foi arquivado.",
+        };
+      }
+
+      // If product is used in a basket composition, cannot delete or archive
+      if (deps.hasBasketUsage) {
+        toast({
+          title: "Não é possível excluir",
+          description: "Este produto está sendo usado em uma cesta. Remova-o da cesta primeiro.",
+          variant: "destructive",
+        });
+        return {
+          success: false,
+          archived: false,
+          message: "Não é possível excluir porque está sendo usado em uma cesta.",
+        };
+      }
+
+      // If it's a basket, delete its composition first
+      if (isBasket) {
+        const { error: basketItemsError } = await supabase
+          .from("basket_items")
+          .delete()
+          .eq("basket_id", id);
+
+        if (basketItemsError) {
+          console.error("Error deleting basket items:", basketItemsError);
+        }
+      }
+
+      // Now delete the product
       const { error } = await supabase.from("products").delete().eq("id", id);
 
       if (error) throw error;
 
       await fetchProducts();
       toast({
-        title: "Produto excluído",
-        description: `${name} foi removido do catálogo.`,
+        title: isBasket ? "Cesta excluída" : "Produto excluído",
+        description: `${name} foi removido definitivamente.`,
       });
-      return true;
+      return {
+        success: true,
+        archived: false,
+        message: "Produto excluído com sucesso.",
+      };
     } catch (error) {
       console.error("Error deleting product:", error);
       toast({
-        title: "Erro ao excluir produto",
+        title: "Erro ao excluir",
         description: "Tente novamente.",
         variant: "destructive",
       });
-      return false;
+      return {
+        success: false,
+        archived: false,
+        message: "Erro ao excluir produto.",
+      };
     }
   };
 
@@ -250,6 +383,9 @@ export function useProducts() {
     addProduct,
     updateProduct,
     deleteProduct,
+    archiveProduct,
+    reactivateProduct,
+    checkProductDependencies,
     updateStock,
     restoreStock,
     refetch: fetchProducts,

@@ -18,11 +18,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+export type StatusFilter = "active" | "archived" | "all";
+
 export interface ProductFiltersState {
   categories: string[];
   origins: string[];
   stockFilter: string;
   cycle: string;
+  statusFilter: StatusFilter;
 }
 
 interface ProductFiltersProps {
@@ -42,6 +45,11 @@ const STOCK_OPTIONS = [
   { value: "inStock", label: "Com estoque" },
   { value: "lowStock", label: "Estoque baixo (≤5)" },
   { value: "outOfStock", label: "Sem estoque" },
+];
+const STATUS_OPTIONS = [
+  { value: "active", label: "Ativos" },
+  { value: "archived", label: "Arquivados" },
+  { value: "all", label: "Todos" },
 ];
 
 export function ProductFilters({
@@ -72,12 +80,17 @@ export function ProductFilters({
     onFiltersChange({ ...filters, cycle: value });
   };
 
+  const handleStatusChange = (value: string) => {
+    onFiltersChange({ ...filters, statusFilter: value as StatusFilter });
+  };
+
   const handleClearFilters = () => {
     onFiltersChange({
       categories: [],
       origins: [],
       stockFilter: "all",
       cycle: "",
+      statusFilter: "active",
     });
   };
 
@@ -85,7 +98,8 @@ export function ProductFilters({
     filters.categories.length > 0 ||
     filters.origins.length > 0 ||
     filters.stockFilter !== "all" ||
-    filters.cycle !== "";
+    filters.cycle !== "" ||
+    filters.statusFilter !== "active";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -164,6 +178,23 @@ export function ProductFilters({
               onChange={(e) => handleCycleChange(e.target.value)}
               className="input-styled"
             />
+          </div>
+
+          {/* Status */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Status</Label>
+            <Select value={filters.statusFilter} onValueChange={handleStatusChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Botões */}
