@@ -7,6 +7,7 @@ import { SaleForm } from "@/components/sales/SaleForm";
 import { useProducts } from "@/hooks/useProducts";
 import { useSales, SaleChannel } from "@/hooks/useSales";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useStore } from "@/hooks/useStore";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,13 +56,10 @@ export default function Vendas() {
   const { products, loading: loadingProducts, updateStock, restoreStock } = useProducts();
   const { sales, loading: loadingSales, addSale, cancelSale: cancelSaleAction, stats } = useSales();
   const { customers, addCustomer } = useCustomers();
+  const { store } = useStore();
 
-  // Calcular custo médio de embalagem dos produtos tipo "packaging"
-  const avgPackagingCostPerItem = useMemo(() => {
-    const packagingProducts = products.filter(p => p.productType === 'packaging' && p.isActive);
-    if (packagingProducts.length === 0) return 0;
-    return packagingProducts.reduce((acc, p) => acc + p.costPrice, 0) / packagingProducts.length;
-  }, [products]);
+  // Usar custos de embalagem da configuração da loja
+  const packagingCosts = store?.packagingCosts || { packagingCost1Bag: 0, packagingCost2Bags: 0 };
 
   const handleNewSale = async (
     cartItems: { product: typeof products[0]; quantity: number }[],
@@ -331,7 +329,7 @@ export default function Vendas() {
         onSubmit={handleNewSale}
         onAddCustomer={addCustomer}
         defaultChannel={defaultChannel}
-        defaultPackagingCostPerItem={avgPackagingCostPerItem}
+        packagingCosts={packagingCosts}
       />
 
       {/* Cancel Confirmation Dialog */}

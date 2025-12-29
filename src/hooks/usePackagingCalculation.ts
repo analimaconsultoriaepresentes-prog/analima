@@ -1,14 +1,10 @@
 import { useMemo } from "react";
 import type { Product } from "./useProducts";
+import type { PackagingCosts } from "./useStore";
 
 export interface CartItem {
   product: Product;
   quantity: number;
-}
-
-export interface PackagingConfig {
-  packagingProductId?: string;
-  packagingQtyPerItem: number;
 }
 
 export interface SaleCostBreakdown {
@@ -33,11 +29,14 @@ export interface SaleCostBreakdown {
  * 1. Loose products (avulsos): packaging cost is internal only, NOT charged to customer
  * 2. Baskets/Combos: packaging is already included in costPrice, ignore additional packaging
  * 3. Customer always pays only the sale_price sum
+ * 4. Packaging cost is based on store configuration:
+ *    - 1-2 loose items: use packagingCost1Bag
+ *    - 3-5 loose items: use packagingCost2Bags
+ *    - 6+ loose items: proportionally scale up
  */
 export function usePackagingCalculation(
   cartItems: CartItem[],
-  allProducts: Product[],
-  packagingConfig?: PackagingConfig
+  packagingCosts: PackagingCosts
 ) {
   const breakdown = useMemo<SaleCostBreakdown>(() => {
     if (cartItems.length === 0) {
@@ -73,18 +72,17 @@ export function usePackagingCalculation(
       // Note: Baskets already have packaging included in their costPrice
     }
 
-    // Calculate packaging cost for loose items only
+    // Calculate packaging cost based on store configuration
     let custoEmbalagem = 0;
-    if (packagingConfig?.packagingProductId && looseItemCount > 0) {
-      const packagingProduct = allProducts.find(
-        (p) => p.id === packagingConfig.packagingProductId
-      );
-      if (packagingProduct) {
-        // Calculate how many packaging units needed
-        const packagingUnitsNeeded = Math.ceil(
-          looseItemCount / (packagingConfig.packagingQtyPerItem || 1)
-        );
-        custoEmbalagem = packagingProduct.costPrice * packagingUnitsNeeded;
+    if (looseItemCount > 0) {
+      if (looseItemCount <= 2) {
+        custoEmbalagem = packagingCosts.packagingCost1Bag;
+      } else if (looseItemCount <= 5) {
+        custoEmbalagem = packagingCosts.packagingCost2Bags;
+      } else {
+        // For 6+ items, scale proportionally (roughly 1 bag per 2-3 items)
+        const bags = Math.ceil(looseItemCount / 3);
+        custoEmbalagem = packagingCosts.packagingCost1Bag * bags;
       }
     }
 
@@ -102,7 +100,7 @@ export function usePackagingCalculation(
       itemCount: cartItems.reduce((acc, item) => acc + item.quantity, 0),
       looseItemCount,
     };
-  }, [cartItems, allProducts, packagingConfig]);
+  }, [cartItems, packagingCosts]);
 
   return breakdown;
 }
@@ -119,7 +117,7 @@ export function calculateSaleProfitBreakdown(
     subtotal: number;
   }>,
   products: Product[],
-  defaultPackagingCostPerItem: number = 0
+  packagingCosts: PackagingCosts
 ): SaleCostBreakdown {
   if (saleItems.length === 0) {
     return {
@@ -156,8 +154,19 @@ export function calculateSaleProfitBreakdown(
     }
   }
 
-  // Estimate packaging cost for loose items
-  const custoEmbalagem = looseItemCount * defaultPackagingCostPerItem;
+  // Calculate packaging cost based on store configuration
+  let custoEmbalagem = 0;
+  if (looseItemCount > 0) {
+    if (looseItemCount <= 2) {
+      custoEmbalagem = packagingCosts.packagingCost1Bag;
+    } else if (looseItemCount <= 5) {
+      custoEmbalagem = packagingCosts.packagingCost2Bags;
+    } else {
+      const bags = Math.ceil(looseItemCount / 3);
+      custoEmbalagem = packagingCosts.packagingCost1Bag * bags;
+    }
+  }
+
   const custoTotal = custoItens + custoEmbalagem;
   const lucroReal = totalCliente - custoTotal;
   const margemReal = totalCliente > 0 ? (lucroReal / totalCliente) * 100 : 0;

@@ -36,6 +36,7 @@ import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Customer, CustomerFormData } from "@/hooks/useCustomers";
 import type { SaleChannel } from "@/hooks/useSales";
+import type { PackagingCosts } from "@/hooks/useStore";
 
 interface Product {
   id: string;
@@ -61,7 +62,7 @@ interface SaleFormProps {
   onSubmit: (items: CartItem[], paymentMethod: string, total: number, customerId?: string, channel?: SaleChannel) => void;
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
   defaultChannel?: SaleChannel;
-  defaultPackagingCostPerItem?: number; // Custo médio de embalagem por item avulso
+  packagingCosts: PackagingCosts;
 }
 
 const paymentMethods = [
@@ -78,7 +79,7 @@ function SaleFormContent({
   onClose,
   onAddCustomer,
   defaultChannel = "store",
-  defaultPackagingCostPerItem = 0,
+  packagingCosts,
 }: {
   products: Product[];
   customers: Customer[];
@@ -86,7 +87,7 @@ function SaleFormContent({
   onClose: () => void;
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
   defaultChannel?: SaleChannel;
-  defaultPackagingCostPerItem?: number;
+  packagingCosts: PackagingCosts;
 }) {
   const isMobile = useIsMobile();
   const [channel, setChannel] = useState<SaleChannel>(defaultChannel);
@@ -192,8 +193,20 @@ function SaleFormContent({
       }
     }
 
-    // Custo de embalagem apenas para itens avulsos
-    const custoEmbalagem = looseItemCount * defaultPackagingCostPerItem;
+    // Custo de embalagem baseado na configuração da loja
+    let custoEmbalagem = 0;
+    if (looseItemCount > 0) {
+      if (looseItemCount <= 2) {
+        custoEmbalagem = packagingCosts.packagingCost1Bag;
+      } else if (looseItemCount <= 5) {
+        custoEmbalagem = packagingCosts.packagingCost2Bags;
+      } else {
+        // Para 6+ itens, escalonar proporcionalmente
+        const bags = Math.ceil(looseItemCount / 3);
+        custoEmbalagem = packagingCosts.packagingCost1Bag * bags;
+      }
+    }
+    
     const custoTotal = custoItens + custoEmbalagem;
     const lucroReal = total - custoTotal;
     const margemReal = total > 0 ? (lucroReal / total) * 100 : 0;
@@ -206,7 +219,7 @@ function SaleFormContent({
       margemReal,
       looseItemCount,
     };
-  }, [cart, total, defaultPackagingCostPerItem]);
+  }, [cart, total, packagingCosts]);
 
   const handleSubmit = () => {
     if (cart.length === 0) {
@@ -680,7 +693,7 @@ export function SaleForm({
   onSubmit, 
   onAddCustomer, 
   defaultChannel = "store",
-  defaultPackagingCostPerItem = 0,
+  packagingCosts,
 }: SaleFormProps) {
   const isMobile = useIsMobile();
 
@@ -715,7 +728,7 @@ export function SaleForm({
               onClose={handleClose} 
               onAddCustomer={onAddCustomer} 
               defaultChannel={defaultChannel}
-              defaultPackagingCostPerItem={defaultPackagingCostPerItem}
+              packagingCosts={packagingCosts}
             />
           </div>
         </DrawerContent>
@@ -738,7 +751,7 @@ export function SaleForm({
             onClose={handleClose} 
             onAddCustomer={onAddCustomer} 
             defaultChannel={defaultChannel}
-            defaultPackagingCostPerItem={defaultPackagingCostPerItem}
+            packagingCosts={packagingCosts}
           />
         </div>
       </DialogContent>
