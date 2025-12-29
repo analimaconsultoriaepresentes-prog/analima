@@ -1,0 +1,9 @@
+-- Add alert settings columns to stores table
+ALTER TABLE public.stores
+ADD COLUMN IF NOT EXISTS low_stock_enabled BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS expiry_alert_enabled BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS bills_due_enabled BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN IF NOT EXISTS daily_email_enabled BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER NOT NULL DEFAULT 3,
+ADD COLUMN IF NOT EXISTS expiry_days_before INTEGER NOT NULL DEFAULT 30,
+ADD COLUMN IF NOT EXISTS bills_days_before INTEGER NOT NULL DEFAULT 3;

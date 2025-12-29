@@ -3,13 +3,34 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
 
+export interface AlertSettings {
+  lowStockEnabled: boolean;
+  expiryAlertEnabled: boolean;
+  billsDueEnabled: boolean;
+  dailyEmailEnabled: boolean;
+  lowStockThreshold: number;
+  expiryDaysBefore: number;
+  billsDaysBefore: number;
+}
+
 export interface Store {
   id: string;
   name: string;
   logoUrl: string | null;
   primaryColor: string;
   birthdayMessage: string;
+  alertSettings: AlertSettings;
 }
+
+const DEFAULT_ALERT_SETTINGS: AlertSettings = {
+  lowStockEnabled: true,
+  expiryAlertEnabled: true,
+  billsDueEnabled: true,
+  dailyEmailEnabled: false,
+  lowStockThreshold: 3,
+  expiryDaysBefore: 30,
+  billsDaysBefore: 3,
+};
 
 export function useStore() {
   const { user } = useAuth();
@@ -39,6 +60,15 @@ export function useStore() {
           logoUrl: data.logo_url,
           primaryColor: data.primary_color || "#F97316",
           birthdayMessage: data.birthday_message || "Oi {NOME}! 🎉 Feliz aniversário! Preparamos presentes e cestas personalizadas especialmente para você. Quer que eu te mostre algumas opções?",
+          alertSettings: {
+            lowStockEnabled: data.low_stock_enabled ?? true,
+            expiryAlertEnabled: data.expiry_alert_enabled ?? true,
+            billsDueEnabled: data.bills_due_enabled ?? true,
+            dailyEmailEnabled: data.daily_email_enabled ?? false,
+            lowStockThreshold: data.low_stock_threshold ?? 3,
+            expiryDaysBefore: data.expiry_days_before ?? 30,
+            billsDaysBefore: data.bills_days_before ?? 3,
+          },
         });
       }
     } catch (error) {
@@ -81,6 +111,42 @@ export function useStore() {
       return true;
     } catch (error) {
       console.error("Error updating store:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const updateAlertSettings = async (settings: AlertSettings): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from("stores")
+        .update({
+          low_stock_enabled: settings.lowStockEnabled,
+          expiry_alert_enabled: settings.expiryAlertEnabled,
+          bills_due_enabled: settings.billsDueEnabled,
+          daily_email_enabled: settings.dailyEmailEnabled,
+          low_stock_threshold: settings.lowStockThreshold,
+          expiry_days_before: settings.expiryDaysBefore,
+          bills_days_before: settings.billsDaysBefore,
+        })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setStore(prev => prev ? { ...prev, alertSettings: settings } : null);
+      toast({
+        title: "Configurações salvas",
+        description: "As preferências de alertas foram atualizadas.",
+      });
+      return true;
+    } catch (error) {
+      console.error("Error updating alert settings:", error);
       toast({
         title: "Erro ao salvar",
         description: "Tente novamente.",
@@ -138,6 +204,7 @@ export function useStore() {
     store,
     loading,
     updateStore,
+    updateAlertSettings,
     uploadLogo,
     refetch: fetchStore,
   };

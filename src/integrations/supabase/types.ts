@@ -414,30 +414,51 @@ export type Database = {
       }
       stores: {
         Row: {
+          bills_days_before: number
+          bills_due_enabled: boolean
           birthday_message: string | null
           created_at: string
+          daily_email_enabled: boolean
+          expiry_alert_enabled: boolean
+          expiry_days_before: number
           id: string
           logo_url: string | null
+          low_stock_enabled: boolean
+          low_stock_threshold: number
           name: string
           primary_color: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          bills_days_before?: number
+          bills_due_enabled?: boolean
           birthday_message?: string | null
           created_at?: string
+          daily_email_enabled?: boolean
+          expiry_alert_enabled?: boolean
+          expiry_days_before?: number
           id?: string
           logo_url?: string | null
+          low_stock_enabled?: boolean
+          low_stock_threshold?: number
           name?: string
           primary_color?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          bills_days_before?: number
+          bills_due_enabled?: boolean
           birthday_message?: string | null
           created_at?: string
+          daily_email_enabled?: boolean
+          expiry_alert_enabled?: boolean
+          expiry_days_before?: number
           id?: string
           logo_url?: string | null
+          low_stock_enabled?: boolean
+          low_stock_threshold?: number
           name?: string
           primary_color?: string | null
           updated_at?: string
