@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
-import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift, PackagePlus, ShoppingBasket, Archive, RotateCcw } from "lucide-react";
+import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift, PackagePlus, ShoppingBasket, Archive, RotateCcw, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ProductForm, type BasketItemInput, type BasketExtraInput } from "@/components/products/ProductForm";
 import { StockEntryModal } from "@/components/products/StockEntryModal";
 import { ProductFilters, type ProductFiltersState } from "@/components/products/ProductFilters";
+import { KitCalculator } from "@/components/products/KitCalculator";
 import { useProducts, type Product, type ProductFormData } from "@/hooks/useProducts";
 import { useBaskets } from "@/hooks/useBaskets";
 import {
@@ -36,6 +37,7 @@ export default function Produtos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isKitCalculatorOpen, setIsKitCalculatorOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteProductState, setDeleteProductState] = useState<Product | null>(null);
   const [archiveConfirmState, setArchiveConfirmState] = useState<Product | null>(null);
@@ -221,10 +223,17 @@ export default function Produtos() {
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Produtos</h1>
           <p className="text-muted-foreground mt-1">Gerencie seu estoque e catálogo</p>
         </div>
-        <Button className="btn-primary gap-2" onClick={() => setIsFormOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Novo Produto
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setIsKitCalculatorOpen(true)}>
+            <Calculator className="w-4 h-4" />
+            <span className="hidden sm:inline">Calculadora de Kit</span>
+            <span className="sm:hidden">Kit</span>
+          </Button>
+          <Button className="btn-primary gap-2" onClick={() => setIsFormOpen(true)}>
+            <Plus className="w-4 h-4" />
+            Novo Produto
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -486,6 +495,13 @@ export default function Produtos() {
         onOpenChange={setIsFiltersOpen}
         filters={filters}
         onFiltersChange={setFilters}
+      />
+
+      {/* Kit Calculator */}
+      <KitCalculator
+        open={isKitCalculatorOpen}
+        onOpenChange={setIsKitCalculatorOpen}
+        availableProducts={availableProductsForBasket}
       />
     </div>
   );
