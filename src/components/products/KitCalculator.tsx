@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Calculator, Plus, Trash2, Package } from "lucide-react";
+import { Calculator, Plus, Trash2, Package, Save, Loader2, ShoppingBasket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Product } from "@/hooks/useProducts";
+import { Product, ProductFormData } from "@/hooks/useProducts";
+import { toast } from "@/hooks/use-toast";
 
 interface KitItem {
   id: string;
@@ -45,14 +46,24 @@ interface KitCalculatorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   availableProducts: Product[];
+  onSaveAsBasket?: (
+    data: ProductFormData,
+    basketItems: { productId: string; quantity: number }[]
+  ) => Promise<void>;
 }
 
-export function KitCalculator({ open, onOpenChange, availableProducts }: KitCalculatorProps) {
+export function KitCalculator({ 
+  open, 
+  onOpenChange, 
+  availableProducts,
+  onSaveAsBasket 
+}: KitCalculatorProps) {
   const isMobile = useIsMobile();
   const [kitName, setKitName] = useState("");
   const [kitPrice, setKitPrice] = useState("");
   const [kitCost, setKitCost] = useState("");
   const [items, setItems] = useState<KitItem[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const addItem = () => {
     setItems([
@@ -134,6 +145,64 @@ export function KitCalculator({ open, onOpenChange, availableProducts }: KitCalc
     };
   }, [items, kitPrice, kitCost]);
 
+  // Check if we can save as basket (all items must have productId)
+  const canSaveAsBasket = useMemo(() => {
+    if (!kitName.trim() || !kitPrice || parseFloat(kitPrice) <= 0) return false;
+    if (items.length === 0) return false;
+    // All items must be linked to existing products
+    return items.every((item) => item.productId);
+  }, [kitName, kitPrice, items]);
+
+  const handleSaveAsBasket = async () => {
+    if (!onSaveAsBasket || !canSaveAsBasket) return;
+
+    setSaving(true);
+    try {
+      const kitPriceNum = parseFloat(kitPrice) || 0;
+      const kitCostNum = parseFloat(kitCost) || 0;
+
+      const basketData: ProductFormData = {
+        name: kitName.trim(),
+        brand: "Combo",
+        category: "Presente",
+        costPrice: kitCostNum,
+        salePrice: kitPriceNum,
+        stock: 0,
+        origin: "purchased",
+        productType: "item",
+        isBasket: true,
+        packagingProductId: undefined,
+        packagingQty: 1,
+        packagingCost: 0,
+      };
+
+      const basketItems = items
+        .filter((item) => item.productId)
+        .map((item) => ({
+          productId: item.productId!,
+          quantity: item.quantity,
+        }));
+
+      await onSaveAsBasket(basketData, basketItems);
+      
+      toast({
+        title: "Cesta criada com sucesso!",
+        description: `"${kitName}" foi salva como cesta/combo.`,
+      });
+
+      handleClose();
+    } catch (error) {
+      console.error("Error saving basket:", error);
+      toast({
+        title: "Erro ao salvar cesta",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleClose = () => {
     setKitName("");
     setKitPrice("");
@@ -147,7 +216,7 @@ export function KitCalculator({ open, onOpenChange, availableProducts }: KitCalc
       {/* Kit Info */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="kitName">Nome do Kit</Label>
+          <Label htmlFor="kitName">Nome do Kit *</Label>
           <Input
             id="kitName"
             placeholder="Ex: Kit Perfumes"
@@ -343,7 +412,14 @@ export function KitCalculator({ open, onOpenChange, availableProducts }: KitCalc
               <TableBody>
                 {calculations.items.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name || "—"}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {item.productId && (
+                          <Package className="w-3.5 h-3.5 text-muted-foreground" />
+                        )}
+                        {item.name || "—"}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center">{item.quantity}</TableCell>
                     <TableCell className="text-right">
                       R$ {item.itemTotal.toFixed(2)}
@@ -368,6 +444,38 @@ export function KitCalculator({ open, onOpenChange, availableProducts }: KitCalc
               <p className="text-xl font-bold text-success">
                 R$ {(calculations.kitPriceNum - calculations.kitCostNum).toFixed(2)}
               </p>
+            </div>
+          )}
+
+          {/* Save as Basket Button */}
+          {onSaveAsBasket && (
+            <div className="pt-4 border-t border-border">
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  {canSaveAsBasket ? (
+                    <span className="flex items-center gap-2 text-success">
+                      <ShoppingBasket className="w-4 h-4" />
+                      Pronto para salvar como cesta
+                    </span>
+                  ) : (
+                    <span className="text-warning">
+                      Para salvar, todos os itens devem ser produtos cadastrados
+                    </span>
+                  )}
+                </div>
+                <Button
+                  onClick={handleSaveAsBasket}
+                  disabled={!canSaveAsBasket || saving}
+                  className="gap-2"
+                >
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Salvar como Cesta
+                </Button>
+              </div>
             </div>
           )}
         </div>

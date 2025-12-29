@@ -502,6 +502,12 @@ export default function Produtos() {
         open={isKitCalculatorOpen}
         onOpenChange={setIsKitCalculatorOpen}
         availableProducts={availableProductsForBasket}
+        onSaveAsBasket={async (data, basketItems) => {
+          const productId = await addProduct(data);
+          if (productId && basketItems.length > 0) {
+            await saveBasketItems(productId, basketItems);
+          }
+        }}
       />
     </div>
   );
