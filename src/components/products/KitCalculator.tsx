@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Calculator, Plus, Trash2, Package, Save, Loader2, ShoppingBasket, AlertTriangle, Undo2, Pencil } from "lucide-react";
+import { Calculator, Plus, Trash2, Package, Save, Loader2, ShoppingBasket, AlertTriangle, Undo2, Pencil, PackagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Product, ProductFormData } from "@/hooks/useProducts";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { QuickProductModal } from "./QuickProductModal";
 
 interface KitItem {
   id: string;
@@ -52,13 +53,15 @@ interface KitCalculatorProps {
     data: ProductFormData,
     basketItems: { productId: string; quantity: number }[]
   ) => Promise<void>;
+  onCreateProduct?: (data: ProductFormData) => Promise<string | null>;
 }
 
 export function KitCalculator({ 
   open, 
   onOpenChange, 
   availableProducts,
-  onSaveAsBasket 
+  onSaveAsBasket,
+  onCreateProduct
 }: KitCalculatorProps) {
   const isMobile = useIsMobile();
   const [kitName, setKitName] = useState("");
@@ -69,6 +72,17 @@ export function KitCalculator({
   const [kitCost, setKitCost] = useState("");
   const [items, setItems] = useState<KitItem[]>([]);
   const [saving, setSaving] = useState(false);
+  
+  // Quick product modal state
+  const [quickProductModal, setQuickProductModal] = useState<{
+    open: boolean;
+    itemId: string;
+    initialData: { name: string; salePrice: number; costPrice: number };
+  }>({
+    open: false,
+    itemId: "",
+    initialData: { name: "", salePrice: 0, costPrice: 0 },
+  });
 
   // Calculate auto sum of items
   const autoSum = useMemo(() => {
@@ -165,6 +179,44 @@ export function KitCalculator({
         )
       );
     }
+  };
+
+  // Open quick product modal for manual item
+  const openQuickProductModal = (item: KitItem) => {
+    // Get calculated values for this item if available
+    const calcItem = calculations.items.find(ci => ci.id === item.id);
+    
+    setQuickProductModal({
+      open: true,
+      itemId: item.id,
+      initialData: {
+        name: item.name,
+        salePrice: calcItem?.priceInKit || item.fullPrice,
+        costPrice: calcItem?.costInKit || 0,
+      },
+    });
+  };
+
+  // Handle product created from quick modal
+  const handleProductCreated = (productId: string, productName: string, salePrice: number) => {
+    setItems(
+      items.map((item) =>
+        item.id === quickProductModal.itemId
+          ? {
+              ...item,
+              productId,
+              name: productName,
+              fullPrice: salePrice,
+              manualMode: false,
+            }
+          : item
+      )
+    );
+
+    toast({
+      title: "Produto criado e vinculado com sucesso!",
+      description: `"${productName}" foi adicionado ao catálogo e vinculado ao kit.`,
+    });
   };
 
   // Check if an item is valid: (name OR productId) AND fullPrice > 0 AND quantity >= 1
@@ -503,7 +555,19 @@ export function KitCalculator({
                   />
                 </div>
 
-                <div className="flex items-end">
+                <div className="flex items-end gap-1">
+                  {/* Create product button - only for manual items without productId */}
+                  {item.manualMode && !item.productId && item.name.trim() && onCreateProduct && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => openQuickProductModal(item)}
+                      title="Criar produto a partir deste item"
+                      className="text-primary hover:text-primary"
+                    >
+                      <PackagePlus className="w-4 h-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -686,33 +750,49 @@ export function KitCalculator({
     </div>
   );
 
+  const quickProductModalElement = onCreateProduct && (
+    <QuickProductModal
+      open={quickProductModal.open}
+      onOpenChange={(open) => setQuickProductModal(prev => ({ ...prev, open }))}
+      initialData={quickProductModal.initialData}
+      onSave={onCreateProduct}
+      onSuccess={handleProductCreated}
+    />
+  );
+
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={handleClose}>
-        <DrawerContent className="max-h-[90vh]">
-          <DrawerHeader>
-            <DrawerTitle className="flex items-center gap-2">
-              <Calculator className="w-5 h-5 text-primary" />
-              Calculadora de Kit (Promoção)
-            </DrawerTitle>
-          </DrawerHeader>
-          <div className="px-4 pb-6 overflow-y-auto">{content}</div>
-        </DrawerContent>
-      </Drawer>
+      <>
+        <Drawer open={open} onOpenChange={handleClose}>
+          <DrawerContent className="max-h-[90vh]">
+            <DrawerHeader>
+              <DrawerTitle className="flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-primary" />
+                Calculadora de Kit (Promoção)
+              </DrawerTitle>
+            </DrawerHeader>
+            <div className="px-4 pb-6 overflow-y-auto">{content}</div>
+          </DrawerContent>
+        </Drawer>
+        {quickProductModalElement}
+      </>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-primary" />
-            Calculadora de Kit (Promoção)
-          </DialogTitle>
-        </DialogHeader>
-        {content}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-primary" />
+              Calculadora de Kit (Promoção)
+            </DialogTitle>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+      {quickProductModalElement}
+    </>
   );
 }
