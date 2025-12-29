@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Minus, Plus, ShoppingCart, Trash2, Search, User, UserPlus, Phone, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Minus, Plus, ShoppingCart, Trash2, Search, User, UserPlus, Phone, Loader2, Store, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Customer, CustomerFormData } from "@/hooks/useCustomers";
+import type { SaleChannel } from "@/hooks/useSales";
 
 interface Product {
   id: string;
@@ -49,8 +50,9 @@ interface SaleFormProps {
   onOpenChange: (open: boolean) => void;
   products: Product[];
   customers: Customer[];
-  onSubmit: (items: CartItem[], paymentMethod: string, total: number, customerId?: string) => void;
+  onSubmit: (items: CartItem[], paymentMethod: string, total: number, customerId?: string, channel?: SaleChannel) => void;
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
+  defaultChannel?: SaleChannel;
 }
 
 const paymentMethods = [
@@ -66,14 +68,17 @@ function SaleFormContent({
   onSubmit,
   onClose,
   onAddCustomer,
+  defaultChannel = "store",
 }: {
   products: Product[];
   customers: Customer[];
-  onSubmit: (items: CartItem[], paymentMethod: string, total: number, customerId?: string) => void;
+  onSubmit: (items: CartItem[], paymentMethod: string, total: number, customerId?: string, channel?: SaleChannel) => void;
   onClose: () => void;
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
+  defaultChannel?: SaleChannel;
 }) {
   const isMobile = useIsMobile();
+  const [channel, setChannel] = useState<SaleChannel>(defaultChannel);
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
@@ -85,6 +90,11 @@ function SaleFormContent({
   const [newCustomerBirthday, setNewCustomerBirthday] = useState("");
   const [newCustomerNotes, setNewCustomerNotes] = useState("");
   const [savingCustomer, setSavingCustomer] = useState(false);
+
+  // Update channel when defaultChannel changes (e.g., when opening for online sale)
+  useEffect(() => {
+    setChannel(defaultChannel);
+  }, [defaultChannel]);
 
   const availableProducts = products.filter(
     (p) =>
@@ -174,12 +184,13 @@ function SaleFormContent({
       return;
     }
 
-    onSubmit(cart, paymentMethod, total, selectedCustomerId || undefined);
+    onSubmit(cart, paymentMethod, total, selectedCustomerId || undefined, channel);
     setCart([]);
     setPaymentMethod("");
     setSearchTerm("");
     setSelectedCustomerId("");
     setCustomerSearch("");
+    setChannel("store");
     onClose();
   };
 
@@ -216,6 +227,39 @@ function SaleFormContent({
 
   return (
     <div className="flex flex-col gap-4 h-full">
+      {/* Canal de Venda */}
+      <div className="space-y-2">
+        <Label className="block text-sm font-medium">Canal de Venda</Label>
+        <div className="flex rounded-lg border border-border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setChannel("store")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium transition-colors",
+              channel === "store"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+          >
+            <Store className="w-4 h-4" />
+            Loja (Física)
+          </button>
+          <button
+            type="button"
+            onClick={() => setChannel("online")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium transition-colors",
+              channel === "online"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+          >
+            <Globe className="w-4 h-4" />
+            Online
+          </button>
+        </div>
+      </div>
+
       {/* Cliente (opcional) */}
       <div className="space-y-2">
         <Label className="block text-sm font-medium flex items-center gap-2">
@@ -537,7 +581,7 @@ function SaleFormContent({
   );
 }
 
-export function SaleForm({ open, onOpenChange, products, customers, onSubmit, onAddCustomer }: SaleFormProps) {
+export function SaleForm({ open, onOpenChange, products, customers, onSubmit, onAddCustomer, defaultChannel = "store" }: SaleFormProps) {
   const isMobile = useIsMobile();
 
   const handleClose = () => {
@@ -549,7 +593,9 @@ export function SaleForm({ open, onOpenChange, products, customers, onSubmit, on
       <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
         <ShoppingCart className="w-5 h-5 text-primary-foreground" />
       </div>
-      <span className="text-xl font-semibold">Nova Venda</span>
+      <span className="text-xl font-semibold">
+        {defaultChannel === "online" ? "Venda Online" : "Nova Venda"}
+      </span>
     </div>
   );
 
@@ -562,7 +608,7 @@ export function SaleForm({ open, onOpenChange, products, customers, onSubmit, on
             <DrawerDescription>Adicione produtos e finalize a venda.</DrawerDescription>
           </DrawerHeader>
           <div className="px-4 pb-6 overflow-y-auto flex-1">
-            <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} onAddCustomer={onAddCustomer} />
+            <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} onAddCustomer={onAddCustomer} defaultChannel={defaultChannel} />
           </div>
         </DrawerContent>
       </Drawer>
@@ -577,7 +623,7 @@ export function SaleForm({ open, onOpenChange, products, customers, onSubmit, on
           <DialogDescription>Adicione produtos e finalize a venda.</DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto">
-          <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} onAddCustomer={onAddCustomer} />
+          <SaleFormContent products={products} customers={customers} onSubmit={onSubmit} onClose={handleClose} onAddCustomer={onAddCustomer} defaultChannel={defaultChannel} />
         </div>
       </DialogContent>
     </Dialog>

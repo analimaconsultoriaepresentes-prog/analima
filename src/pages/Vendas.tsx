@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Plus, Search, ShoppingCart, Calendar, XCircle, Loader2, Package, Gift } from "lucide-react";
+import { Plus, Search, ShoppingCart, Calendar, XCircle, Loader2, Package, Gift, Globe, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { SaleForm } from "@/components/sales/SaleForm";
 import { useProducts } from "@/hooks/useProducts";
-import { useSales } from "@/hooks/useSales";
+import { useSales, SaleChannel } from "@/hooks/useSales";
 import { useCustomers } from "@/hooks/useCustomers";
 import {
   AlertDialog,
@@ -33,9 +33,23 @@ const paymentColors: Record<string, string> = {
   fiado: "bg-warning/10 text-warning",
 };
 
+const channelLabels: Record<SaleChannel, string> = {
+  store: "Loja",
+  online: "Online",
+};
+
+const channelColors: Record<SaleChannel, string> = {
+  store: "bg-muted text-muted-foreground",
+  online: "bg-primary/10 text-primary",
+};
+
+type ChannelFilter = "all" | SaleChannel;
+
 export default function Vendas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [defaultChannel, setDefaultChannel] = useState<SaleChannel>("store");
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
   const [cancelSale, setCancelSale] = useState<Sale | null>(null);
 
   const { products, loading: loadingProducts, updateStock, restoreStock } = useProducts();
@@ -46,9 +60,10 @@ export default function Vendas() {
     cartItems: { product: typeof products[0]; quantity: number }[],
     paymentMethod: string,
     total: number,
-    customerId?: string
+    customerId?: string,
+    channel?: SaleChannel
   ) => {
-    await addSale(cartItems, paymentMethod, total, updateStock, products, customerId);
+    await addSale(cartItems, paymentMethod, total, updateStock, products, customerId, channel || "store");
   };
 
   const handleCancelSale = async () => {
@@ -57,11 +72,19 @@ export default function Vendas() {
     setCancelSale(null);
   };
 
-  const filteredSales = sales.filter(
-    (sale) =>
-      sale.products.some((p) => p.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      sale.status === "completed"
-  );
+  const openNewSale = (channel: SaleChannel) => {
+    setDefaultChannel(channel);
+    setIsFormOpen(true);
+  };
+
+  const filteredSales = sales.filter((sale) => {
+    const matchesSearch = sale.products.some((p) =>
+      p.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    const matchesStatus = sale.status === "completed";
+    const matchesChannel = channelFilter === "all" || sale.channel === channelFilter;
+    return matchesSearch && matchesStatus && matchesChannel;
+  });
 
   const loading = loadingProducts || loadingSales;
 
@@ -73,10 +96,16 @@ export default function Vendas() {
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Vendas</h1>
           <p className="text-muted-foreground mt-1">Registre e acompanhe suas vendas</p>
         </div>
-        <Button className="btn-primary gap-2" onClick={() => setIsFormOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Nova Venda
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => openNewSale("online")}>
+            <Globe className="w-4 h-4" />
+            <span className="hidden sm:inline">Venda</span> Online
+          </Button>
+          <Button className="btn-primary gap-2" onClick={() => openNewSale("store")}>
+            <Plus className="w-4 h-4" />
+            Nova Venda
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -133,15 +162,74 @@ export default function Vendas() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative animate-slide-up">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar vendas..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 input-styled"
-        />
+      {/* Channel Breakdown */}
+      <div className="flex flex-wrap gap-4 text-sm animate-slide-up">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-lg">
+          <Store className="w-4 h-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Loja:</span>
+          <span className="font-medium">{stats.storeStats.count} vendas</span>
+          <span className="text-success font-medium">
+            R$ {stats.storeStats.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg">
+          <Globe className="w-4 h-4 text-primary" />
+          <span className="text-muted-foreground">Online:</span>
+          <span className="font-medium">{stats.onlineStats.count} vendas</span>
+          <span className="text-success font-medium">
+            R$ {stats.onlineStats.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          </span>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 animate-slide-up">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar vendas..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 input-styled"
+          />
+        </div>
+        <div className="flex rounded-lg border border-border overflow-hidden">
+          <button
+            onClick={() => setChannelFilter("all")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium transition-colors",
+              channelFilter === "all"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+          >
+            Todas
+          </button>
+          <button
+            onClick={() => setChannelFilter("store")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium transition-colors flex items-center gap-1.5",
+              channelFilter === "store"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+          >
+            <Store className="w-3.5 h-3.5" />
+            Loja
+          </button>
+          <button
+            onClick={() => setChannelFilter("online")}
+            className={cn(
+              "px-4 py-2 text-sm font-medium transition-colors flex items-center gap-1.5",
+              channelFilter === "online"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            )}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            Online
+          </button>
+        </div>
       </div>
 
       {/* Loading */}
@@ -191,6 +279,10 @@ export default function Vendas() {
                           ))}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
+                          <span className={cn("alert-badge", channelColors[sale.channel])}>
+                            {sale.channel === "online" ? <Globe className="w-3 h-3 mr-1" /> : <Store className="w-3 h-3 mr-1" />}
+                            {channelLabels[sale.channel]}
+                          </span>
                           <span className={cn("alert-badge", paymentColors[sale.paymentMethod])}>
                             {paymentLabels[sale.paymentMethod]}
                           </span>
@@ -231,6 +323,7 @@ export default function Vendas() {
         customers={customers}
         onSubmit={handleNewSale}
         onAddCustomer={addCustomer}
+        defaultChannel={defaultChannel}
       />
 
       {/* Cancel Confirmation Dialog */}

@@ -16,12 +16,15 @@ export interface SaleItem {
   origin?: string;
 }
 
+export type SaleChannel = "store" | "online";
+
 export interface Sale {
   id: string;
   products: string[];
   total: number;
   paymentMethod: "pix" | "dinheiro" | "cartao" | "fiado";
   status: "completed" | "cancelled";
+  channel: SaleChannel;
   date: string;
   time: string;
   items: SaleItem[];
@@ -81,6 +84,7 @@ export function useSales() {
           total: Number(s.total),
           paymentMethod: s.payment_method as Sale["paymentMethod"],
           status: s.status as Sale["status"],
+          channel: ((s as { channel?: string }).channel || "store") as SaleChannel,
           date: date.toISOString().split("T")[0],
           time: date.toLocaleTimeString("pt-BR", {
             hour: "2-digit",
@@ -114,7 +118,8 @@ export function useSales() {
     total: number,
     updateStock: (id: string, quantity: number) => Promise<boolean>,
     products: Product[] = [],
-    customerId?: string
+    customerId?: string,
+    channel: SaleChannel = "store"
   ): Promise<boolean> => {
     if (!user) return false;
 
@@ -145,6 +150,7 @@ export function useSales() {
           status: "completed",
           user_id: user.id,
           customer_id: customerId || null,
+          channel,
         })
         .select()
         .single();
@@ -257,6 +263,10 @@ export function useSales() {
     (s) => s.date === today && s.status === "completed"
   );
   
+  // Channel breakdown
+  const storeSalesToday = todaySales.filter((s) => s.channel === "store");
+  const onlineSalesToday = todaySales.filter((s) => s.channel === "online");
+  
   const totalToday = todaySales.reduce((acc, s) => acc + s.total, 0);
   const countToday = todaySales.length;
   const averageTicket = countToday > 0 ? totalToday / countToday : 0;
@@ -267,6 +277,16 @@ export function useSales() {
     0
   );
   const productPerService = countToday > 0 ? totalItemsToday / countToday : 0;
+
+  // Channel stats
+  const storeStats = {
+    total: storeSalesToday.reduce((acc, s) => acc + s.total, 0),
+    count: storeSalesToday.length,
+  };
+  const onlineStats = {
+    total: onlineSalesToday.reduce((acc, s) => acc + s.total, 0),
+    count: onlineSalesToday.length,
+  };
 
   return {
     sales,
@@ -279,6 +299,8 @@ export function useSales() {
       countToday,
       averageTicket,
       productPerService,
+      storeStats,
+      onlineStats,
     },
   };
 }
