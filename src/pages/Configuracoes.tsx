@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake } from "lucide-react";
+import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { useStore } from "@/hooks/useStore";
+import { useStore, AlertSettings } from "@/hooks/useStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
@@ -21,24 +21,48 @@ const colorOptions = [
   { name: "Âmbar", value: "#F59E0B", hsl: "38 92% 50%" },
 ];
 
+// Email configuration status - in production, check if RESEND_API_KEY is configured
+const EMAIL_CONFIGURED = true; // Will be controlled by actual secret check
+
 export default function Configuracoes() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { store, loading, updateStore, uploadLogo } = useStore();
+  const { store, loading, updateStore, updateAlertSettings, uploadLogo } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [storeName, setStoreName] = useState("");
   const [selectedColor, setSelectedColor] = useState("#F97316");
   const [birthdayMessage, setBirthdayMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savingAlerts, setSavingAlerts] = useState(false);
+  
+  // Alert settings state - controlled components
+  const [alertSettings, setAlertSettings] = useState<AlertSettings>({
+    lowStockEnabled: true,
+    expiryAlertEnabled: true,
+    billsDueEnabled: true,
+    dailyEmailEnabled: false,
+    lowStockThreshold: 3,
+    expiryDaysBefore: 30,
+    billsDaysBefore: 3,
+  });
+  const [alertsLoaded, setAlertsLoaded] = useState(false);
 
+  // Load store data only once on mount or when store changes
   useEffect(() => {
-    if (store) {
+    if (store && !alertsLoaded) {
       setStoreName(store.name);
       setSelectedColor(store.primaryColor);
       setBirthdayMessage(store.birthdayMessage);
+      setAlertSettings(store.alertSettings);
+      setAlertsLoaded(true);
     }
-  }, [store]);
+  }, [store, alertsLoaded]);
+
+  // Reset alertsLoaded when user changes
+  useEffect(() => {
+    setAlertsLoaded(false);
+  }, [user?.id]);
 
   const handleSave = async () => {
     if (!storeName.trim()) {
@@ -62,6 +86,19 @@ export default function Configuracoes() {
     setSaving(false);
   };
 
+  const handleSaveAlerts = async () => {
+    setSavingAlerts(true);
+    const success = await updateAlertSettings(alertSettings);
+    setSavingAlerts(false);
+    
+    if (!success) {
+      // If save failed, reload from store to reset local state
+      if (store) {
+        setAlertSettings(store.alertSettings);
+      }
+    }
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -81,6 +118,10 @@ export default function Configuracoes() {
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
+  };
+
+  const updateAlertSetting = <K extends keyof AlertSettings>(key: K, value: AlertSettings[K]) => {
+    setAlertSettings(prev => ({ ...prev, [key]: value }));
   };
 
   if (loading) {
@@ -276,40 +317,73 @@ export default function Configuracoes() {
               <div className="flex items-center justify-between py-3 border-b border-border">
                 <div>
                   <p className="font-medium text-foreground">Estoque baixo</p>
-                  <p className="text-sm text-muted-foreground">Alertar quando produto tiver menos de 3 unidades</p>
+                  <p className="text-sm text-muted-foreground">
+                    Alertar quando produto tiver menos de {alertSettings.lowStockThreshold} unidades
+                  </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch 
+                  checked={alertSettings.lowStockEnabled}
+                  onCheckedChange={(checked) => updateAlertSetting('lowStockEnabled', checked)}
+                />
               </div>
               <div className="flex items-center justify-between py-3 border-b border-border">
                 <div>
                   <p className="font-medium text-foreground">Validade próxima</p>
-                  <p className="text-sm text-muted-foreground">Alertar 30 dias antes do vencimento</p>
+                  <p className="text-sm text-muted-foreground">
+                    Alertar {alertSettings.expiryDaysBefore} dias antes do vencimento
+                  </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch 
+                  checked={alertSettings.expiryAlertEnabled}
+                  onCheckedChange={(checked) => updateAlertSetting('expiryAlertEnabled', checked)}
+                />
               </div>
               <div className="flex items-center justify-between py-3 border-b border-border">
                 <div>
                   <p className="font-medium text-foreground">Contas a vencer</p>
-                  <p className="text-sm text-muted-foreground">Alertar 3 dias antes do vencimento</p>
+                  <p className="text-sm text-muted-foreground">
+                    Alertar {alertSettings.billsDaysBefore} dias antes do vencimento
+                  </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch 
+                  checked={alertSettings.billsDueEnabled}
+                  onCheckedChange={(checked) => updateAlertSetting('billsDueEnabled', checked)}
+                />
               </div>
               <div className="flex items-center justify-between py-3">
-                <div>
-                  <p className="font-medium text-foreground">Resumo diário por e-mail</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-foreground">Resumo diário por e-mail</p>
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                  </div>
                   <p className="text-sm text-muted-foreground">Receber relatório diário das vendas</p>
+                  {alertSettings.dailyEmailEnabled ? (
+                    <p className="text-xs text-primary mt-1">Ativo - envia diariamente às 20:00</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">Inativo</p>
+                  )}
+                  {!EMAIL_CONFIGURED && (
+                    <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Envio de e-mail precisa ser configurado (Resend/SMTP)
+                    </p>
+                  )}
                 </div>
-                <Switch />
+                <Switch 
+                  checked={alertSettings.dailyEmailEnabled}
+                  onCheckedChange={(checked) => updateAlertSetting('dailyEmailEnabled', checked)}
+                  disabled={!EMAIL_CONFIGURED}
+                />
               </div>
             </div>
           </div>
 
           <Button 
             className="btn-primary gap-2" 
-            onClick={handleSave}
-            disabled={saving}
+            onClick={handleSaveAlerts}
+            disabled={savingAlerts}
           >
-            {saving ? (
+            {savingAlerts ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Save className="w-4 h-4" />
