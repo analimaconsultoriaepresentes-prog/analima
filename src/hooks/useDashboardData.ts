@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+import { useStore } from "./useStore";
 
 interface DashboardStats {
   // Today
@@ -52,6 +53,7 @@ interface DashboardStats {
 
 export function useDashboardData() {
   const { user } = useAuth();
+  const { store } = useStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     salesToday: 0,
@@ -109,10 +111,12 @@ export function useDashboardData() {
         .gte("created_at", lastMonthStart.toISOString())
         .lte("created_at", lastMonthEnd.toISOString());
 
-      // Fetch products for alerts
+      // Fetch ACTIVE products only (not deleted, not archived)
       const { data: productsData } = await supabase
         .from("products")
-        .select("id, name, category, stock, expiry_date");
+        .select("id, name, category, stock, expiry_date, is_basket, is_active, deleted_at")
+        .eq("is_active", true)
+        .is("deleted_at", null);
 
       // Calculate today's stats
       const todaySales = (salesData || []).filter((s) =>
@@ -146,23 +150,45 @@ export function useDashboardData() {
         0
       );
 
-      // Low stock products (stock <= 5)
-      const lowStock = (productsData || [])
-        .filter((p) => p.stock <= 5)
-        .map((p) => ({ id: p.id, name: p.name, stock: p.stock }))
-        .slice(0, 5);
+      // Get alert settings from store (use defaults if not loaded)
+      const lowStockEnabled = store?.alertSettings?.lowStockEnabled ?? true;
+      const lowStockThreshold = store?.alertSettings?.lowStockThreshold ?? 3;
+      const expiryAlertEnabled = store?.alertSettings?.expiryAlertEnabled ?? true;
+      const expiryDaysBefore = store?.alertSettings?.expiryDaysBefore ?? 30;
 
-      // Expiring products (within 30 days)
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-      const expiring = (productsData || [])
-        .filter((p) => {
-          if (!p.expiry_date) return false;
-          const expDate = new Date(p.expiry_date);
-          return expDate <= thirtyDaysFromNow && expDate >= today;
-        })
-        .map((p) => ({ id: p.id, name: p.name, expiryDate: p.expiry_date! }))
-        .slice(0, 5);
+      // Low stock products - calculated dynamically from current data
+      // Rules:
+      // 1. Only if low_stock_enabled is true
+      // 2. Only simple products (NOT baskets/combos)
+      // 3. Product must be active and not deleted
+      // 4. Stock must be LESS THAN threshold
+      const lowStock = lowStockEnabled
+        ? (productsData || [])
+            .filter((p) => 
+              !p.is_basket && // Exclude baskets/combos
+              p.is_active && // Must be active
+              p.deleted_at === null && // Must not be deleted
+              p.stock < lowStockThreshold // Stock below threshold
+            )
+            .map((p) => ({ id: p.id, name: p.name, stock: p.stock }))
+            .slice(0, 5)
+        : [];
+
+      // Expiring products - calculated dynamically
+      // Only if expiry_alert_enabled is true
+      const daysFromNow = new Date();
+      daysFromNow.setDate(daysFromNow.getDate() + expiryDaysBefore);
+      const expiring = expiryAlertEnabled
+        ? (productsData || [])
+            .filter((p) => {
+              if (!p.expiry_date) return false;
+              if (!p.is_active || p.deleted_at !== null) return false; // Must be active and not deleted
+              const expDate = new Date(p.expiry_date);
+              return expDate <= daysFromNow && expDate >= today;
+            })
+            .map((p) => ({ id: p.id, name: p.name, expiryDate: p.expiry_date! }))
+            .slice(0, 5)
+        : [];
 
       // Recent sales (last 5)
       const recent = (salesData || []).slice(0, 5).map((s) => {
@@ -285,9 +311,10 @@ export function useDashboardData() {
     }
   };
 
+  // Refetch when user changes or store settings change
   useEffect(() => {
     fetchDashboardData();
-  }, [user]);
+  }, [user, store?.alertSettings?.lowStockEnabled, store?.alertSettings?.lowStockThreshold, store?.alertSettings?.expiryAlertEnabled, store?.alertSettings?.expiryDaysBefore]);
 
   // Calculate trends
   const trends = useMemo(() => {
