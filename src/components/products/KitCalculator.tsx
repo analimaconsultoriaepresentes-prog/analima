@@ -61,6 +61,7 @@ export function KitCalculator({
   const isMobile = useIsMobile();
   const [kitName, setKitName] = useState("");
   const [comboName, setComboName] = useState("");
+  const [kitFullPrice, setKitFullPrice] = useState("");
   const [kitPrice, setKitPrice] = useState("");
   const [kitCost, setKitCost] = useState("");
   const [items, setItems] = useState<KitItem[]>([]);
@@ -109,24 +110,29 @@ export function KitCalculator({
   };
 
   const calculations = useMemo(() => {
+    const kitFullPriceNum = parseFloat(kitFullPrice) || 0;
     const kitPriceNum = parseFloat(kitPrice) || 0;
     const kitCostNum = parseFloat(kitCost) || 0;
-    const hasCost = kitCost !== "" && kitCostNum > 0;
 
-    const totalFullPrice = items.reduce(
-      (sum, item) => sum + item.fullPrice * item.quantity,
-      0
-    );
-
-    if (totalFullPrice === 0 || kitPriceNum === 0) {
-      return { items: [], totalFullPrice, kitPriceNum, kitCostNum, hasCost };
+    // All fields are now required for calculations
+    if (kitFullPriceNum <= 0 || kitPriceNum <= 0 || kitCostNum <= 0 || items.length === 0) {
+      return { 
+        items: [], 
+        kitFullPriceNum,
+        kitPriceNum, 
+        kitCostNum, 
+        totalProfit: 0,
+        totalMargin: 0
+      };
     }
 
     const calculatedItems = items.map((item) => {
       const itemTotal = item.fullPrice * item.quantity;
-      const proportion = itemTotal / totalFullPrice;
+      const proportion = itemTotal / kitFullPriceNum;
       const priceInKit = kitPriceNum * proportion;
-      const costInKit = hasCost ? kitCostNum * proportion : null;
+      const costInKit = kitCostNum * proportion;
+      const profit = priceInKit - costInKit;
+      const margin = priceInKit > 0 ? (profit / priceInKit) * 100 : 0;
 
       return {
         ...item,
@@ -134,25 +140,33 @@ export function KitCalculator({
         proportion,
         priceInKit,
         costInKit,
+        profit,
+        margin,
       };
     });
 
+    const totalProfit = kitPriceNum - kitCostNum;
+    const totalMargin = kitPriceNum > 0 ? (totalProfit / kitPriceNum) * 100 : 0;
+
     return {
       items: calculatedItems,
-      totalFullPrice,
+      kitFullPriceNum,
       kitPriceNum,
       kitCostNum,
-      hasCost,
+      totalProfit,
+      totalMargin,
     };
-  }, [items, kitPrice, kitCost]);
+  }, [items, kitFullPrice, kitPrice, kitCost]);
 
-  // Check if we can save as basket (all items must have productId and comboName required)
+  // Check if we can save as basket (all items must have productId and required fields)
   const canSaveAsBasket = useMemo(() => {
+    if (!kitFullPrice || parseFloat(kitFullPrice) <= 0) return false;
     if (!kitPrice || parseFloat(kitPrice) <= 0) return false;
+    if (!kitCost || parseFloat(kitCost) <= 0) return false;
     if (items.length === 0) return false;
     // All items must be linked to existing products
     return items.every((item) => item.productId);
-  }, [kitPrice, items]);
+  }, [kitFullPrice, kitPrice, kitCost, items]);
 
   // Check if combo name is filled for the save button
   const canSave = canSaveAsBasket && comboName.trim().length > 0;
@@ -210,6 +224,7 @@ export function KitCalculator({
   const handleClose = () => {
     setKitName("");
     setComboName("");
+    setKitFullPrice("");
     setKitPrice("");
     setKitCost("");
     setItems([]);
@@ -219,7 +234,7 @@ export function KitCalculator({
   const content = (
     <div className="space-y-6">
       {/* Kit Info */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="kitName">Nome do Kit (referência)</Label>
           <Input
@@ -230,29 +245,47 @@ export function KitCalculator({
           />
           <p className="text-xs text-muted-foreground">Apenas para cálculo interno</p>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="kitPrice">Preço Promocional *</Label>
-          <Input
-            id="kitPrice"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="0,00"
-            value={kitPrice}
-            onChange={(e) => setKitPrice(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="kitCost">Custo do Kit (opcional)</Label>
-          <Input
-            id="kitCost"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="0,00"
-            value={kitCost}
-            onChange={(e) => setKitCost(e.target.value)}
-          />
+        
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="kitFullPrice">Preço Cheio do Kit (soma) *</Label>
+            <Input
+              id="kitFullPrice"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0,00"
+              value={kitFullPrice}
+              onChange={(e) => setKitFullPrice(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Soma dos preços cheios dos itens</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="kitPrice">Preço para o Cliente *</Label>
+            <Input
+              id="kitPrice"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0,00"
+              value={kitPrice}
+              onChange={(e) => setKitPrice(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Preço promocional final</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="kitCost">Custo para a Loja *</Label>
+            <Input
+              id="kitCost"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0,00"
+              value={kitCost}
+              onChange={(e) => setKitCost(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Custo total do kit para você</p>
+          </div>
         </div>
       </div>
 
@@ -361,22 +394,22 @@ export function KitCalculator({
       </div>
 
       {/* Results Table */}
-      {calculations.items.length > 0 && calculations.kitPriceNum > 0 && (
+      {calculations.items.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Calculator className="w-5 h-5 text-primary" />
             <Label className="text-base font-semibold">Resultado do Cálculo</Label>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-primary/5 rounded-lg">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 p-4 bg-primary/5 rounded-lg">
             <div>
-              <p className="text-xs text-muted-foreground">Total Cheio</p>
+              <p className="text-xs text-muted-foreground">Preço Cheio</p>
               <p className="text-lg font-semibold text-foreground">
-                R$ {calculations.totalFullPrice.toFixed(2)}
+                R$ {calculations.kitFullPriceNum.toFixed(2)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Preço Kit</p>
+              <p className="text-xs text-muted-foreground">Preço Cliente</p>
               <p className="text-lg font-semibold text-success">
                 R$ {calculations.kitPriceNum.toFixed(2)}
               </p>
@@ -384,25 +417,26 @@ export function KitCalculator({
             <div>
               <p className="text-xs text-muted-foreground">Desconto</p>
               <p className="text-lg font-semibold text-primary">
-                {(
-                  ((calculations.totalFullPrice - calculations.kitPriceNum) /
-                    calculations.totalFullPrice) *
-                  100
-                ).toFixed(1)}
-                %
+                {calculations.kitFullPriceNum > 0
+                  ? (((calculations.kitFullPriceNum - calculations.kitPriceNum) / calculations.kitFullPriceNum) * 100).toFixed(1)
+                  : "0.0"}%
               </p>
             </div>
-            {calculations.hasCost && (
-              <div>
-                <p className="text-xs text-muted-foreground">Custo Kit</p>
-                <p className="text-lg font-semibold text-warning">
-                  R$ {calculations.kitCostNum.toFixed(2)}
-                </p>
-              </div>
-            )}
+            <div>
+              <p className="text-xs text-muted-foreground">Custo Loja</p>
+              <p className="text-lg font-semibold text-warning">
+                R$ {calculations.kitCostNum.toFixed(2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Lucro / Margem</p>
+              <p className="text-lg font-semibold text-success">
+                R$ {calculations.totalProfit.toFixed(2)} ({calculations.totalMargin.toFixed(1)}%)
+              </p>
+            </div>
           </div>
 
-          <div className="border border-border rounded-lg overflow-hidden">
+          <div className="border border-border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -410,9 +444,9 @@ export function KitCalculator({
                   <TableHead className="text-center">Qtd</TableHead>
                   <TableHead className="text-right">Preço Cheio</TableHead>
                   <TableHead className="text-right">Preço no Kit</TableHead>
-                  {calculations.hasCost && (
-                    <TableHead className="text-right">Custo</TableHead>
-                  )}
+                  <TableHead className="text-right">Custo no Kit</TableHead>
+                  <TableHead className="text-right">Lucro</TableHead>
+                  <TableHead className="text-right">Margem</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -433,25 +467,20 @@ export function KitCalculator({
                     <TableCell className="text-right text-success font-semibold">
                       R$ {item.priceInKit.toFixed(2)}
                     </TableCell>
-                    {calculations.hasCost && (
-                      <TableCell className="text-right text-warning">
-                        R$ {item.costInKit?.toFixed(2)}
-                      </TableCell>
-                    )}
+                    <TableCell className="text-right text-warning">
+                      R$ {item.costInKit.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right text-success">
+                      R$ {item.profit.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {item.margin.toFixed(1)}%
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
-
-          {calculations.hasCost && (
-            <div className="p-4 bg-success/10 rounded-lg">
-              <p className="text-sm text-muted-foreground">Lucro Estimado do Kit</p>
-              <p className="text-xl font-bold text-success">
-                R$ {(calculations.kitPriceNum - calculations.kitCostNum).toFixed(2)}
-              </p>
-            </div>
-          )}
 
           {/* Save as Basket Button */}
           {onSaveAsBasket && (
