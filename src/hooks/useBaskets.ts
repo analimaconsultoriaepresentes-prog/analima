@@ -13,12 +13,24 @@ export interface BasketItem {
   salePrice: number;
 }
 
+export interface BasketExtra {
+  id?: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+}
+
 export interface BasketComposition {
   basketId: string;
   items: BasketItem[];
-  totalCost: number;
+  extras: BasketExtra[];
+  packagingProductId?: string;
+  packagingQty: number;
   packagingCost: number;
-  totalWithPackaging: number;
+  totalItemsCost: number;
+  totalExtrasCost: number;
+  totalCost: number;
 }
 
 export function useBaskets() {
@@ -70,6 +82,43 @@ export function useBaskets() {
     }
   };
 
+  const fetchBasketExtras = async (basketId: string): Promise<BasketExtra[]> => {
+    try {
+      const { data, error } = await supabase
+        .from("basket_extras")
+        .select("id, extra_product_id, quantity, unit_cost")
+        .eq("basket_id", basketId);
+
+      if (error) throw error;
+      if (!data || data.length === 0) return [];
+
+      // Fetch product names
+      const productIds = data.map((item) => item.extra_product_id);
+      const { data: productsData, error: productsError } = await supabase
+        .from("products")
+        .select("id, name")
+        .in("id", productIds);
+
+      if (productsError) throw productsError;
+
+      const productsMap = new Map((productsData || []).map((p) => [p.id, p]));
+
+      return data.map((item) => {
+        const product = productsMap.get(item.extra_product_id);
+        return {
+          id: item.id,
+          productId: item.extra_product_id,
+          productName: product?.name || "",
+          quantity: item.quantity,
+          unitCost: Number(item.unit_cost || 0),
+        };
+      });
+    } catch (error) {
+      console.error("Error fetching basket extras:", error);
+      return [];
+    }
+  };
+
   const saveBasketItems = async (
     basketId: string,
     items: { productId: string; quantity: number }[]
@@ -110,17 +159,76 @@ export function useBaskets() {
     }
   };
 
-  const getBasketComposition = async (basketId: string, packagingCost: number): Promise<BasketComposition | null> => {
+  const saveBasketExtras = async (
+    basketId: string,
+    extras: { productId: string; quantity: number; unitCost: number }[]
+  ): Promise<boolean> => {
+    try {
+      // Delete existing extras
+      const { error: deleteError } = await supabase
+        .from("basket_extras")
+        .delete()
+        .eq("basket_id", basketId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new extras
+      if (extras.length > 0) {
+        const newExtras = extras.map((extra) => ({
+          basket_id: basketId,
+          extra_product_id: extra.productId,
+          quantity: extra.quantity,
+          unit_cost: extra.unitCost,
+        }));
+
+        const { error: insertError } = await supabase
+          .from("basket_extras")
+          .insert(newExtras);
+
+        if (insertError) throw insertError;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error saving basket extras:", error);
+      toast({
+        title: "Erro ao salvar extras",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const getBasketComposition = async (
+    basketId: string, 
+    packagingProductId: string | undefined,
+    packagingQty: number,
+    products: Product[]
+  ): Promise<BasketComposition | null> => {
     const items = await fetchBasketItems(basketId);
+    const extras = await fetchBasketExtras(basketId);
     
-    const totalCost = items.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0);
+    const totalItemsCost = items.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0);
+    const totalExtrasCost = extras.reduce((sum, extra) => sum + (extra.unitCost * extra.quantity), 0);
+    
+    // Get packaging cost from the packaging product
+    let packagingCost = 0;
+    if (packagingProductId) {
+      const packagingProduct = products.find(p => p.id === packagingProductId);
+      packagingCost = (packagingProduct?.costPrice || 0) * packagingQty;
+    }
     
     return {
       basketId,
       items,
-      totalCost,
+      extras,
+      packagingProductId,
+      packagingQty,
       packagingCost,
-      totalWithPackaging: totalCost + packagingCost,
+      totalItemsCost,
+      totalExtrasCost,
+      totalCost: totalItemsCost + totalExtrasCost + packagingCost,
     };
   };
 
@@ -215,7 +323,9 @@ export function useBaskets() {
   return {
     loading,
     fetchBasketItems,
+    fetchBasketExtras,
     saveBasketItems,
+    saveBasketExtras,
     getBasketComposition,
     checkBasketStock,
     deductBasketStock,

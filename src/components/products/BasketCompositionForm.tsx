@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Package, ShoppingBasket, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Package, ShoppingBasket, AlertCircle, Gift, Box } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Product } from "@/hooks/useProducts";
 
-interface BasketItemInput {
+export interface BasketItemInput {
   productId: string;
   productName: string;
   quantity: number;
@@ -23,12 +23,24 @@ interface BasketItemInput {
   salePrice: number;
 }
 
+export interface BasketExtraInput {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+}
+
 interface BasketCompositionFormProps {
   availableProducts: Product[];
   items: BasketItemInput[];
   onItemsChange: (items: BasketItemInput[]) => void;
-  packagingCost: number;
-  onPackagingCostChange: (cost: number) => void;
+  // New packaging/extras props
+  packagingProductId?: string;
+  onPackagingProductIdChange: (id: string | undefined) => void;
+  packagingQty: number;
+  onPackagingQtyChange: (qty: number) => void;
+  extras: BasketExtraInput[];
+  onExtrasChange: (extras: BasketExtraInput[]) => void;
   desiredMargin: number;
   onDesiredMarginChange: (margin: number) => void;
   isEditing?: boolean;
@@ -38,27 +50,63 @@ export function BasketCompositionForm({
   availableProducts,
   items,
   onItemsChange,
-  packagingCost,
-  onPackagingCostChange,
+  packagingProductId,
+  onPackagingProductIdChange,
+  packagingQty,
+  onPackagingQtyChange,
+  extras,
+  onExtrasChange,
   desiredMargin,
   onDesiredMarginChange,
   isEditing = false,
 }: BasketCompositionFormProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedExtraId, setSelectedExtraId] = useState<string>("");
 
-  // Filter out products that are already in the basket or are baskets themselves
+  // Filter products for basket items (only regular items, not packaging/extra/baskets)
   const selectableProducts = useMemo(() => {
     const usedIds = new Set(items.map((i) => i.productId));
     return availableProducts.filter(
-      (p) => !usedIds.has(p.id) && !p.isBasket
+      (p) => !usedIds.has(p.id) && p.productType === "item" && p.isActive
     );
   }, [availableProducts, items]);
 
+  // Filter products for packaging selection
+  const packagingProducts = useMemo(() => {
+    return availableProducts.filter(
+      (p) => p.productType === "packaging" && p.isActive
+    );
+  }, [availableProducts]);
+
+  // Filter products for extras selection
+  const extraProducts = useMemo(() => {
+    const usedExtraIds = new Set(extras.map((e) => e.productId));
+    return availableProducts.filter(
+      (p) => p.productType === "extra" && p.isActive && !usedExtraIds.has(p.id)
+    );
+  }, [availableProducts, extras]);
+
+  // Get the selected packaging product
+  const selectedPackaging = useMemo(() => {
+    if (!packagingProductId) return null;
+    return availableProducts.find((p) => p.id === packagingProductId);
+  }, [availableProducts, packagingProductId]);
+
+  // Calculate costs
   const totalItemsCost = useMemo(() => {
     return items.reduce((sum, item) => sum + item.costPrice * item.quantity, 0);
   }, [items]);
 
-  const totalCost = totalItemsCost + packagingCost;
+  const packagingCost = useMemo(() => {
+    if (!selectedPackaging) return 0;
+    return selectedPackaging.costPrice * packagingQty;
+  }, [selectedPackaging, packagingQty]);
+
+  const totalExtrasCost = useMemo(() => {
+    return extras.reduce((sum, extra) => sum + extra.unitCost * extra.quantity, 0);
+  }, [extras]);
+
+  const totalCost = totalItemsCost + packagingCost + totalExtrasCost;
 
   const suggestedSalePrice = useMemo(() => {
     if (desiredMargin <= 0 || totalCost <= 0) return 0;
@@ -67,6 +115,7 @@ export function BasketCompositionForm({
 
   const estimatedProfit = suggestedSalePrice - totalCost;
 
+  // Handlers for items
   const handleAddProduct = () => {
     if (!selectedProductId) {
       toast.error("Selecione um produto para adicionar");
@@ -76,7 +125,6 @@ export function BasketCompositionForm({
     const product = availableProducts.find((p) => p.id === selectedProductId);
     if (!product) return;
 
-    // Check if product already exists - if so, increment quantity
     const existingItem = items.find((i) => i.productId === selectedProductId);
     if (existingItem) {
       onItemsChange(
@@ -118,6 +166,61 @@ export function BasketCompositionForm({
     );
   };
 
+  // Handlers for extras
+  const handleAddExtra = () => {
+    if (!selectedExtraId) {
+      toast.error("Selecione um extra para adicionar");
+      return;
+    }
+
+    const product = availableProducts.find((p) => p.id === selectedExtraId);
+    if (!product) return;
+
+    const newExtra: BasketExtraInput = {
+      productId: product.id,
+      productName: product.name,
+      quantity: 1,
+      unitCost: product.costPrice,
+    };
+    onExtrasChange([...extras, newExtra]);
+    toast.success(`${product.name} adicionado aos extras`);
+    setSelectedExtraId("");
+  };
+
+  const handleRemoveExtra = (productId: string) => {
+    const extra = extras.find((e) => e.productId === productId);
+    onExtrasChange(extras.filter((e) => e.productId !== productId));
+    if (extra) {
+      toast.success(`${extra.productName} removido dos extras`);
+    }
+  };
+
+  const handleExtraQuantityChange = (productId: string, quantity: number) => {
+    if (quantity < 1) return;
+    onExtrasChange(
+      extras.map((e) =>
+        e.productId === productId ? { ...e, quantity } : e
+      )
+    );
+  };
+
+  // Check stock for all items
+  const hasStockWarning = useMemo(() => {
+    // Check items
+    for (const item of items) {
+      const product = availableProducts.find((p) => p.id === item.productId);
+      if (product && product.stock < item.quantity) return true;
+    }
+    // Check packaging
+    if (selectedPackaging && selectedPackaging.stock < packagingQty) return true;
+    // Check extras
+    for (const extra of extras) {
+      const product = availableProducts.find((p) => p.id === extra.productId);
+      if (product && product.stock < extra.quantity) return true;
+    }
+    return false;
+  }, [items, extras, selectedPackaging, packagingQty, availableProducts]);
+
   return (
     <div className="space-y-5">
       {/* Add Product Section */}
@@ -131,7 +234,7 @@ export function BasketCompositionForm({
             <SelectContent>
               {selectableProducts.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-muted-foreground">
-                  {items.length > 0 ? "Todos os produtos já estão na cesta" : "Nenhum produto disponível"}
+                  {items.length > 0 ? "Todos os produtos já estão na cesta" : "Nenhum produto tipo 'Item' disponível"}
                 </div>
               ) : (
                 selectableProducts.map((product) => (
@@ -139,7 +242,7 @@ export function BasketCompositionForm({
                     <div className="flex items-center justify-between gap-2">
                       <span>{product.name}</span>
                       <span className="text-xs text-muted-foreground">
-                        R$ {product.costPrice.toFixed(2)} | Estoque: {product.stock}
+                        R$ {product.costPrice.toFixed(2)} | Est: {product.stock}
                       </span>
                     </div>
                   </SelectItem>
@@ -165,7 +268,7 @@ export function BasketCompositionForm({
           <Label className="text-sm font-medium">
             Itens da Cesta ({items.length})
           </Label>
-          <ScrollArea className="max-h-[250px]">
+          <ScrollArea className="max-h-[200px]">
             <div className="space-y-2">
               {items.map((item) => {
                 const product = availableProducts.find((p) => p.id === item.productId);
@@ -191,22 +294,7 @@ export function BasketCompositionForm({
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{item.productName}</p>
                       <p className="text-xs text-muted-foreground">
-                        R$ {item.costPrice.toFixed(2)} cada • Subtotal: R$ {(item.costPrice * item.quantity).toFixed(2)}
-                      </p>
-                      <p className={cn(
-                        "text-xs mt-0.5",
-                        hasNoStock 
-                          ? "text-destructive font-medium" 
-                          : hasLowStock 
-                            ? "text-warning" 
-                            : "text-muted-foreground"
-                      )}>
-                        {hasNoStock 
-                          ? "Sem estoque" 
-                          : hasLowStock 
-                            ? `Estoque insuficiente: ${currentStock} un.`
-                            : `Estoque: ${currentStock} un.`
-                        }
+                        R$ {item.costPrice.toFixed(2)} × {item.quantity} = R$ {(item.costPrice * item.quantity).toFixed(2)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -236,63 +324,201 @@ export function BasketCompositionForm({
           </ScrollArea>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-8 px-4 bg-muted/30 rounded-lg border border-dashed border-border">
-          <ShoppingBasket className="w-10 h-10 text-muted-foreground/50 mb-2" />
+        <div className="flex flex-col items-center justify-center py-6 px-4 bg-muted/30 rounded-lg border border-dashed border-border">
+          <ShoppingBasket className="w-8 h-8 text-muted-foreground/50 mb-2" />
           <p className="text-sm text-muted-foreground text-center">
             Nenhum item na cesta
           </p>
-          {isEditing && (
-            <p className="text-xs text-muted-foreground text-center mt-1">
-              Adicione produtos para compor a cesta
-            </p>
-          )}
         </div>
       )}
 
-      {/* Costs Section */}
-      <div className="space-y-4 pt-4 border-t border-border/50">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm">Custo dos Itens</Label>
-            <div className="h-[44px] flex items-center px-3 bg-muted/50 rounded-md border border-border/50">
-              <span className="font-medium">R$ {totalItemsCost.toFixed(2)}</span>
-            </div>
+      {/* Packaging Section */}
+      <div className="space-y-3 pt-4 border-t border-border/50">
+        <Label className="text-sm font-medium flex items-center gap-2">
+          <Box className="w-4 h-4" />
+          Embalagem Principal
+        </Label>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <Select 
+              value={packagingProductId || ""} 
+              onValueChange={(val) => onPackagingProductIdChange(val || undefined)}
+            >
+              <SelectTrigger className="input-styled min-h-[44px]">
+                <SelectValue placeholder="Selecione uma embalagem" />
+              </SelectTrigger>
+              <SelectContent>
+                {packagingProducts.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Nenhuma embalagem cadastrada. Cadastre produtos do tipo "Embalagem".
+                  </div>
+                ) : (
+                  packagingProducts.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{product.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          R$ {product.costPrice.toFixed(2)} | Est: {product.stock}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="packaging-cost" className="text-sm">Custo Embalagem</Label>
+          <div>
             <Input
-              id="packaging-cost"
               type="number"
-              min="0"
-              step="0.01"
-              value={packagingCost}
-              onChange={(e) => onPackagingCostChange(parseFloat(e.target.value) || 0)}
+              min="1"
+              value={packagingQty}
+              onChange={(e) => onPackagingQtyChange(parseInt(e.target.value) || 1)}
               className="input-styled min-h-[44px]"
-              placeholder="0,00"
+              placeholder="Qtd"
             />
           </div>
         </div>
+        {selectedPackaging && (
+          <div className="text-sm text-muted-foreground">
+            Custo embalagem: R$ {packagingCost.toFixed(2)}
+            {selectedPackaging.stock < packagingQty && (
+              <span className="text-destructive ml-2">
+                (Estoque insuficiente: {selectedPackaging.stock} un.)
+              </span>
+            )}
+          </div>
+        )}
+      </div>
 
-        <div className="grid grid-cols-2 gap-4">
+      {/* Extras Section */}
+      <div className="space-y-3 pt-4 border-t border-border/50">
+        <Label className="text-sm font-medium flex items-center gap-2">
+          <Gift className="w-4 h-4" />
+          Extras (opcional)
+        </Label>
+        <div className="flex gap-2">
+          <Select value={selectedExtraId} onValueChange={setSelectedExtraId}>
+            <SelectTrigger className="flex-1 input-styled min-h-[44px]">
+              <SelectValue placeholder="Adicionar extra..." />
+            </SelectTrigger>
+            <SelectContent>
+              {extraProducts.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-muted-foreground">
+                  {extras.length > 0 ? "Todos extras já adicionados" : "Nenhum extra cadastrado. Cadastre produtos do tipo 'Extra'."}
+                </div>
+              ) : (
+                extraProducts.map((product) => (
+                  <SelectItem key={product.id} value={product.id}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{product.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        R$ {product.costPrice.toFixed(2)} | Est: {product.stock}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            onClick={handleAddExtra}
+            disabled={!selectedExtraId}
+            variant="outline"
+            className="min-h-[44px] gap-2"
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Extras List */}
+        {extras.length > 0 && (
           <div className="space-y-2">
-            <Label className="text-sm">Custo Total</Label>
-            <div className="h-[44px] flex items-center px-3 bg-primary/10 rounded-md border border-primary/20">
+            {extras.map((extra) => {
+              const product = availableProducts.find((p) => p.id === extra.productId);
+              const hasLowStock = product && product.stock < extra.quantity;
+              
+              return (
+                <div
+                  key={extra.productId}
+                  className={cn(
+                    "flex items-center gap-3 p-2 rounded-lg border",
+                    hasLowStock ? "bg-warning/5 border-warning/30" : "bg-muted/30 border-border/50"
+                  )}
+                >
+                  <Gift className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{extra.productName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      R$ {extra.unitCost.toFixed(2)} × {extra.quantity} = R$ {(extra.unitCost * extra.quantity).toFixed(2)}
+                    </p>
+                  </div>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={extra.quantity}
+                    onChange={(e) =>
+                      handleExtraQuantityChange(extra.productId, parseInt(e.target.value) || 1)
+                    }
+                    className="w-14 h-7 text-center input-styled text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleRemoveExtra(extra.productId)}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Costs Summary */}
+      <div className="space-y-4 pt-4 border-t border-border/50">
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Custo dos Itens</Label>
+            <div className="h-[40px] flex items-center px-3 bg-muted/50 rounded-md border border-border/50">
+              <span className="font-medium">R$ {totalItemsCost.toFixed(2)}</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Custo Embalagem</Label>
+            <div className="h-[40px] flex items-center px-3 bg-muted/50 rounded-md border border-border/50">
+              <span className="font-medium">R$ {packagingCost.toFixed(2)}</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Custo Extras</Label>
+            <div className="h-[40px] flex items-center px-3 bg-muted/50 rounded-md border border-border/50">
+              <span className="font-medium">R$ {totalExtrasCost.toFixed(2)}</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground font-semibold">Custo Total</Label>
+            <div className="h-[40px] flex items-center px-3 bg-primary/10 rounded-md border border-primary/20">
               <span className="font-bold text-primary">R$ {totalCost.toFixed(2)}</span>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="desired-margin" className="text-sm">Margem Desejada (%)</Label>
-            <Input
-              id="desired-margin"
-              type="number"
-              min="0"
-              step="0.1"
-              value={desiredMargin}
-              onChange={(e) => onDesiredMarginChange(parseFloat(e.target.value) || 0)}
-              className="input-styled min-h-[44px]"
-              placeholder="50"
-            />
-          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="desired-margin" className="text-sm">Margem Desejada (%)</Label>
+          <Input
+            id="desired-margin"
+            type="number"
+            min="0"
+            step="0.1"
+            value={desiredMargin}
+            onChange={(e) => onDesiredMarginChange(parseFloat(e.target.value) || 0)}
+            className="input-styled min-h-[44px]"
+            placeholder="50"
+          />
         </div>
 
         {/* Suggested Price & Profit */}
@@ -315,11 +541,8 @@ export function BasketCompositionForm({
           </div>
         )}
 
-        {/* Warning for low stock items */}
-        {items.some((item) => {
-          const product = availableProducts.find((p) => p.id === item.productId);
-          return product && product.stock < item.quantity;
-        }) && (
+        {/* Stock Warning */}
+        {hasStockWarning && (
           <div className="flex items-start gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg">
             <AlertCircle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
             <p className="text-sm text-warning">
@@ -331,5 +554,3 @@ export function BasketCompositionForm({
     </div>
   );
 }
-
-export type { BasketItemInput };
