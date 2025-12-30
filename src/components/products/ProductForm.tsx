@@ -196,7 +196,26 @@ function ProductFormContent({
     });
   }, [basketItems, basketExtras, initialBasketItems, initialBasketExtras]);
 
+  // Track if margin has changed from initial calculated value
+  const initialMarginRef = useRef<number | null>(null);
+  
+  // Set initial margin reference when editing
+  useEffect(() => {
+    if (editProduct?.isBasket && editProduct.costPrice > 0 && editProduct.salePrice > editProduct.costPrice) {
+      const existingMargin = ((editProduct.salePrice - editProduct.costPrice) / editProduct.costPrice) * 100;
+      initialMarginRef.current = Math.round(existingMargin * 10) / 10;
+    } else {
+      initialMarginRef.current = null;
+    }
+  }, [editProduct]);
+
+  const hasMarginChanged = initialMarginRef.current !== null && 
+    Math.abs(basketDesiredMargin - initialMarginRef.current) > 0.01;
+
   // Update form values when basket composition changes
+  // Card fee rate (5%)
+  const CARD_FEE_RATE = 0.05;
+
   useEffect(() => {
     if (isBasket) {
       form.setValue("costPrice", basketCosts.totalCost, { shouldValidate: true });
@@ -204,16 +223,27 @@ function ProductFormContent({
       form.setValue("packagingProductId", basketPackagingProductId, { shouldValidate: true });
       form.setValue("packagingQty", basketPackagingQty, { shouldValidate: true });
       
-      // Recalculate prices when composition changes
-      if (basketDesiredMargin > 0 && basketCosts.totalCost > 0 && (!editProduct?.isBasket || hasBasketChanged)) {
-        const suggestedPrice = basketCosts.totalCost * (1 + basketDesiredMargin / 100);
-        const roundedPrice = Math.round(suggestedPrice * 100) / 100;
-        form.setValue("salePrice", roundedPrice, { shouldValidate: true });
-        form.setValue("pricePix", roundedPrice, { shouldValidate: true });
-        form.setValue("priceCard", roundedPrice, { shouldValidate: true });
+      // Recalculate prices when:
+      // - New product (no editProduct)
+      // - Basket composition changed
+      // - Desired margin changed from initial value
+      const shouldRecalculate = !editProduct?.isBasket || hasBasketChanged || hasMarginChanged;
+      
+      if (basketDesiredMargin > 0 && basketCosts.totalCost > 0 && shouldRecalculate) {
+        // Pix/Dinheiro = Custo Total * (1 + Margem/100)
+        const calculatedPricePix = basketCosts.totalCost * (1 + basketDesiredMargin / 100);
+        const roundedPricePix = Math.round(calculatedPricePix * 100) / 100;
+        
+        // Cartão = Pix / (1 - taxaCartao) = Pix / 0.95
+        const calculatedPriceCard = roundedPricePix / (1 - CARD_FEE_RATE);
+        const roundedPriceCard = Math.round(calculatedPriceCard * 100) / 100;
+        
+        form.setValue("salePrice", roundedPricePix, { shouldValidate: true });
+        form.setValue("pricePix", roundedPricePix, { shouldValidate: true });
+        form.setValue("priceCard", roundedPriceCard, { shouldValidate: true });
       }
     }
-  }, [isBasket, basketCosts, basketDesiredMargin, basketPackagingProductId, basketPackagingQty, form, editProduct?.isBasket, hasBasketChanged]);
+  }, [isBasket, basketCosts, basketDesiredMargin, basketPackagingProductId, basketPackagingQty, form, editProduct?.isBasket, hasBasketChanged, hasMarginChanged]);
 
   // Reset basket items when switching to non-basket (only for new products)
   useEffect(() => {
