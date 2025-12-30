@@ -5,6 +5,7 @@ import { AlertsCard } from "@/components/dashboard/AlertsCard";
 import { TopProductsCard } from "@/components/dashboard/TopProductsCard";
 import { RecentSalesCard } from "@/components/dashboard/RecentSalesCard";
 import { ProfitChart } from "@/components/dashboard/ProfitChart";
+import { GettingStartedCard } from "@/components/dashboard/GettingStartedCard";
 import { useDashboardData } from "@/hooks/useDashboardData";
 
 export default function Dashboard() {
@@ -33,6 +34,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Getting Started Guide */}
+      <GettingStartedCard />
+
       {/* Header */}
       <div className="animate-fade-in">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
