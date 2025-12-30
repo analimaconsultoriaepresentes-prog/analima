@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { Minus, Plus, ShoppingCart, Trash2, Search, User, UserPlus, Phone, Loader2, Store, Globe, Info } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2, Search, User, UserPlus, Phone, Loader2, Store, Globe, Info, Package } from "lucide-react";
+import { ProductSearchModal } from "./ProductSearchModal";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Customer, CustomerFormData } from "@/hooks/useCustomers";
 import type { SaleChannel } from "@/hooks/useSales";
 import type { PackagingCosts } from "@/hooks/useStore";
-import type { ProductType } from "@/hooks/useProducts";
+import type { ProductType, GiftType } from "@/hooks/useProducts";
 import { isInternalProduct } from "@/hooks/useProducts";
 
 interface Product {
@@ -52,6 +53,8 @@ interface Product {
   stock: number;
   isBasket?: boolean;
   productType?: ProductType;
+  cycle?: number;
+  giftType?: GiftType;
 }
 
 interface CartItem {
@@ -96,8 +99,7 @@ function SaleFormContent({
 }) {
   const isMobile = useIsMobile();
   const [channel, setChannel] = useState<SaleChannel>(defaultChannel);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showProductList, setShowProductList] = useState(false);
+  const [showProductSearchModal, setShowProductSearchModal] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
@@ -114,12 +116,10 @@ function SaleFormContent({
     setChannel(defaultChannel);
   }, [defaultChannel]);
 
-  const availableProducts = products.filter(
-    (p) =>
-      p.stock > 0 &&
-      !isInternalProduct(p.productType || "item") &&
-      (p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.brand.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Available products for the modal (without internal products)
+  const availableProducts = useMemo(() => 
+    products.filter((p) => !isInternalProduct(p.productType || "item")),
+    [products]
   );
 
   const filteredCustomers = customers.filter(
@@ -150,7 +150,6 @@ function SaleFormContent({
     } else {
       setCart([...cart, { product, quantity: 1 }]);
     }
-    setSearchTerm("");
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -259,7 +258,6 @@ function SaleFormContent({
     onSubmit(cart, paymentMethod, total, selectedCustomerId || undefined, channel);
     setCart([]);
     setPaymentMethod("");
-    setSearchTerm("");
     setSelectedCustomerId("");
     setCustomerSearch("");
     setChannel("store");
@@ -493,119 +491,27 @@ function SaleFormContent({
         )}
       </div>
 
-      {/* Busca de produtos */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar produto..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                setShowProductList(true);
-              }
-            }}
-            className="input-styled pl-10 min-h-[48px] text-base"
-            autoFocus
-          />
-        </div>
+      {/* Busca de produtos - Botão para abrir modal */}
+      <div>
         <Button
           type="button"
-          onClick={() => setShowProductList(true)}
-          className="min-h-[48px] px-4"
+          variant="outline"
+          onClick={() => setShowProductSearchModal(true)}
+          className="w-full min-h-[48px] justify-start text-muted-foreground hover:text-foreground border-dashed"
         >
-          <Search className="w-4 h-4 mr-2" />
-          Pesquisar
+          <Package className="w-5 h-5 mr-3" />
+          <span className="flex-1 text-left">Buscar Produto...</span>
+          <Search className="w-4 h-4" />
         </Button>
       </div>
 
-      {/* Lista de produtos disponíveis */}
-      {showProductList && (
-        <div className="max-h-64 overflow-y-auto border border-border rounded-lg divide-y divide-border bg-card shadow-lg">
-          <div className="sticky top-0 p-2 bg-muted/80 backdrop-blur-sm border-b border-border flex justify-between items-center">
-            <span className="text-xs text-muted-foreground font-medium">
-              {availableProducts.length} produto{availableProducts.length !== 1 ? 's' : ''} encontrado{availableProducts.length !== 1 ? 's' : ''}
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowProductList(false)}
-              className="h-6 px-2 text-xs"
-            >
-              Fechar
-            </Button>
-          </div>
-          {availableProducts.length === 0 ? (
-            <div className="p-4 text-sm text-muted-foreground text-center">
-              Nenhum produto encontrado
-            </div>
-          ) : (
-            availableProducts.map((product) => {
-              const lowStock = product.stock <= 3;
-              const productTypeLabel = product.isBasket 
-                ? (product.category === "Presente" ? "Presente" : "Cesta")
-                : "Produto";
-              
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  className="w-full p-3 flex items-center justify-between hover:bg-muted/50 active:bg-muted transition-colors text-left min-h-[64px]"
-                  onClick={() => {
-                    addToCart(product);
-                    setShowProductList(false);
-                  }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-foreground text-sm truncate">
-                        {product.name}
-                      </p>
-                      <span className={cn(
-                        "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                        product.isBasket ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                      )}>
-                        {productTypeLabel}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={cn(
-                        "text-xs",
-                        lowStock ? "text-destructive font-medium" : "text-muted-foreground"
-                      )}>
-                        {lowStock && "⚠️ "}
-                        {product.stock} un. disponíveis
-                      </span>
-                      {product.brand && (
-                        <span className="text-xs text-muted-foreground">• {product.brand}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right ml-3 flex-shrink-0">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground">PIX</span>
-                      <span className="font-semibold text-success">
-                        R$ {product.pricePix.toFixed(2)}
-                      </span>
-                    </div>
-                    {product.priceCard > 0 && product.priceCard !== product.pricePix && (
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-muted-foreground">Cartão</span>
-                        <span className="text-xs text-foreground">
-                          R$ {product.priceCard.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
-      )}
+      {/* Modal de busca de produtos */}
+      <ProductSearchModal
+        open={showProductSearchModal}
+        onOpenChange={setShowProductSearchModal}
+        products={availableProducts}
+        onSelectProduct={addToCart}
+      />
 
       {/* Carrinho */}
       <div className="flex-1 overflow-hidden">
