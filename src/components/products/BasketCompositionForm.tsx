@@ -34,15 +34,13 @@ interface BasketCompositionFormProps {
   availableProducts: Product[];
   items: BasketItemInput[];
   onItemsChange: (items: BasketItemInput[]) => void;
-  // New packaging/extras props
+  // Packaging/extras props
   packagingProductId?: string;
   onPackagingProductIdChange: (id: string | undefined) => void;
   packagingQty: number;
   onPackagingQtyChange: (qty: number) => void;
   extras: BasketExtraInput[];
   onExtrasChange: (extras: BasketExtraInput[]) => void;
-  desiredMargin: number;
-  onDesiredMarginChange: (margin: number) => void;
   isEditing?: boolean;
 }
 
@@ -56,8 +54,6 @@ export function BasketCompositionForm({
   onPackagingQtyChange,
   extras,
   onExtrasChange,
-  desiredMargin,
-  onDesiredMarginChange,
   isEditing = false,
 }: BasketCompositionFormProps) {
   const [selectedProductId, setSelectedProductId] = useState<string>("");
@@ -107,22 +103,6 @@ export function BasketCompositionForm({
   }, [extras]);
 
   const totalCost = totalItemsCost + packagingCost + totalExtrasCost;
-
-  // Card fee rate (5%)
-  const CARD_FEE_RATE = 0.05;
-
-  const suggestedPricePix = useMemo(() => {
-    if (desiredMargin <= 0 || totalCost <= 0) return 0;
-    return totalCost * (1 + desiredMargin / 100);
-  }, [totalCost, desiredMargin]);
-
-  const suggestedPriceCard = useMemo(() => {
-    if (suggestedPricePix <= 0) return 0;
-    return suggestedPricePix / (1 - CARD_FEE_RATE);
-  }, [suggestedPricePix]);
-
-  const cardFeeDifference = suggestedPriceCard - suggestedPricePix;
-  const estimatedProfit = suggestedPricePix - totalCost;
 
   // Handlers for items
   const handleAddProduct = () => {
@@ -516,50 +496,6 @@ export function BasketCompositionForm({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="desired-margin" className="text-sm">Margem Desejada (%)</Label>
-          <Input
-            id="desired-margin"
-            type="number"
-            min="0"
-            step="0.1"
-            value={desiredMargin}
-            onChange={(e) => onDesiredMarginChange(parseFloat(e.target.value) || 0)}
-            className="input-styled min-h-[44px]"
-            placeholder="50"
-          />
-        </div>
-
-        {/* Suggested Prices & Profit */}
-        {desiredMargin > 0 && totalCost > 0 && (
-          <div className="bg-success/5 border border-success/20 rounded-lg p-4 animate-fade-in space-y-3">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground text-xs">Preço Pix/Dinheiro</p>
-                <p className="font-bold text-success text-lg">
-                  R$ {suggestedPricePix.toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Preço Cartão</p>
-                <p className="font-bold text-success text-lg">
-                  R$ {suggestedPriceCard.toFixed(2)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  +R$ {cardFeeDifference.toFixed(2)} (taxa 5%)
-                </p>
-              </div>
-            </div>
-            <div className="border-t border-success/20 pt-3">
-              <div className="flex justify-between items-center">
-                <p className="text-muted-foreground text-xs">Lucro Estimado (Pix)</p>
-                <p className="font-bold text-success">
-                  R$ {estimatedProfit.toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Stock Warning */}
         {hasStockWarning && (
