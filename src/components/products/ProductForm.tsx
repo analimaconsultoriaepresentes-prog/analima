@@ -71,6 +71,7 @@ const productSchema = z.object({
   packagingProductId: z.string().optional(),
   packagingQty: z.coerce.number().int().min(1, "Quantidade deve ser maior que zero"),
   giftType: z.enum(["presente", "cesta", "kit", "mini_presente", "lembrancinha"]).optional(),
+  packagingDiscount: z.coerce.number().min(0, "Desconto não pode ser negativo"),
 }).refine((data) => {
   // Packaging/extra products don't need sale prices - they are internal cost only
   if (data.productType === "packaging" || data.productType === "extra") {
@@ -101,8 +102,7 @@ interface ProductFormProps {
   initialBasketExtras?: BasketExtraInput[];
 }
 
-type DiscountMode = "value" | "percent";
-type PackagingDiscountMode = "value";
+// Discount mode removed - now only packaging discount in R$
 
 function ProductFormContent({ 
   form, 
@@ -124,9 +124,7 @@ function ProductFormContent({
   // For non-basket products: margin-based calculation
   const [desiredMargin, setDesiredMargin] = useState<string>("");
   
-  // For basket products: discount-based calculation
-  const [generalDiscountMode, setGeneralDiscountMode] = useState<DiscountMode>("value");
-  const [generalDiscountValue, setGeneralDiscountValue] = useState<string>("");
+  // For basket products: packaging/extras discount only
   const [packagingDiscountValue, setPackagingDiscountValue] = useState<string>("");
   const [isPixManuallyOverridden, setIsPixManuallyOverridden] = useState(false);
   
@@ -167,16 +165,19 @@ function ProductFormContent({
     }
   }, [initialBasketExtras]);
 
-  // Initialize packaging when editing a basket
+  // Initialize packaging and discount when editing a basket
   useEffect(() => {
     if (editProduct?.isBasket) {
       setBasketPackagingProductId(editProduct.packagingProductId);
       setBasketPackagingQty(editProduct.packagingQty || 1);
+      // Load saved packaging discount
+      setPackagingDiscountValue(editProduct.packagingDiscount > 0 ? editProduct.packagingDiscount.toString() : "");
       // Mark as manually overridden since we're loading existing prices
       setIsPixManuallyOverridden(true);
     } else {
       setBasketPackagingProductId(undefined);
       setBasketPackagingQty(1);
+      setPackagingDiscountValue("");
     }
   }, [editProduct]);
 
@@ -205,24 +206,16 @@ function ProductFormContent({
     return calculateBaseGiftPrice(basketItems, basketCosts.packagingCost, basketCosts.totalExtrasCost);
   }, [basketItems, basketCosts.packagingCost, basketCosts.totalExtrasCost]);
 
-  // Calculate general discount amount
-  const generalDiscountAmount = useMemo(() => {
-    const val = parseFloat(generalDiscountValue) || 0;
-    if (generalDiscountMode === "value") {
-      return val;
-    } else {
-      // Percentage discount on baseGiftPrice
-      return (baseGiftPrice * val) / 100;
-    }
-  }, [generalDiscountValue, generalDiscountMode, baseGiftPrice]);
-
   // Calculate packaging/extras discount amount (always in R$)
   const packagingDiscountAmount = useMemo(() => {
-    return parseFloat(packagingDiscountValue) || 0;
-  }, [packagingDiscountValue]);
+    const val = parseFloat(packagingDiscountValue) || 0;
+    const maxDiscount = basketCosts.packagingCost + basketCosts.totalExtrasCost;
+    // Limit to max allowed
+    return Math.min(val, maxDiscount);
+  }, [packagingDiscountValue, basketCosts.packagingCost, basketCosts.totalExtrasCost]);
 
-  // Total discount
-  const totalDiscountAmount = generalDiscountAmount + packagingDiscountAmount;
+  // Total discount (now only packaging discount)
+  const totalDiscountAmount = packagingDiscountAmount;
 
   // Calculate suggested Pix price (base - discounts, but never less than total cost)
   const suggestedPixPrice = useMemo(() => {
@@ -231,15 +224,16 @@ function ProductFormContent({
     return Math.max(basketCosts.totalCost, rawPrice);
   }, [baseGiftPrice, totalDiscountAmount, basketCosts.totalCost]);
 
-  // Update form values when basket composition changes (only costs, not prices)
+  // Update form values when basket composition changes (costs and packaging discount)
   useEffect(() => {
     if (isBasket) {
       form.setValue("costPrice", basketCosts.totalCost, { shouldValidate: true });
       form.setValue("packagingCost", basketCosts.packagingCost, { shouldValidate: true });
       form.setValue("packagingProductId", basketPackagingProductId, { shouldValidate: true });
       form.setValue("packagingQty", basketPackagingQty, { shouldValidate: true });
+      form.setValue("packagingDiscount", packagingDiscountAmount, { shouldValidate: true });
     }
-  }, [isBasket, basketCosts, basketPackagingProductId, basketPackagingQty, form]);
+  }, [isBasket, basketCosts, basketPackagingProductId, basketPackagingQty, packagingDiscountAmount, form]);
 
   // Auto-update Pix price when discount changes (only if not manually overridden)
   useEffect(() => {
@@ -256,7 +250,6 @@ function ProductFormContent({
       setBasketExtras([]);
       setBasketPackagingProductId(undefined);
       setBasketPackagingQty(1);
-      setGeneralDiscountValue("");
       setPackagingDiscountValue("");
       setIsPixManuallyOverridden(false);
     }
@@ -774,58 +767,8 @@ function ProductFormContent({
           </div>
         )}
 
-        {/* Preços de Venda for baskets - New discount-based system */}
         {isBasket && (
           <>
-            {/* General Discount Section */}
-            <div className="space-y-3 p-4 rounded-lg bg-muted/30 border border-border/50">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Desconto Geral</Label>
-                <div className="flex gap-1">
-                  <Button
-                    type="button"
-                    variant={generalDiscountMode === "value" ? "default" : "outline"}
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setGeneralDiscountMode("value")}
-                  >
-                    R$
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={generalDiscountMode === "percent" ? "default" : "outline"}
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setGeneralDiscountMode("percent")}
-                  >
-                    %
-                  </Button>
-                </div>
-              </div>
-              <div className="relative">
-                <Input 
-                  type="number" 
-                  step={generalDiscountMode === "value" ? "0.01" : "1"}
-                  min="0"
-                  inputMode="decimal"
-                  placeholder={generalDiscountMode === "value" ? "0,00" : "0"}
-                  className="input-styled min-h-[44px] pr-10"
-                  value={generalDiscountValue}
-                  onChange={(e) => {
-                    setGeneralDiscountValue(e.target.value);
-                    setIsPixManuallyOverridden(false);
-                  }}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                  {generalDiscountMode === "value" ? "R$" : "%"}
-                </span>
-              </div>
-              {generalDiscountAmount > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Desconto geral: R$ {generalDiscountAmount.toFixed(2)}
-                </p>
-              )}
-            </div>
 
             {/* Packaging/Extras Discount Section */}
             <div className="space-y-3 p-4 rounded-lg bg-orange-500/5 border border-orange-500/20">
@@ -1176,6 +1119,7 @@ export function ProductForm({
       productType: "item",
       packagingProductId: undefined,
       packagingQty: 1,
+      packagingDiscount: 0,
     },
   });
 
@@ -1200,6 +1144,7 @@ export function ProductForm({
         packagingProductId: editProduct.packagingProductId,
         packagingQty: editProduct.packagingQty || 1,
         giftType: editProduct.giftType,
+        packagingDiscount: editProduct.packagingDiscount || 0,
       });
     } else {
       form.reset({
@@ -1218,6 +1163,7 @@ export function ProductForm({
         packagingProductId: undefined,
         packagingQty: 1,
         giftType: undefined,
+        packagingDiscount: 0,
       });
     }
   }, [editProduct, form]);
