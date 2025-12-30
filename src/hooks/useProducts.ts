@@ -12,6 +12,8 @@ export interface Product {
   brand: string;
   costPrice: number;
   salePrice: number;
+  pricePix: number;
+  priceCard: number;
   stock: number;
   expiryDate?: string;
   origin: "purchased" | "gift";
@@ -31,6 +33,8 @@ export interface ProductFormData {
   brand: string;
   costPrice: number;
   salePrice: number;
+  pricePix: number;
+  priceCard: number;
   stock: number;
   expiryDate?: Date;
   origin: "purchased" | "gift";
@@ -69,6 +73,8 @@ export function useProducts() {
         brand: p.brand || "",
         costPrice: Number(p.cost_price),
         salePrice: Number(p.sale_price),
+        pricePix: Number(p.price_pix) || Number(p.sale_price),
+        priceCard: Number(p.price_card) || Number(p.sale_price),
         stock: p.stock,
         expiryDate: p.expiry_date || undefined,
         origin: (p.origin as Product["origin"]) || "purchased",
@@ -109,6 +115,8 @@ export function useProducts() {
         brand: data.brand,
         cost_price: data.costPrice,
         sale_price: data.salePrice,
+        price_pix: data.pricePix,
+        price_card: data.priceCard,
         stock: data.stock,
         expiry_date: data.expiryDate?.toISOString().split("T")[0] || null,
         user_id: user.id,
@@ -150,6 +158,8 @@ export function useProducts() {
           brand: data.brand,
           cost_price: data.costPrice,
           sale_price: data.salePrice,
+          price_pix: data.pricePix,
+          price_card: data.priceCard,
           stock: data.stock,
           expiry_date: data.expiryDate?.toISOString().split("T")[0] || null,
           origin: data.origin,

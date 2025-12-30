@@ -249,6 +249,8 @@ export type Database = {
           packaging_cost: number
           packaging_product_id: string | null
           packaging_qty: number
+          price_card: number
+          price_pix: number
           product_type: string
           sale_price: number
           stock: number
@@ -271,6 +273,8 @@ export type Database = {
           packaging_cost?: number
           packaging_product_id?: string | null
           packaging_qty?: number
+          price_card?: number
+          price_pix?: number
           product_type?: string
           sale_price?: number
           stock?: number
@@ -293,6 +297,8 @@ export type Database = {
           packaging_cost?: number
           packaging_product_id?: string | null
           packaging_qty?: number
+          price_card?: number
+          price_pix?: number
           product_type?: string
           sale_price?: number
           stock?: number

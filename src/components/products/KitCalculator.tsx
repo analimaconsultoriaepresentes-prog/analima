@@ -323,6 +323,8 @@ export function KitCalculator({
         category: "Presente",
         costPrice: kitCostNum,
         salePrice: kitPriceNum,
+        pricePix: kitPriceNum,
+        priceCard: kitPriceNum,
         stock: 0,
         origin: "purchased",
         productType: "item",

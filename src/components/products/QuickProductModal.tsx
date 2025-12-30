@@ -58,6 +58,8 @@ export function QuickProductModal({
         brand: "",
         costPrice: parseFloat(costPrice) || 0,
         salePrice: parseFloat(salePrice) || 0,
+        pricePix: parseFloat(salePrice) || 0,
+        priceCard: parseFloat(salePrice) || 0,
         stock: parseInt(stock) || 0,
         origin: "purchased",
         isBasket: false,

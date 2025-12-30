@@ -56,7 +56,9 @@ const productSchema = z.object({
   }),
   brand: z.string().min(1, "Informe a marca").max(50, "Marca muito longa"),
   costPrice: z.coerce.number().min(0, "Preço de custo não pode ser negativo"),
-  salePrice: z.coerce.number().min(0.01, "Preço de venda deve ser maior que zero"),
+  salePrice: z.coerce.number().min(0, "Preço de venda deve ser maior que zero"),
+  pricePix: z.coerce.number().min(0.01, "Preço Pix deve ser maior que zero"),
+  priceCard: z.coerce.number().min(0.01, "Preço Cartão deve ser maior que zero"),
   stock: z.coerce.number().int().min(0, "Estoque não pode ser negativo"),
   expiryDate: z.date().optional(),
   origin: z.enum(["purchased", "gift"]),
@@ -67,23 +69,23 @@ const productSchema = z.object({
   packagingProductId: z.string().optional(),
   packagingQty: z.coerce.number().int().min(1, "Quantidade deve ser maior que zero"),
 }).refine((data) => {
-  // For baskets, sale price just needs to be > 0
+  // For baskets, prices just need to be > 0
   if (data.isBasket) {
-    return data.salePrice > 0;
+    return data.pricePix > 0 && data.priceCard > 0;
   }
-  // For packaging/extra, just need sale price > 0
+  // For packaging/extra, just need prices > 0
   if (data.productType === "packaging" || data.productType === "extra") {
-    return data.salePrice > 0;
+    return data.pricePix > 0 && data.priceCard > 0;
   }
-  // For gifts (cost = 0), only require sale price > 0
+  // For gifts (cost = 0), only require prices > 0
   if (data.origin === "gift") {
-    return data.salePrice > 0;
+    return data.pricePix > 0 && data.priceCard > 0;
   }
-  // For purchased products, require sale price > cost price
-  return data.salePrice > data.costPrice;
+  // For purchased products, require prices > cost price
+  return data.pricePix > data.costPrice && data.priceCard > data.costPrice;
 }, {
-  message: "Preço de venda deve ser maior que o preço de custo",
-  path: ["salePrice"],
+  message: "Preços de venda devem ser maiores que o preço de custo",
+  path: ["pricePix"],
 });
 
 interface ProductFormProps {
@@ -123,6 +125,8 @@ function ProductFormContent({
   
   const costPrice = form.watch("costPrice");
   const salePrice = form.watch("salePrice");
+  const pricePix = form.watch("pricePix");
+  const priceCard = form.watch("priceCard");
   const origin = form.watch("origin");
   const isBasket = form.watch("isBasket");
   const productType = form.watch("productType");
@@ -198,10 +202,13 @@ function ProductFormContent({
       form.setValue("packagingProductId", basketPackagingProductId, { shouldValidate: true });
       form.setValue("packagingQty", basketPackagingQty, { shouldValidate: true });
       
-      // Recalculate price when composition changes
+      // Recalculate prices when composition changes
       if (basketDesiredMargin > 0 && basketCosts.totalCost > 0 && (!editProduct?.isBasket || hasBasketChanged)) {
         const suggestedPrice = basketCosts.totalCost * (1 + basketDesiredMargin / 100);
-        form.setValue("salePrice", Math.round(suggestedPrice * 100) / 100, { shouldValidate: true });
+        const roundedPrice = Math.round(suggestedPrice * 100) / 100;
+        form.setValue("salePrice", roundedPrice, { shouldValidate: true });
+        form.setValue("pricePix", roundedPrice, { shouldValidate: true });
+        form.setValue("priceCard", roundedPrice, { shouldValidate: true });
       }
     }
   }, [isBasket, basketCosts, basketDesiredMargin, basketPackagingProductId, basketPackagingQty, form, editProduct?.isBasket, hasBasketChanged]);
@@ -233,14 +240,11 @@ function ProductFormContent({
     }
   }, [isGift, isBasket, isPackagingOrExtra, form]);
   
-  // Calculate actual margin for display
-  const actualMargin = salePrice > 0 && costPrice > 0 && salePrice > costPrice
-    ? ((salePrice - costPrice) / costPrice * 100).toFixed(1)
-    : "0.0";
-  
-  const profit = salePrice > costPrice ? (salePrice - costPrice).toFixed(2) : "0.00";
+  // Calculate profit for display
+  const profitPix = pricePix > costPrice ? (pricePix - costPrice).toFixed(2) : "0.00";
+  const profitCard = priceCard > costPrice ? (priceCard - costPrice).toFixed(2) : "0.00";
 
-  // Auto-calculate sale price when cost or desired margin changes (for non-baskets)
+  // Auto-calculate sale prices when cost or desired margin changes (for non-baskets)
   useEffect(() => {
     if (isBasket) return;
     if (isManualSalePriceEdit.current) {
@@ -250,8 +254,10 @@ function ProductFormContent({
     
     const marginValue = parseFloat(desiredMargin);
     if (!isNaN(marginValue) && marginValue > 0 && costPrice > 0) {
-      const calculatedSalePrice = costPrice * (1 + marginValue / 100);
-      const roundedPrice = Math.round(calculatedSalePrice * 100) / 100;
+      const calculatedPrice = costPrice * (1 + marginValue / 100);
+      const roundedPrice = Math.round(calculatedPrice * 100) / 100;
+      form.setValue("pricePix", roundedPrice, { shouldValidate: true });
+      form.setValue("priceCard", roundedPrice, { shouldValidate: true });
       form.setValue("salePrice", roundedPrice, { shouldValidate: true });
     }
   }, [costPrice, desiredMargin, form, isBasket]);
@@ -554,9 +560,10 @@ function ProductFormContent({
           </div>
         )}
 
-        {/* Margem e Preço de Venda - for non-baskets */}
+        {/* Preços de Venda por Forma de Pagamento - for non-baskets */}
         {!isBasket && (
-          <div className={cn("grid gap-4", (isGift && !isPackagingOrExtra) ? "grid-cols-1" : "grid-cols-2")}>
+          <>
+            {/* Margem desejada (opcional) */}
             {(!isGift || isPackagingOrExtra) && (
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -576,17 +583,92 @@ function ProductFormContent({
                   <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Venda = Custo + Margem
+                  Aplica margem sobre o custo para calcular preços
                 </p>
               </div>
             )}
 
+            {/* Preços por forma de pagamento */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="pricePix"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1.5">
+                      💵 Pix / Dinheiro (R$)
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        inputMode="decimal"
+                        placeholder="0,00" 
+                        className="input-styled min-h-[44px]"
+                        value={field.value || ""}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          field.onChange(value);
+                          // Sync salePrice with pricePix as primary reference
+                          form.setValue("salePrice", value, { shouldValidate: true });
+                        }}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="priceCard"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1.5">
+                      💳 Cartão (R$)
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        inputMode="decimal"
+                        placeholder="0,00" 
+                        className="input-styled min-h-[44px]"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {isGift && !isPackagingOrExtra && (
+              <p className="text-xs text-muted-foreground">
+                Brindes têm custo zero. Defina os preços de venda livremente.
+              </p>
+            )}
+          </>
+        )}
+
+        {/* Preços de Venda for baskets */}
+        {isBasket && (
+          <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="salePrice"
+              name="pricePix"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Preço de Venda (R$)</FormLabel>
+                  <FormLabel className="flex items-center gap-1.5">
+                    💵 Pix / Dinheiro (R$)
+                  </FormLabel>
                   <FormControl>
                     <Input 
                       type="number" 
@@ -595,18 +677,47 @@ function ProductFormContent({
                       inputMode="decimal"
                       placeholder="0,00" 
                       className="input-styled min-h-[44px]"
+                      {...field}
                       value={field.value || ""}
-                      onChange={(e) => handleSalePriceChange(e, field.onChange)}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      ref={field.ref}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        field.onChange(value);
+                        form.setValue("salePrice", value, { shouldValidate: true });
+                      }}
                     />
                   </FormControl>
-                  {isGift && !isPackagingOrExtra && (
-                    <FormDescription className="text-xs">
-                      Margem não se aplica para brinde (custo zero).
-                    </FormDescription>
-                  )}
+                  <FormDescription className="text-xs">
+                    Preço para pagamento à vista
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="priceCard"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1.5">
+                    💳 Cartão (R$)
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.01"
+                      min="0"
+                      inputMode="decimal"
+                      placeholder="0,00" 
+                      className="input-styled min-h-[44px]"
+                      {...field}
+                      value={field.value || ""}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Preço para pagamento no cartão
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -614,45 +725,17 @@ function ProductFormContent({
           </div>
         )}
 
-        {/* Preço de Venda for baskets - editable override */}
-        {isBasket && (
-          <FormField
-            control={form.control}
-            name="salePrice"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Preço de Venda Final (R$)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    step="0.01"
-                    min="0"
-                    inputMode="decimal"
-                    placeholder="0,00" 
-                    className="input-styled min-h-[44px]"
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription className="text-xs">
-                  Calculado automaticamente pela margem, mas pode ser ajustado.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-
         {/* Cálculos automáticos - for non-baskets */}
-        {!isBasket && costPrice > 0 && salePrice > 0 && salePrice > costPrice && (
+        {!isBasket && costPrice > 0 && pricePix > 0 && pricePix > costPrice && (
           <div className="bg-success/5 border border-success/20 rounded-lg p-3 sm:p-4 animate-fade-in">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-muted-foreground text-xs sm:text-sm">Lucro/unidade</p>
-                <p className="font-bold text-success text-base sm:text-lg">R$ {profit}</p>
+                <p className="text-muted-foreground text-xs sm:text-sm">Lucro Pix/unidade</p>
+                <p className="font-bold text-success text-base sm:text-lg">R$ {profitPix}</p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs sm:text-sm">Margem real</p>
-                <p className="font-bold text-success text-base sm:text-lg">{actualMargin}%</p>
+                <p className="text-muted-foreground text-xs sm:text-sm">Lucro Cartão/unidade</p>
+                <p className="font-bold text-success text-base sm:text-lg">R$ {profitCard}</p>
               </div>
             </div>
           </div>
@@ -773,6 +856,8 @@ export function ProductForm({
       brand: "",
       costPrice: 0,
       salePrice: 0,
+      pricePix: 0,
+      priceCard: 0,
       stock: 0,
       origin: "purchased",
       cycle: undefined,
@@ -793,6 +878,8 @@ export function ProductForm({
         brand: editProduct.brand,
         costPrice: editProduct.costPrice,
         salePrice: editProduct.salePrice,
+        pricePix: editProduct.pricePix || editProduct.salePrice,
+        priceCard: editProduct.priceCard || editProduct.salePrice,
         stock: editProduct.stock,
         expiryDate: editProduct.expiryDate ? new Date(editProduct.expiryDate) : undefined,
         origin: editProduct.origin,
@@ -809,6 +896,8 @@ export function ProductForm({
         brand: "",
         costPrice: 0,
         salePrice: 0,
+        pricePix: 0,
+        priceCard: 0,
         stock: 0,
         origin: "purchased",
         cycle: undefined,

@@ -44,6 +44,8 @@ interface Product {
   category: string;
   brand: string;
   salePrice: number;
+  pricePix: number;
+  priceCard: number;
   costPrice: number;
   stock: number;
   isBasket?: boolean;
@@ -172,9 +174,18 @@ function SaleFormContent({
     setCart(cart.filter((item) => item.product.id !== productId));
   };
 
-  // O cliente paga apenas a soma dos sale_price (sem embalagem)
+  // Helper to get the correct price based on payment method
+  const getProductPrice = (product: Product) => {
+    if (paymentMethod === "cartao") {
+      return product.priceCard || product.salePrice;
+    }
+    // pix, dinheiro, fiado all use pricePix
+    return product.pricePix || product.salePrice;
+  };
+
+  // O cliente paga apenas a soma dos preços corretos (sem embalagem)
   const total = cart.reduce(
-    (sum, item) => sum + item.product.salePrice * item.quantity,
+    (sum, item) => sum + getProductPrice(item.product) * item.quantity,
     0
   );
 
@@ -514,8 +525,13 @@ function SaleFormContent({
                 </div>
                 <div className="text-right ml-2">
                   <p className="font-semibold text-success">
-                    R$ {product.salePrice.toFixed(2)}
+                    R$ {getProductPrice(product).toFixed(2)}
                   </p>
+                  {product.pricePix !== product.priceCard && (
+                    <p className="text-xs text-muted-foreground">
+                      {paymentMethod === "cartao" ? "💵" : "💳"} R$ {(paymentMethod === "cartao" ? product.pricePix : product.priceCard).toFixed(2)}
+                    </p>
+                  )}
                 </div>
               </button>
             ))
@@ -544,7 +560,7 @@ function SaleFormContent({
                     {item.product.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    R$ {item.product.salePrice.toFixed(2)} cada
+                    R$ {getProductPrice(item.product).toFixed(2)} cada
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -570,7 +586,7 @@ function SaleFormContent({
                     </Button>
                   </div>
                   <p className="w-16 text-right font-semibold text-sm">
-                    R$ {(item.product.salePrice * item.quantity).toFixed(2)}
+                    R$ {(getProductPrice(item.product) * item.quantity).toFixed(2)}
                   </p>
                   <Button
                     size="icon"
