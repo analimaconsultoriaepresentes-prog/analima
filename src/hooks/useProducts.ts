@@ -4,6 +4,11 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
 
 export type ProductType = "item" | "packaging" | "extra" | "basket";
+
+// Helper to check if a product is internal-only (not for sale)
+export const isInternalProduct = (productType: ProductType): boolean => {
+  return productType === "packaging" || productType === "extra";
+};
 export type GiftType = "presente" | "cesta" | "kit" | "mini_presente" | "lembrancinha";
 
 export const GIFT_TYPE_LABELS: Record<GiftType, string> = {

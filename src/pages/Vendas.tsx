@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { SaleForm } from "@/components/sales/SaleForm";
-import { useProducts } from "@/hooks/useProducts";
+import { useProducts, isInternalProduct } from "@/hooks/useProducts";
 import { useSales, SaleChannel } from "@/hooks/useSales";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useStore } from "@/hooks/useStore";
@@ -53,7 +53,10 @@ export default function Vendas() {
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
   const [cancelSale, setCancelSale] = useState<Sale | null>(null);
 
-  const { products, loading: loadingProducts, updateStock, restoreStock } = useProducts();
+  const { products: allProducts, loading: loadingProducts, updateStock, restoreStock } = useProducts();
+  
+  // Filter out internal products (packaging, extras) from sale
+  const products = allProducts.filter(p => !isInternalProduct(p.productType));
   const { sales, loading: loadingSales, addSale, cancelSale: cancelSaleAction, stats } = useSales();
   const { customers, addCustomer } = useCustomers();
   const { store } = useStore();
