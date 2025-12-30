@@ -435,32 +435,49 @@ export default function Produtos() {
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Custo</p>
-                  <p className="font-semibold text-foreground">R$ {product.costPrice.toFixed(2)}</p>
+              {/* Layout for packaging/extra - only Custo and Estoque */}
+              {(product.productType === "packaging" || product.productType === "extra") ? (
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Custo</p>
+                    <p className="font-semibold text-foreground">R$ {product.costPrice.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Estoque</p>
+                    <p className={cn("font-semibold", product.stock < 3 ? "text-warning" : "text-foreground")}>
+                      {product.stock} un.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Pix</p>
-                  <p className="font-semibold text-success">R$ {product.pricePix.toFixed(2)}</p>
+              ) : (
+                /* Layout for regular products and baskets */
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Custo</p>
+                    <p className="font-semibold text-foreground">R$ {product.costPrice.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Pix</p>
+                    <p className="font-semibold text-success">R$ {product.pricePix.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Cartão</p>
+                    <p className="font-semibold text-primary">
+                      {product.priceCard > 0 ? `R$ ${product.priceCard.toFixed(2)}` : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">{product.isBasket ? "Montadas" : "Estoque"}</p>
+                    <p className={cn("font-semibold", !product.isBasket && product.stock < 3 ? "text-warning" : "text-foreground")}>
+                      {product.stock} un.
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Margem</p>
+                    <p className="font-semibold text-primary">{calculateMargin(product.costPrice, product.pricePix)}%</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Cartão</p>
-                  <p className="font-semibold text-primary">
-                    {product.priceCard > 0 ? `R$ ${product.priceCard.toFixed(2)}` : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">{product.isBasket ? "Montadas" : "Estoque"}</p>
-                  <p className={cn("font-semibold", !product.isBasket && product.stock < 3 ? "text-warning" : "text-foreground")}>
-                    {product.stock} un.
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Margem</p>
-                  <p className="font-semibold text-primary">{calculateMargin(product.costPrice, product.salePrice)}%</p>
-                </div>
-              </div>
+              )}
             </div>
           ))}
         </div>
