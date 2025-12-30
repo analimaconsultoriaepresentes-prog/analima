@@ -106,14 +106,17 @@ export function BasketCompositionForm({
 
   const totalCost = totalItemsCost + packagingCost + totalExtrasCost;
 
-  // Calculate base customer price (sum of Pix prices or manual prices)
-  const baseCustomerPrice = useMemo(() => {
+  // Calculate items price (sum of Pix prices or manual prices)
+  const itemsPrice = useMemo(() => {
     return items.reduce((sum, item) => {
       // Use manual price if set, otherwise use salePrice (which is pricePix from product)
       const priceToUse = item.manualSalePrice !== undefined ? item.manualSalePrice : item.salePrice;
       return sum + priceToUse * item.quantity;
     }, 0);
   }, [items]);
+
+  // Calculate "Preço Base do Presente" = items price + packaging cost + extras cost
+  const baseGiftPrice = itemsPrice + packagingCost + totalExtrasCost;
 
   // Handlers for items
   const handleAddProduct = () => {
@@ -544,11 +547,19 @@ export function BasketCompositionForm({
           </div>
         </div>
 
-        {/* Base Customer Price */}
+        {/* Valor dos Produtos (Pix) */}
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground font-semibold">Preço Base do Cliente (soma Pix dos itens)</Label>
+          <Label className="text-xs text-muted-foreground font-semibold">Valor dos Produtos (soma Pix)</Label>
           <div className="h-[40px] flex items-center px-3 bg-blue-500/10 rounded-md border border-blue-500/20">
-            <span className="font-bold text-blue-600">R$ {baseCustomerPrice.toFixed(2)}</span>
+            <span className="font-bold text-blue-600">R$ {itemsPrice.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* Preço Base do Presente */}
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground font-semibold">Preço Base do Presente (Produtos + Emb. + Extras)</Label>
+          <div className="h-[40px] flex items-center px-3 bg-primary/10 rounded-md border border-primary/20">
+            <span className="font-bold text-primary">R$ {baseGiftPrice.toFixed(2)}</span>
           </div>
         </div>
 
@@ -566,10 +577,19 @@ export function BasketCompositionForm({
   );
 }
 
-// Export the base customer price calculator for use in ProductForm
-export function calculateBaseCustomerPrice(items: BasketItemInput[]): number {
+// Export calculators for use in ProductForm
+export function calculateItemsPrice(items: BasketItemInput[]): number {
   return items.reduce((sum, item) => {
     const priceToUse = item.manualSalePrice !== undefined ? item.manualSalePrice : item.salePrice;
     return sum + priceToUse * item.quantity;
   }, 0);
+}
+
+export function calculateBaseGiftPrice(
+  items: BasketItemInput[], 
+  packagingCost: number, 
+  extrasCost: number
+): number {
+  const itemsPrice = calculateItemsPrice(items);
+  return itemsPrice + packagingCost + extrasCost;
 }
