@@ -37,6 +37,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Customer, CustomerFormData } from "@/hooks/useCustomers";
 import type { SaleChannel } from "@/hooks/useSales";
 import type { PackagingCosts } from "@/hooks/useStore";
+import type { ProductType } from "@/hooks/useProducts";
+import { isInternalProduct } from "@/hooks/useProducts";
 
 interface Product {
   id: string;
@@ -49,6 +51,7 @@ interface Product {
   costPrice: number;
   stock: number;
   isBasket?: boolean;
+  productType?: ProductType;
 }
 
 interface CartItem {
@@ -113,6 +116,7 @@ function SaleFormContent({
   const availableProducts = products.filter(
     (p) =>
       p.stock > 0 &&
+      !isInternalProduct(p.productType || "item") &&
       (p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.brand.toLowerCase().includes(searchTerm.toLowerCase()))
   );
