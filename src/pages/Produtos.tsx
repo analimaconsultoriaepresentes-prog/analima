@@ -435,14 +435,20 @@ export default function Produtos() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-3 gap-3 text-sm">
                 <div>
                   <p className="text-muted-foreground">Custo</p>
                   <p className="font-semibold text-foreground">R$ {product.costPrice.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Venda</p>
-                  <p className="font-semibold text-success">R$ {product.salePrice.toFixed(2)}</p>
+                  <p className="text-muted-foreground">Pix</p>
+                  <p className="font-semibold text-success">R$ {product.pricePix.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Cartão</p>
+                  <p className="font-semibold text-primary">
+                    {product.priceCard > 0 ? `R$ ${product.priceCard.toFixed(2)}` : "—"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">{product.isBasket ? "Montadas" : "Estoque"}</p>
