@@ -232,6 +232,54 @@ export type Database = {
           },
         ]
       }
+      getting_started_progress: {
+        Row: {
+          completed_at: string
+          created_at: string
+          id: string
+          step_key: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          step_key: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          step_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      getting_started_settings: {
+        Row: {
+          created_at: string
+          hidden: boolean
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hidden?: boolean
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hidden?: boolean
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           brand: string | null
