@@ -118,12 +118,15 @@ function ProductFormContent({
   initialBasketExtras?: BasketExtraInput[];
 }) {
   const [desiredMargin, setDesiredMargin] = useState<string>("");
-  const isManualSalePriceEdit = useRef(false);
   const [basketItems, setBasketItems] = useState<BasketItemInput[]>([]);
   const [basketExtras, setBasketExtras] = useState<BasketExtraInput[]>([]);
   const [basketPackagingProductId, setBasketPackagingProductId] = useState<string | undefined>();
   const [basketPackagingQty, setBasketPackagingQty] = useState<number>(1);
   const [basketDesiredMargin, setBasketDesiredMargin] = useState<number>(50);
+  
+  // Track if the change is from margin input to avoid loops
+  const isMarginDriven = useRef(false);
+  const isPixDriven = useRef(false);
   
   const costPrice = form.watch("costPrice");
   const salePrice = form.watch("salePrice");
@@ -254,46 +257,55 @@ function ProductFormContent({
   const profitPix = pricePix > costPrice ? (pricePix - costPrice).toFixed(2) : "0.00";
   const profitCard = priceCard > costPrice ? (priceCard - costPrice).toFixed(2) : "0.00";
 
-  // Prices (pricePix, priceCard) are NOT auto-calculated - they are 100% manual
-  // Desired margin only updates salePrice for reference display, not pricePix/priceCard
+  // Calculate % when margin is typed (for Pix only)
+  // Pix = cost * (1 + margin/100)
   useEffect(() => {
-    if (isBasket) return;
-    if (isManualSalePriceEdit.current) {
-      isManualSalePriceEdit.current = false;
-      return;
+    if (isMarginDriven.current) {
+      isMarginDriven.current = false;
+      
+      const marginValue = parseFloat(desiredMargin);
+      const effectiveCost = isBasket ? basketCosts.totalCost : costPrice;
+      
+      if (!isNaN(marginValue) && marginValue >= 0 && effectiveCost > 0) {
+        const calculatedPix = effectiveCost * (1 + marginValue / 100);
+        const roundedPix = Math.round(calculatedPix * 100) / 100;
+        form.setValue("pricePix", roundedPix, { shouldValidate: true });
+        form.setValue("salePrice", roundedPix, { shouldValidate: true });
+      }
     }
-    
-    const marginValue = parseFloat(desiredMargin);
-    if (!isNaN(marginValue) && marginValue > 0 && costPrice > 0) {
-      const calculatedPrice = costPrice * (1 + marginValue / 100);
-      const roundedPrice = Math.round(calculatedPrice * 100) / 100;
-      // Only update salePrice for internal reference, NOT pricePix/priceCard
-      form.setValue("salePrice", roundedPrice, { shouldValidate: true });
-    }
-  }, [costPrice, desiredMargin, form, isBasket]);
+  }, [desiredMargin, costPrice, basketCosts.totalCost, isBasket, form]);
 
   // Initialize desired margin when editing a product
   useEffect(() => {
-    if (editProduct && !editProduct.isBasket && costPrice > 0 && salePrice > costPrice) {
-      const calculatedMargin = ((salePrice - costPrice) / costPrice * 100).toFixed(1);
-      setDesiredMargin(calculatedMargin);
+    if (editProduct) {
+      const effectiveCost = editProduct.isBasket ? editProduct.costPrice : editProduct.costPrice;
+      const pix = editProduct.pricePix || editProduct.salePrice;
+      if (effectiveCost > 0 && pix > effectiveCost) {
+        const calculatedMargin = ((pix - effectiveCost) / effectiveCost * 100).toFixed(1);
+        setDesiredMargin(calculatedMargin);
+      }
     }
   }, [editProduct]);
 
-  const handleSalePriceChange = (e: React.ChangeEvent<HTMLInputElement>, onChange: (value: number) => void) => {
-    isManualSalePriceEdit.current = true;
-    const value = parseFloat(e.target.value) || 0;
-    onChange(value);
+  // Handle Pix price change - calculate margin from it
+  const handlePixPriceChange = (value: number) => {
+    isPixDriven.current = true;
+    form.setValue("pricePix", value, { shouldValidate: true });
+    form.setValue("salePrice", value, { shouldValidate: true });
     
-    // Update desired margin based on manual input
-    if (value > 0 && costPrice > 0 && value > costPrice) {
-      const newMargin = ((value - costPrice) / costPrice * 100).toFixed(1);
+    const effectiveCost = isBasket ? basketCosts.totalCost : costPrice;
+    if (effectiveCost > 0 && value > 0) {
+      const newMargin = ((value - effectiveCost) / effectiveCost * 100).toFixed(1);
       setDesiredMargin(newMargin);
+    } else if (effectiveCost === 0) {
+      setDesiredMargin("—");
     }
   };
 
+  // Handle margin change - calculate Pix from it
   const handleDesiredMarginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    isMarginDriven.current = true;
     setDesiredMargin(value);
   };
 
@@ -616,27 +628,26 @@ function ProductFormContent({
         {/* Preços de Venda por Forma de Pagamento - for non-baskets */}
         {!isBasket && (
           <>
-            {/* Margem desejada (opcional) */}
+            {/* Margem desejada (%) - for Pix only */}
             {(!isGift || isPackagingOrExtra) && (
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Margem desejada (%)
+                  % de ganho (Pix)
                 </label>
                 <div className="relative">
                   <Input 
-                    type="number" 
-                    step="0.1"
-                    min="0"
+                    type="text" 
                     inputMode="decimal"
                     placeholder="Ex: 50" 
                     className="input-styled min-h-[44px] pr-8"
                     value={desiredMargin}
                     onChange={handleDesiredMarginChange}
+                    disabled={costPrice === 0}
                   />
                   <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Aplica margem sobre o custo para calcular preços
+                  Calcula o Preço Pix automaticamente. Cartão é sempre manual.
                 </p>
               </div>
             )}
@@ -662,15 +673,16 @@ function ProductFormContent({
                         value={field.value || ""}
                         onChange={(e) => {
                           const value = parseFloat(e.target.value) || 0;
-                          field.onChange(value);
-                          // Sync salePrice with pricePix as primary reference
-                          form.setValue("salePrice", value, { shouldValidate: true });
+                          handlePixPriceChange(value);
                         }}
                         onBlur={field.onBlur}
                         name={field.name}
                         ref={field.ref}
                       />
                     </FormControl>
+                    <FormDescription className="text-xs">
+                      Digitar ou usar % de ganho acima
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -713,69 +725,94 @@ function ProductFormContent({
 
         {/* Preços de Venda for baskets */}
         {isBasket && (
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="pricePix"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-1.5">
-                    💵 Pix / Dinheiro (R$)
-                  </FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.01"
-                      min="0"
-                      inputMode="decimal"
-                      placeholder="0,00" 
-                      className="input-styled min-h-[44px]"
-                      {...field}
-                      value={field.value || ""}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0;
-                        field.onChange(value);
-                        form.setValue("salePrice", value, { shouldValidate: true });
-                      }}
-                    />
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                    Preço para pagamento à vista
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <>
+            {/* % de ganho (Pix) for baskets */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                % de ganho (Pix)
+              </label>
+              <div className="relative">
+                <Input 
+                  type="text" 
+                  inputMode="decimal"
+                  placeholder="Ex: 50" 
+                  className="input-styled min-h-[44px] pr-8"
+                  value={desiredMargin}
+                  onChange={handleDesiredMarginChange}
+                  disabled={basketCosts.totalCost === 0}
+                />
+                <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Calcula o Preço Pix automaticamente. Cartão é sempre manual.
+              </p>
+            </div>
 
-            <FormField
-              control={form.control}
-              name="priceCard"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-1.5">
-                    💳 Cartão (R$)
-                  </FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.01"
-                      min="0"
-                      inputMode="decimal"
-                      placeholder="0,00" 
-                      className="input-styled min-h-[44px]"
-                      {...field}
-                      value={field.value || ""}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                    Preço para pagamento no cartão
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="pricePix"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1.5">
+                      💵 Pix / Dinheiro (R$)
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        inputMode="decimal"
+                        placeholder="0,00" 
+                        className="input-styled min-h-[44px]"
+                        value={field.value || ""}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          handlePixPriceChange(value);
+                        }}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Digitar ou usar % de ganho acima
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="priceCard"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1.5">
+                      💳 Cartão (R$)
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        inputMode="decimal"
+                        placeholder="0,00" 
+                        className="input-styled min-h-[44px]"
+                        {...field}
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Preço para pagamento no cartão (manual)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </>
         )}
 
         {/* Cálculos automáticos - for non-baskets */}
