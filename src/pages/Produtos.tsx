@@ -53,7 +53,7 @@ export default function Produtos() {
   });
 
   const { products, loading, addProduct, updateProduct, deleteProduct, archiveProduct, reactivateProduct, checkProductDependencies, restoreStock, refetch } = useProducts();
-  const { saveBasketItems, fetchBasketItems } = useBaskets();
+  const { saveBasketItems, saveBasketExtras, fetchBasketItems, fetchBasketExtras } = useBaskets();
 
   // Filter out baskets and archived products for basket composition
   const availableProductsForBasket = useMemo(() => {
@@ -112,39 +112,64 @@ export default function Produtos() {
     return ((sale - cost) / sale * 100).toFixed(1);
   };
 
-  const handleAddProduct = async (data: ProductFormData, basketItems?: BasketItemInput[]) => {
+  const handleAddProduct = async (data: ProductFormData, basketItems?: BasketItemInput[], basketExtras?: BasketExtraInput[]) => {
     const productId = await addProduct(data);
     if (productId) {
-      // If it's a basket, save the basket items using the returned product ID
-      if (data.isBasket && basketItems && basketItems.length > 0) {
-        await saveBasketItems(
-          productId,
-          basketItems.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-          }))
-        );
+      // If it's a basket, save the basket items and extras using the returned product ID
+      if (data.isBasket) {
+        if (basketItems && basketItems.length > 0) {
+          await saveBasketItems(
+            productId,
+            basketItems.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            }))
+          );
+        }
+        if (basketExtras && basketExtras.length > 0) {
+          await saveBasketExtras(
+            productId,
+            basketExtras.map((extra) => ({
+              productId: extra.productId,
+              quantity: extra.quantity,
+              unitCost: extra.unitCost,
+            }))
+          );
+        }
       }
       setIsFormOpen(false);
     }
   };
 
-  const handleEditProduct = async (data: ProductFormData, basketItems?: BasketItemInput[]) => {
+  const handleEditProduct = async (data: ProductFormData, basketItems?: BasketItemInput[], basketExtras?: BasketExtraInput[]) => {
     if (!editProduct) return;
     const success = await updateProduct(editProduct.id, data);
     if (success) {
-      // Update basket items if it's a basket
-      if (data.isBasket && basketItems) {
-        await saveBasketItems(
-          editProduct.id,
-          basketItems.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-          }))
-        );
+      // Update basket items and extras if it's a basket
+      if (data.isBasket) {
+        if (basketItems) {
+          await saveBasketItems(
+            editProduct.id,
+            basketItems.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            }))
+          );
+        }
+        if (basketExtras) {
+          await saveBasketExtras(
+            editProduct.id,
+            basketExtras.map((extra) => ({
+              productId: extra.productId,
+              quantity: extra.quantity,
+              unitCost: extra.unitCost,
+            }))
+          );
+        }
       }
       setEditProduct(null);
       setEditBasketItems([]);
+      setEditBasketExtras([]);
       setIsFormOpen(false);
     }
   };
@@ -188,9 +213,12 @@ export default function Produtos() {
   const openEditModal = async (product: Product) => {
     setEditProduct(product);
     
-    // Load basket items if it's a basket
+    // Load basket items and extras if it's a basket
     if (product.isBasket) {
-      const items = await fetchBasketItems(product.id);
+      const [items, extras] = await Promise.all([
+        fetchBasketItems(product.id),
+        fetchBasketExtras(product.id),
+      ]);
       setEditBasketItems(
         items.map((item) => ({
           productId: item.productId,
@@ -200,8 +228,17 @@ export default function Produtos() {
           salePrice: item.salePrice,
         }))
       );
+      setEditBasketExtras(
+        extras.map((extra) => ({
+          productId: extra.productId,
+          productName: extra.productName,
+          quantity: extra.quantity,
+          unitCost: extra.unitCost,
+        }))
+      );
     } else {
       setEditBasketItems([]);
+      setEditBasketExtras([]);
     }
     
     setIsFormOpen(true);
@@ -212,6 +249,7 @@ export default function Produtos() {
     if (!open) {
       setEditProduct(null);
       setEditBasketItems([]);
+      setEditBasketExtras([]);
     }
   };
 
@@ -430,6 +468,7 @@ export default function Produtos() {
         editProduct={editProduct}
         availableProducts={availableProductsForBasket}
         initialBasketItems={editBasketItems}
+        initialBasketExtras={editBasketExtras}
       />
 
       {/* Delete Confirmation Dialog */}
