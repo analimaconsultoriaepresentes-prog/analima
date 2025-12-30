@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { BasketCompositionForm, calculateBaseCustomerPrice, type BasketItemInput, type BasketExtraInput } from "./BasketCompositionForm";
+import { BasketCompositionForm, calculateItemsPrice, calculateBaseGiftPrice, type BasketItemInput, type BasketExtraInput } from "./BasketCompositionForm";
 import type { Product, ProductFormData, ProductType, GiftType } from "@/hooks/useProducts";
 import { GIFT_TYPE_LABELS } from "@/hooks/useProducts";
 
@@ -102,6 +102,7 @@ interface ProductFormProps {
 }
 
 type DiscountMode = "value" | "percent";
+type PackagingDiscountMode = "value";
 
 function ProductFormContent({ 
   form, 
@@ -124,8 +125,9 @@ function ProductFormContent({
   const [desiredMargin, setDesiredMargin] = useState<string>("");
   
   // For basket products: discount-based calculation
-  const [discountMode, setDiscountMode] = useState<DiscountMode>("value");
-  const [discountValue, setDiscountValue] = useState<string>("");
+  const [generalDiscountMode, setGeneralDiscountMode] = useState<DiscountMode>("value");
+  const [generalDiscountValue, setGeneralDiscountValue] = useState<string>("");
+  const [packagingDiscountValue, setPackagingDiscountValue] = useState<string>("");
   const [isPixManuallyOverridden, setIsPixManuallyOverridden] = useState(false);
   
   const [basketItems, setBasketItems] = useState<BasketItemInput[]>([]);
@@ -193,26 +195,41 @@ function ProductFormContent({
     return { totalItemsCost, packagingCost, totalExtrasCost, totalCost };
   }, [basketItems, basketExtras, selectedPackaging, basketPackagingQty]);
 
-  // Calculate base customer price (sum of Pix prices of items)
-  const baseCustomerPrice = useMemo(() => {
-    return calculateBaseCustomerPrice(basketItems);
+  // Calculate items price (sum of Pix prices of items)
+  const itemsPrice = useMemo(() => {
+    return calculateItemsPrice(basketItems);
   }, [basketItems]);
 
-  // Calculate discount amount
-  const discountAmount = useMemo(() => {
-    const val = parseFloat(discountValue) || 0;
-    if (discountMode === "value") {
+  // Calculate "Preço Base do Presente" = items price + packaging cost + extras cost
+  const baseGiftPrice = useMemo(() => {
+    return calculateBaseGiftPrice(basketItems, basketCosts.packagingCost, basketCosts.totalExtrasCost);
+  }, [basketItems, basketCosts.packagingCost, basketCosts.totalExtrasCost]);
+
+  // Calculate general discount amount
+  const generalDiscountAmount = useMemo(() => {
+    const val = parseFloat(generalDiscountValue) || 0;
+    if (generalDiscountMode === "value") {
       return val;
     } else {
-      // Percentage discount
-      return (baseCustomerPrice * val) / 100;
+      // Percentage discount on baseGiftPrice
+      return (baseGiftPrice * val) / 100;
     }
-  }, [discountValue, discountMode, baseCustomerPrice]);
+  }, [generalDiscountValue, generalDiscountMode, baseGiftPrice]);
 
-  // Calculate suggested Pix price (base - discount)
+  // Calculate packaging/extras discount amount (always in R$)
+  const packagingDiscountAmount = useMemo(() => {
+    return parseFloat(packagingDiscountValue) || 0;
+  }, [packagingDiscountValue]);
+
+  // Total discount
+  const totalDiscountAmount = generalDiscountAmount + packagingDiscountAmount;
+
+  // Calculate suggested Pix price (base - discounts, but never less than total cost)
   const suggestedPixPrice = useMemo(() => {
-    return Math.max(0, baseCustomerPrice - discountAmount);
-  }, [baseCustomerPrice, discountAmount]);
+    const rawPrice = baseGiftPrice - totalDiscountAmount;
+    // Ensure Pix is never less than total cost
+    return Math.max(basketCosts.totalCost, rawPrice);
+  }, [baseGiftPrice, totalDiscountAmount, basketCosts.totalCost]);
 
   // Update form values when basket composition changes (only costs, not prices)
   useEffect(() => {
@@ -226,11 +243,11 @@ function ProductFormContent({
 
   // Auto-update Pix price when discount changes (only if not manually overridden)
   useEffect(() => {
-    if (isBasket && !isPixManuallyOverridden && baseCustomerPrice > 0) {
+    if (isBasket && !isPixManuallyOverridden && baseGiftPrice > 0) {
       form.setValue("pricePix", suggestedPixPrice, { shouldValidate: true });
       form.setValue("salePrice", suggestedPixPrice, { shouldValidate: true });
     }
-  }, [isBasket, suggestedPixPrice, isPixManuallyOverridden, baseCustomerPrice, form]);
+  }, [isBasket, suggestedPixPrice, isPixManuallyOverridden, baseGiftPrice, form]);
 
   // Reset basket items when switching to non-basket (only for new products)
   useEffect(() => {
@@ -239,7 +256,8 @@ function ProductFormContent({
       setBasketExtras([]);
       setBasketPackagingProductId(undefined);
       setBasketPackagingQty(1);
-      setDiscountValue("");
+      setGeneralDiscountValue("");
+      setPackagingDiscountValue("");
       setIsPixManuallyOverridden(false);
     }
   }, [isBasket, editProduct]);
@@ -759,26 +777,26 @@ function ProductFormContent({
         {/* Preços de Venda for baskets - New discount-based system */}
         {isBasket && (
           <>
-            {/* Discount Section */}
+            {/* General Discount Section */}
             <div className="space-y-3 p-4 rounded-lg bg-muted/30 border border-border/50">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Desconto para o Cliente</Label>
+                <Label className="text-sm font-medium">Desconto Geral</Label>
                 <div className="flex gap-1">
                   <Button
                     type="button"
-                    variant={discountMode === "value" ? "default" : "outline"}
+                    variant={generalDiscountMode === "value" ? "default" : "outline"}
                     size="sm"
                     className="h-7 px-2 text-xs"
-                    onClick={() => setDiscountMode("value")}
+                    onClick={() => setGeneralDiscountMode("value")}
                   >
                     R$
                   </Button>
                   <Button
                     type="button"
-                    variant={discountMode === "percent" ? "default" : "outline"}
+                    variant={generalDiscountMode === "percent" ? "default" : "outline"}
                     size="sm"
                     className="h-7 px-2 text-xs"
-                    onClick={() => setDiscountMode("percent")}
+                    onClick={() => setGeneralDiscountMode("percent")}
                   >
                     %
                   </Button>
@@ -787,27 +805,68 @@ function ProductFormContent({
               <div className="relative">
                 <Input 
                   type="number" 
-                  step={discountMode === "value" ? "0.01" : "1"}
+                  step={generalDiscountMode === "value" ? "0.01" : "1"}
                   min="0"
                   inputMode="decimal"
-                  placeholder={discountMode === "value" ? "0,00" : "0"}
+                  placeholder={generalDiscountMode === "value" ? "0,00" : "0"}
                   className="input-styled min-h-[44px] pr-10"
-                  value={discountValue}
+                  value={generalDiscountValue}
                   onChange={(e) => {
-                    setDiscountValue(e.target.value);
+                    setGeneralDiscountValue(e.target.value);
                     setIsPixManuallyOverridden(false);
                   }}
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                  {discountMode === "value" ? "R$" : "%"}
+                  {generalDiscountMode === "value" ? "R$" : "%"}
                 </span>
               </div>
-              {discountAmount > 0 && (
+              {generalDiscountAmount > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Desconto aplicado: R$ {discountAmount.toFixed(2)}
+                  Desconto geral: R$ {generalDiscountAmount.toFixed(2)}
                 </p>
               )}
             </div>
+
+            {/* Packaging/Extras Discount Section */}
+            <div className="space-y-3 p-4 rounded-lg bg-orange-500/5 border border-orange-500/20">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Box className="w-4 h-4" />
+                Desconto Embalagem/Extras (R$)
+              </Label>
+              <p className="text-xs text-muted-foreground -mt-1">
+                Desconto sobre o custo de embalagem e extras (não cobrar do cliente)
+              </p>
+              <div className="relative">
+                <Input 
+                  type="number" 
+                  step="0.01"
+                  min="0"
+                  max={basketCosts.packagingCost + basketCosts.totalExtrasCost}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  className="input-styled min-h-[44px] pr-10"
+                  value={packagingDiscountValue}
+                  onChange={(e) => {
+                    setPackagingDiscountValue(e.target.value);
+                    setIsPixManuallyOverridden(false);
+                  }}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                  R$
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Máximo: R$ {(basketCosts.packagingCost + basketCosts.totalExtrasCost).toFixed(2)} (emb: R$ {basketCosts.packagingCost.toFixed(2)} + extras: R$ {basketCosts.totalExtrasCost.toFixed(2)})
+              </p>
+            </div>
+
+            {/* Total Discount Summary */}
+            {totalDiscountAmount > 0 && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                <span className="text-sm font-medium">Total de Descontos</span>
+                <span className="text-sm font-bold text-orange-600">- R$ {totalDiscountAmount.toFixed(2)}</span>
+              </div>
+            )}
 
             {/* Pix Price */}
             <div className="grid grid-cols-2 gap-4">
@@ -921,27 +980,39 @@ function ProductFormContent({
               : "bg-success/5 border-success/20"
           )}>
             <div className="space-y-3">
-              {/* Row 1: Costs */}
+              {/* Row 1: Product values */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground text-xs">Custo Total (interno)</p>
-                  <p className="font-medium">R$ {basketCosts.totalCost.toFixed(2)}</p>
+                  <p className="text-muted-foreground text-xs">Valor dos Produtos (Pix)</p>
+                  <p className="font-medium text-blue-600">R$ {itemsPrice.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Preço Base (soma Pix itens)</p>
-                  <p className="font-medium text-blue-600">R$ {baseCustomerPrice.toFixed(2)}</p>
+                  <p className="text-muted-foreground text-xs">Embalagem + Extras</p>
+                  <p className="font-medium">R$ {(basketCosts.packagingCost + basketCosts.totalExtrasCost).toFixed(2)}</p>
+                </div>
+              </div>
+
+              {/* Row 2: Base price and discounts */}
+              <div className="grid grid-cols-2 gap-4 text-sm border-t border-border/50 pt-3">
+                <div>
+                  <p className="text-muted-foreground text-xs">Preço Base do Presente</p>
+                  <p className="font-bold text-primary">R$ {baseGiftPrice.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Total Descontos</p>
+                  <p className="font-medium text-orange-600">- R$ {totalDiscountAmount.toFixed(2)}</p>
                 </div>
               </div>
               
-              {/* Row 2: Discount and Final Price */}
+              {/* Row 3: Final Pix and Cost */}
               <div className="grid grid-cols-2 gap-4 text-sm border-t border-border/50 pt-3">
                 <div>
-                  <p className="text-muted-foreground text-xs">Desconto aplicado</p>
-                  <p className="font-medium text-orange-600">- R$ {discountAmount.toFixed(2)}</p>
+                  <p className="text-muted-foreground text-xs">Preço Pix Final</p>
+                  <p className="font-bold text-lg text-primary">R$ {pricePix.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Preço Pix final</p>
-                  <p className="font-bold text-primary">R$ {pricePix.toFixed(2)}</p>
+                  <p className="text-muted-foreground text-xs">Custo Total (interno)</p>
+                  <p className="font-medium">R$ {basketCosts.totalCost.toFixed(2)}</p>
                 </div>
               </div>
 
