@@ -4,6 +4,15 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
 
 export type ProductType = "item" | "packaging" | "extra" | "basket";
+export type GiftType = "presente" | "cesta" | "kit" | "mini_presente" | "lembrancinha";
+
+export const GIFT_TYPE_LABELS: Record<GiftType, string> = {
+  presente: "Presente",
+  cesta: "Cesta",
+  kit: "Kit",
+  mini_presente: "Mini Presente",
+  lembrancinha: "Lembrancinha",
+};
 
 export interface Product {
   id: string;
@@ -25,6 +34,7 @@ export interface Product {
   productType: ProductType;
   packagingProductId?: string;
   packagingQty: number;
+  giftType?: GiftType;
 }
 
 export interface ProductFormData {
@@ -44,6 +54,7 @@ export interface ProductFormData {
   productType: ProductType;
   packagingProductId?: string;
   packagingQty: number;
+  giftType?: GiftType;
 }
 
 export function useProducts() {
@@ -86,6 +97,7 @@ export function useProducts() {
         productType: (p.product_type as ProductType) || "item",
         packagingProductId: p.packaging_product_id || undefined,
         packagingQty: p.packaging_qty || 1,
+        giftType: (p.gift_type as GiftType) || undefined,
       }));
 
       setProducts(mapped);
@@ -127,6 +139,7 @@ export function useProducts() {
         product_type: data.productType || "item",
         packaging_product_id: data.packagingProductId || null,
         packaging_qty: data.packagingQty || 1,
+        gift_type: data.giftType || null,
       }).select('id').single();
 
       if (error) throw error;
@@ -169,6 +182,7 @@ export function useProducts() {
           product_type: data.productType || "item",
           packaging_product_id: data.packagingProductId || null,
           packaging_qty: data.packagingQty || 1,
+          gift_type: data.giftType || null,
         })
         .eq("id", id);
 

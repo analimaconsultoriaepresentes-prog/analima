@@ -7,7 +7,7 @@ import { ProductForm, type BasketItemInput, type BasketExtraInput } from "@/comp
 import { StockEntryModal } from "@/components/products/StockEntryModal";
 import { ProductFilters, type ProductFiltersState } from "@/components/products/ProductFilters";
 import { KitCalculator } from "@/components/products/KitCalculator";
-import { useProducts, type Product, type ProductFormData } from "@/hooks/useProducts";
+import { useProducts, type Product, type ProductFormData, GIFT_TYPE_LABELS } from "@/hooks/useProducts";
 import { useBaskets } from "@/hooks/useBaskets";
 import {
   DropdownMenu,
@@ -372,7 +372,7 @@ export default function Produtos() {
                 {product.isBasket && (
                   <span className="alert-badge bg-primary/10 text-primary flex items-center gap-1">
                     <ShoppingBasket className="w-3 h-3" />
-                    Cesta
+                    {product.giftType ? GIFT_TYPE_LABELS[product.giftType] : "Cesta"}
                   </span>
                 )}
                 <span className={cn("alert-badge", categoryColors[product.category])}>
