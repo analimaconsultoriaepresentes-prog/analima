@@ -47,7 +47,8 @@ import {
 } from "@/components/ui/popover";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BasketCompositionForm, type BasketItemInput, type BasketExtraInput } from "./BasketCompositionForm";
-import type { Product, ProductFormData, ProductType } from "@/hooks/useProducts";
+import type { Product, ProductFormData, ProductType, GiftType } from "@/hooks/useProducts";
+import { GIFT_TYPE_LABELS } from "@/hooks/useProducts";
 
 const productSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
@@ -68,6 +69,7 @@ const productSchema = z.object({
   productType: z.enum(["item", "packaging", "extra", "basket"]),
   packagingProductId: z.string().optional(),
   packagingQty: z.coerce.number().int().min(1, "Quantidade deve ser maior que zero"),
+  giftType: z.enum(["presente", "cesta", "kit", "mini_presente", "lembrancinha"]).optional(),
 }).refine((data) => {
   // For baskets, prices just need to be > 0
   if (data.isBasket) {
@@ -328,7 +330,43 @@ function ProductFormContent({
           )}
         />
 
-        {/* Product Type Selector - Only show for non-baskets */}
+        {/* Tipo de Presente - Only show for baskets */}
+        {isBasket && (
+          <FormField
+            control={form.control}
+            name="giftType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2">
+                  <Gift className="w-4 h-4" />
+                  Tipo de Presente
+                </FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  value={field.value || ""}
+                >
+                  <FormControl>
+                    <SelectTrigger className="input-styled min-h-[44px]">
+                      <SelectValue placeholder="Selecione o tipo de presente" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {(Object.entries(GIFT_TYPE_LABELS) as [GiftType, string][]).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription className="text-xs">
+                  Define como o produto aparece na listagem e vendas
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
         {!isBasket && (
           <FormField
             control={form.control}
@@ -896,6 +934,7 @@ export function ProductForm({
         productType: editProduct.productType || "item",
         packagingProductId: editProduct.packagingProductId,
         packagingQty: editProduct.packagingQty || 1,
+        giftType: editProduct.giftType,
       });
     } else {
       form.reset({
@@ -913,6 +952,7 @@ export function ProductForm({
         productType: "item",
         packagingProductId: undefined,
         packagingQty: 1,
+        giftType: undefined,
       });
     }
   }, [editProduct, form]);

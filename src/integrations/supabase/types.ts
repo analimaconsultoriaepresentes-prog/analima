@@ -241,6 +241,7 @@ export type Database = {
           cycle: number | null
           deleted_at: string | null
           expiry_date: string | null
+          gift_type: string | null
           id: string
           is_active: boolean
           is_basket: boolean
@@ -265,6 +266,7 @@ export type Database = {
           cycle?: number | null
           deleted_at?: string | null
           expiry_date?: string | null
+          gift_type?: string | null
           id?: string
           is_active?: boolean
           is_basket?: boolean
@@ -289,6 +291,7 @@ export type Database = {
           cycle?: number | null
           deleted_at?: string | null
           expiry_date?: string | null
+          gift_type?: string | null
           id?: string
           is_active?: boolean
           is_basket?: boolean
