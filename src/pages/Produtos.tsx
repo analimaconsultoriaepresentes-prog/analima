@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Search, Filter, Package, AlertTriangle, Pencil, Trash2, MoreVertical, Loader2, Gift, PackagePlus, ShoppingBasket, Archive, RotateCcw, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ const categoryColors: Record<string, string> = {
 };
 
 export default function Produtos() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -44,6 +46,7 @@ export default function Produtos() {
   const [stockEntryProduct, setStockEntryProduct] = useState<Product | null>(null);
   const [editBasketItems, setEditBasketItems] = useState<BasketItemInput[]>([]);
   const [editBasketExtras, setEditBasketExtras] = useState<BasketExtraInput[]>([]);
+  const [openAsGift, setOpenAsGift] = useState(false);
   const [filters, setFilters] = useState<ProductFiltersState>({
     categories: [],
     origins: [],
@@ -54,6 +57,16 @@ export default function Produtos() {
 
   const { products, loading, addProduct, updateProduct, deleteProduct, archiveProduct, reactivateProduct, checkProductDependencies, restoreStock, refetch } = useProducts();
   const { saveBasketItems, saveBasketExtras, fetchBasketItems, fetchBasketExtras } = useBaskets();
+
+  // Handle openGift query param from Getting Started guide
+  useEffect(() => {
+    if (searchParams.get('openGift') === 'true') {
+      setOpenAsGift(true);
+      setIsFormOpen(true);
+      // Remove the query param
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Filter out baskets and archived products for basket composition
   const availableProductsForBasket = useMemo(() => {
@@ -250,6 +263,7 @@ export default function Produtos() {
       setEditProduct(null);
       setEditBasketItems([]);
       setEditBasketExtras([]);
+      setOpenAsGift(false);
     }
   };
 
@@ -492,6 +506,7 @@ export default function Produtos() {
         availableProducts={availableProductsForBasket}
         initialBasketItems={editBasketItems}
         initialBasketExtras={editBasketExtras}
+        defaultAsGift={openAsGift}
       />
 
       {/* Delete Confirmation Dialog */}

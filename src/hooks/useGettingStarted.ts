@@ -1,61 +1,133 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useNavigate } from 'react-router-dom';
+import { Package, Users, Gift, ShoppingCart, LucideIcon } from 'lucide-react';
 
 export interface GettingStartedStep {
   key: string;
   title: string;
   description: string;
   completed: boolean;
+  route?: string;
+  action?: 'navigate' | 'openGiftModal';
+  buttonLabel: string;
+  icon: LucideIcon;
 }
 
-const STEPS: Omit<GettingStartedStep, 'completed'>[] = [
-  {
-    key: 'settings',
-    title: 'Configurações iniciais',
-    description: 'Configure o nome da sua loja, logo e preferências de alertas.',
-  },
+interface StepDefinition {
+  key: string;
+  title: string;
+  description: string;
+  route?: string;
+  action: 'navigate' | 'openGiftModal';
+  buttonLabel: string;
+  icon: LucideIcon;
+}
+
+const STEPS: StepDefinition[] = [
   {
     key: 'products',
-    title: 'Cadastro de produtos',
-    description: 'Adicione os produtos que você vende no seu estoque.',
-  },
-  {
-    key: 'packaging',
-    title: 'Cadastro de embalagens e extras',
-    description: 'Cadastre embalagens, laços e itens extras para composição.',
-  },
-  {
-    key: 'baskets',
-    title: 'Criação de presentes/cestas',
-    description: 'Monte cestas e kits combinando produtos e embalagens.',
+    title: 'Cadastrar produtos',
+    description: 'Adicione os produtos que você vende.',
+    route: '/produtos',
+    action: 'navigate',
+    buttonLabel: 'Ir para Produtos',
+    icon: Package,
   },
   {
     key: 'customers',
-    title: 'Cadastro de clientes',
-    description: 'Registre seus clientes para acompanhar vendas e aniversários.',
+    title: 'Cadastrar clientes',
+    description: 'Registre seus clientes para acompanhar vendas.',
+    route: '/clientes',
+    action: 'navigate',
+    buttonLabel: 'Ir para Clientes',
+    icon: Users,
+  },
+  {
+    key: 'gift',
+    title: 'Criar um presente',
+    description: 'Monte uma cesta ou kit combinando produtos.',
+    action: 'openGiftModal',
+    buttonLabel: 'Criar Presente',
+    icon: Gift,
   },
   {
     key: 'sales',
-    title: 'Registro de vendas',
-    description: 'Registre sua primeira venda e acompanhe o faturamento.',
+    title: 'Registrar uma venda',
+    description: 'Registre sua primeira venda.',
+    route: '/vendas',
+    action: 'navigate',
+    buttonLabel: 'Ir para Vendas',
+    icon: ShoppingCart,
   },
 ];
 
 export const useGettingStarted = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-  const { data: progress = [], isLoading: progressLoading } = useQuery({
-    queryKey: ['getting-started-progress', user?.id],
+  // Check if user has products
+  const { data: hasProducts = false } = useQuery({
+    queryKey: ['has-products', user?.id],
     queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from('getting_started_progress')
-        .select('step_key')
+      if (!user?.id) return false;
+      const { count, error } = await supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('product_type', 'item')
+        .is('deleted_at', null);
+      if (error) return false;
+      return (count || 0) > 0;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Check if user has customers
+  const { data: hasCustomers = false } = useQuery({
+    queryKey: ['has-customers', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { count, error } = await supabase
+        .from('customers')
+        .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id);
-      if (error) throw error;
-      return data.map((d) => d.step_key);
+      if (error) return false;
+      return (count || 0) > 0;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Check if user has gifts/baskets
+  const { data: hasGifts = false } = useQuery({
+    queryKey: ['has-gifts', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { count, error } = await supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('product_type', 'gift')
+        .is('deleted_at', null);
+      if (error) return false;
+      return (count || 0) > 0;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Check if user has sales
+  const { data: hasSales = false } = useQuery({
+    queryKey: ['has-sales', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { count, error } = await supabase
+        .from('sales')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      if (error) return false;
+      return (count || 0) > 0;
     },
     enabled: !!user?.id,
   });
@@ -73,34 +145,6 @@ export const useGettingStarted = () => {
       return data;
     },
     enabled: !!user?.id,
-  });
-
-  const completeStepMutation = useMutation({
-    mutationFn: async (stepKey: string) => {
-      if (!user?.id) throw new Error('User not authenticated');
-      const { error } = await supabase
-        .from('getting_started_progress')
-        .insert({ user_id: user.id, step_key: stepKey });
-      if (error && error.code !== '23505') throw error; // Ignore duplicate key
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['getting-started-progress'] });
-    },
-  });
-
-  const uncompleteStepMutation = useMutation({
-    mutationFn: async (stepKey: string) => {
-      if (!user?.id) throw new Error('User not authenticated');
-      const { error } = await supabase
-        .from('getting_started_progress')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('step_key', stepKey);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['getting-started-progress'] });
-    },
   });
 
   const hideGuideMutation = useMutation({
@@ -130,14 +174,39 @@ export const useGettingStarted = () => {
     },
   });
 
+  // Build steps with auto-detected completion
+  const getStepCompletion = (key: string): boolean => {
+    switch (key) {
+      case 'products':
+        return hasProducts;
+      case 'customers':
+        return hasCustomers;
+      case 'gift':
+        return hasGifts;
+      case 'sales':
+        return hasSales;
+      default:
+        return false;
+    }
+  };
+
   const steps: GettingStartedStep[] = STEPS.map((step) => ({
     ...step,
-    completed: progress.includes(step.key),
+    completed: getStepCompletion(step.key),
   }));
 
   const completedCount = steps.filter((s) => s.completed).length;
   const allCompleted = completedCount === steps.length;
   const isHidden = settings?.hidden ?? false;
+
+  // Navigation handler
+  const handleStepAction = (step: GettingStartedStep, openGiftModal?: () => void) => {
+    if (step.action === 'navigate' && step.route) {
+      navigate(step.route);
+    } else if (step.action === 'openGiftModal' && openGiftModal) {
+      openGiftModal();
+    }
+  };
 
   return {
     steps,
@@ -145,16 +214,8 @@ export const useGettingStarted = () => {
     totalSteps: steps.length,
     allCompleted,
     isHidden,
-    isLoading: progressLoading || settingsLoading,
-    completeStep: completeStepMutation.mutate,
-    uncompleteStep: uncompleteStepMutation.mutate,
-    toggleStep: (stepKey: string, completed: boolean) => {
-      if (completed) {
-        uncompleteStepMutation.mutate(stepKey);
-      } else {
-        completeStepMutation.mutate(stepKey);
-      }
-    },
+    isLoading: settingsLoading,
+    handleStepAction,
     hideGuide: () => hideGuideMutation.mutate(true),
     showGuide: () => hideGuideMutation.mutate(false),
   };

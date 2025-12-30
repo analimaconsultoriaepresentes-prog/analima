@@ -1,12 +1,17 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { useGettingStarted } from '@/hooks/useGettingStarted';
-import { CheckCircle2, EyeOff, RotateCcw, Sparkles } from 'lucide-react';
+import { CheckCircle2, Circle, EyeOff, RotateCcw, Sparkles, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
-export const GettingStartedCard = () => {
+interface GettingStartedCardProps {
+  onOpenGiftModal?: () => void;
+}
+
+export const GettingStartedCard = ({ onOpenGiftModal }: GettingStartedCardProps) => {
+  const navigate = useNavigate();
   const {
     steps,
     completedCount,
@@ -14,7 +19,7 @@ export const GettingStartedCard = () => {
     allCompleted,
     isHidden,
     isLoading,
-    toggleStep,
+    handleStepAction,
     hideGuide,
     showGuide,
   } = useGettingStarted();
@@ -45,12 +50,22 @@ export const GettingStartedCard = () => {
 
   const progressPercent = (completedCount / totalSteps) * 100;
 
+  const handleAction = (step: typeof steps[0]) => {
+    if (step.action === 'openGiftModal' && onOpenGiftModal) {
+      onOpenGiftModal();
+    } else if (step.action === 'navigate' && step.route) {
+      navigate(step.route);
+    }
+  };
+
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
             <CardTitle className="text-lg">Comece por aqui</CardTitle>
           </div>
           {!allCompleted && (
@@ -66,27 +81,27 @@ export const GettingStartedCard = () => {
           )}
         </div>
         <CardDescription>
-          Siga os passos abaixo para configurar seu sistema
+          Siga os passos abaixo para começar a usar o sistema
         </CardDescription>
         <div className="mt-3 space-y-1">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Progresso</span>
-            <span className="font-medium">
-              {completedCount} de {totalSteps}
+            <span className="font-medium text-primary">
+              {completedCount} de {totalSteps} concluídos
             </span>
           </div>
           <Progress value={progressPercent} className="h-2" />
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2 pb-4">
         {allCompleted ? (
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+              <CheckCircle2 className="h-7 w-7 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="font-medium text-green-600 dark:text-green-400">
-                Tudo pronto! Sistema configurado 🎉
+              <p className="text-lg font-medium text-green-600 dark:text-green-400">
+                Tudo pronto! 🎉
               </p>
               <p className="text-sm text-muted-foreground">
                 Você completou todos os passos iniciais
@@ -98,40 +113,68 @@ export const GettingStartedCard = () => {
           </div>
         ) : (
           <div className="space-y-2">
-            {steps.map((step) => (
-              <div
-                key={step.key}
-                className={cn(
-                  'flex items-start gap-3 rounded-lg border p-3 transition-colors',
-                  step.completed
-                    ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30'
-                    : 'border-border bg-card hover:bg-accent/50'
-                )}
-              >
-                <Checkbox
-                  id={`step-${step.key}`}
-                  checked={step.completed}
-                  onCheckedChange={() => toggleStep(step.key, step.completed)}
-                  className="mt-0.5"
-                />
-                <label
-                  htmlFor={`step-${step.key}`}
-                  className="flex-1 cursor-pointer"
+            {steps.map((step, index) => {
+              const StepIcon = step.icon;
+              return (
+                <div
+                  key={step.key}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border p-3 transition-all',
+                    step.completed
+                      ? 'border-green-200 bg-green-50/50 dark:border-green-900/50 dark:bg-green-950/20'
+                      : 'border-border bg-card hover:border-primary/30 hover:bg-accent/30'
+                  )}
                 >
-                  <p
-                    className={cn(
-                      'font-medium leading-tight',
-                      step.completed && 'line-through opacity-70'
+                  {/* Step indicator */}
+                  <div className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                    step.completed
+                      ? 'bg-green-100 dark:bg-green-900/40'
+                      : 'bg-muted'
+                  )}>
+                    {step.completed ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    ) : (
+                      <StepIcon className="h-4 w-4 text-muted-foreground" />
                     )}
-                  >
-                    {step.title}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {step.description}
-                  </p>
-                </label>
-              </div>
-            ))}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={cn(
+                        'font-medium leading-tight',
+                        step.completed && 'text-green-700 dark:text-green-400'
+                      )}
+                    >
+                      {step.title}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {step.description}
+                    </p>
+                  </div>
+
+                  {/* Action button */}
+                  {!step.completed && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 gap-1.5 text-xs"
+                      onClick={() => handleAction(step)}
+                    >
+                      {step.buttonLabel}
+                      <ArrowRight className="h-3 w-3" />
+                    </Button>
+                  )}
+
+                  {step.completed && (
+                    <span className="shrink-0 text-xs font-medium text-green-600 dark:text-green-400">
+                      Concluído
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>

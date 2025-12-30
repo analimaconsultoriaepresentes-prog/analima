@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package } from "lucide-react";
+import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useStore, AlertSettings, PackagingCosts } from "@/hooks/useStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useGettingStarted } from "@/hooks/useGettingStarted";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
@@ -28,6 +29,7 @@ export default function Configuracoes() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo } = useStore();
+  const { isHidden, showGuide, allCompleted } = useGettingStarted();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [storeName, setStoreName] = useState("");
@@ -288,6 +290,34 @@ export default function Configuracoes() {
               </div>
             </div>
           </div>
+
+          {/* Getting Started Guide Option */}
+          {isHidden && (
+            <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Guia de Primeiros Passos
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                O guia de primeiros passos está oculto. Você pode exibi-lo novamente no Painel.
+              </p>
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => {
+                  showGuide();
+                  toast({
+                    title: "Guia reativado",
+                    description: "O guia de primeiros passos está visível novamente no Painel.",
+                  });
+                  navigate('/');
+                }}
+              >
+                <Sparkles className="w-4 h-4" />
+                Ver Guia Novamente
+              </Button>
+            </div>
+          )}
 
           <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">

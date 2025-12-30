@@ -100,6 +100,7 @@ interface ProductFormProps {
   availableProducts?: Product[];
   initialBasketItems?: BasketItemInput[];
   initialBasketExtras?: BasketExtraInput[];
+  defaultAsGift?: boolean;
 }
 
 // Discount mode removed - now only packaging discount in R$
@@ -1099,6 +1100,7 @@ export function ProductForm({
   availableProducts = [],
   initialBasketItems = [],
   initialBasketExtras = [],
+  defaultAsGift = false,
 }: ProductFormProps) {
   const isMobile = useIsMobile();
   
@@ -1123,7 +1125,7 @@ export function ProductForm({
     },
   });
 
-  // Reset form when editProduct changes
+  // Reset form when editProduct changes or when opening as gift
   useEffect(() => {
     if (editProduct) {
       form.reset({
@@ -1146,6 +1148,27 @@ export function ProductForm({
         giftType: editProduct.giftType,
         packagingDiscount: editProduct.packagingDiscount || 0,
       });
+    } else if (defaultAsGift && open) {
+      // Open as gift/basket from Getting Started
+      form.reset({
+        name: "",
+        brand: "",
+        category: "Presente",
+        costPrice: 0,
+        salePrice: 0,
+        pricePix: 0,
+        priceCard: 0,
+        stock: 0,
+        origin: "purchased",
+        cycle: undefined,
+        isBasket: true,
+        packagingCost: 0,
+        productType: "basket",
+        packagingProductId: undefined,
+        packagingQty: 1,
+        giftType: "presente",
+        packagingDiscount: 0,
+      });
     } else {
       form.reset({
         name: "",
@@ -1166,7 +1189,7 @@ export function ProductForm({
         packagingDiscount: 0,
       });
     }
-  }, [editProduct, form]);
+  }, [editProduct, form, defaultAsGift, open]);
 
   const handleClose = () => {
     form.reset();
