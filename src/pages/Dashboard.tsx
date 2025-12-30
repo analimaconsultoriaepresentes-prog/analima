@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { DollarSign, TrendingUp, Receipt, Package, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AlertsCard } from "@/components/dashboard/AlertsCard";
@@ -9,6 +11,7 @@ import { GettingStartedCard } from "@/components/dashboard/GettingStartedCard";
 import { useDashboardData } from "@/hooks/useDashboardData";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const {
     revenueToday,
     revenueMonth,
@@ -24,6 +27,11 @@ export default function Dashboard() {
     loading,
   } = useDashboardData();
 
+  const handleOpenGiftModal = () => {
+    // Navigate to products page with query param to open gift modal
+    navigate('/produtos?openGift=true');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -35,7 +43,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Getting Started Guide */}
-      <GettingStartedCard />
+      <GettingStartedCard onOpenGiftModal={handleOpenGiftModal} />
 
       {/* Header */}
       <div className="animate-fade-in">
