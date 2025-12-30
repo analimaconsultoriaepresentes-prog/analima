@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Package, Percent, Gift, ShoppingBasket, Box, Tag, Info } from "lucide-react";
+import { CalendarIcon, Package, Percent, Gift, ShoppingBasket, Box, Tag, Info, AlertTriangle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,8 +45,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { BasketCompositionForm, type BasketItemInput, type BasketExtraInput } from "./BasketCompositionForm";
+import { BasketCompositionForm, calculateBaseCustomerPrice, type BasketItemInput, type BasketExtraInput } from "./BasketCompositionForm";
 import type { Product, ProductFormData, ProductType, GiftType } from "@/hooks/useProducts";
 import { GIFT_TYPE_LABELS } from "@/hooks/useProducts";
 
@@ -75,7 +76,7 @@ const productSchema = z.object({
   if (data.productType === "packaging" || data.productType === "extra") {
     return true;
   }
-  // For baskets, prices need to be > 0
+  // For baskets, prices just need to be > 0 (no cost validation - allow negative profit)
   if (data.isBasket) {
     return data.pricePix > 0 && data.priceCard > 0;
   }
@@ -86,7 +87,7 @@ const productSchema = z.object({
   // For purchased products, require prices > cost price
   return data.pricePix > data.costPrice && data.priceCard > data.costPrice;
 }, {
-  message: "Preços de venda devem ser maiores que o preço de custo",
+  message: "Preços de venda devem ser maiores que zero",
   path: ["pricePix"],
 });
 
@@ -99,6 +100,8 @@ interface ProductFormProps {
   initialBasketItems?: BasketItemInput[];
   initialBasketExtras?: BasketExtraInput[];
 }
+
+type DiscountMode = "value" | "percent";
 
 function ProductFormContent({ 
   form, 
@@ -117,18 +120,24 @@ function ProductFormContent({
   initialBasketItems?: BasketItemInput[];
   initialBasketExtras?: BasketExtraInput[];
 }) {
+  // For non-basket products: margin-based calculation
   const [desiredMargin, setDesiredMargin] = useState<string>("");
+  
+  // For basket products: discount-based calculation
+  const [discountMode, setDiscountMode] = useState<DiscountMode>("value");
+  const [discountValue, setDiscountValue] = useState<string>("");
+  const [isPixManuallyOverridden, setIsPixManuallyOverridden] = useState(false);
+  
   const [basketItems, setBasketItems] = useState<BasketItemInput[]>([]);
   const [basketExtras, setBasketExtras] = useState<BasketExtraInput[]>([]);
   const [basketPackagingProductId, setBasketPackagingProductId] = useState<string | undefined>();
   const [basketPackagingQty, setBasketPackagingQty] = useState<number>(1);
   
-  // Track if the change is from margin input to avoid loops
+  // Track if the change is from margin input to avoid loops (for non-basket)
   const isMarginDriven = useRef(false);
   const isPixDriven = useRef(false);
   
   const costPrice = form.watch("costPrice");
-  const salePrice = form.watch("salePrice");
   const pricePix = form.watch("pricePix");
   const priceCard = form.watch("priceCard");
   const origin = form.watch("origin");
@@ -161,11 +170,8 @@ function ProductFormContent({
     if (editProduct?.isBasket) {
       setBasketPackagingProductId(editProduct.packagingProductId);
       setBasketPackagingQty(editProduct.packagingQty || 1);
-      // Initialize margin from existing prices
-      if (editProduct.costPrice > 0 && editProduct.pricePix > editProduct.costPrice) {
-        const existingMargin = ((editProduct.pricePix - editProduct.costPrice) / editProduct.costPrice) * 100;
-        setDesiredMargin(existingMargin.toFixed(1));
-      }
+      // Mark as manually overridden since we're loading existing prices
+      setIsPixManuallyOverridden(true);
     } else {
       setBasketPackagingProductId(undefined);
       setBasketPackagingQty(1);
@@ -187,6 +193,27 @@ function ProductFormContent({
     return { totalItemsCost, packagingCost, totalExtrasCost, totalCost };
   }, [basketItems, basketExtras, selectedPackaging, basketPackagingQty]);
 
+  // Calculate base customer price (sum of Pix prices of items)
+  const baseCustomerPrice = useMemo(() => {
+    return calculateBaseCustomerPrice(basketItems);
+  }, [basketItems]);
+
+  // Calculate discount amount
+  const discountAmount = useMemo(() => {
+    const val = parseFloat(discountValue) || 0;
+    if (discountMode === "value") {
+      return val;
+    } else {
+      // Percentage discount
+      return (baseCustomerPrice * val) / 100;
+    }
+  }, [discountValue, discountMode, baseCustomerPrice]);
+
+  // Calculate suggested Pix price (base - discount)
+  const suggestedPixPrice = useMemo(() => {
+    return Math.max(0, baseCustomerPrice - discountAmount);
+  }, [baseCustomerPrice, discountAmount]);
+
   // Update form values when basket composition changes (only costs, not prices)
   useEffect(() => {
     if (isBasket) {
@@ -194,9 +221,16 @@ function ProductFormContent({
       form.setValue("packagingCost", basketCosts.packagingCost, { shouldValidate: true });
       form.setValue("packagingProductId", basketPackagingProductId, { shouldValidate: true });
       form.setValue("packagingQty", basketPackagingQty, { shouldValidate: true });
-      // Prices (pricePix, priceCard) are NOT auto-calculated - they are 100% manual
     }
   }, [isBasket, basketCosts, basketPackagingProductId, basketPackagingQty, form]);
+
+  // Auto-update Pix price when discount changes (only if not manually overridden)
+  useEffect(() => {
+    if (isBasket && !isPixManuallyOverridden && baseCustomerPrice > 0) {
+      form.setValue("pricePix", suggestedPixPrice, { shouldValidate: true });
+      form.setValue("salePrice", suggestedPixPrice, { shouldValidate: true });
+    }
+  }, [isBasket, suggestedPixPrice, isPixManuallyOverridden, baseCustomerPrice, form]);
 
   // Reset basket items when switching to non-basket (only for new products)
   useEffect(() => {
@@ -205,6 +239,8 @@ function ProductFormContent({
       setBasketExtras([]);
       setBasketPackagingProductId(undefined);
       setBasketPackagingQty(1);
+      setDiscountValue("");
+      setIsPixManuallyOverridden(false);
     }
   }, [isBasket, editProduct]);
 
@@ -225,32 +261,35 @@ function ProductFormContent({
     }
   }, [isGift, isBasket, isPackagingOrExtra, form]);
   
-  // Calculate profit for display
+  // Calculate profit for display (non-basket)
   const profitPix = pricePix > costPrice ? (pricePix - costPrice).toFixed(2) : "0.00";
   const profitCard = priceCard > costPrice ? (priceCard - costPrice).toFixed(2) : "0.00";
 
-  // Calculate % when margin is typed (for Pix only)
-  // Pix = cost * (1 + margin/100)
+  // Calculate basket profit (can be negative)
+  const basketProfitPix = pricePix - basketCosts.totalCost;
+  const basketMarginPix = basketCosts.totalCost > 0 ? (basketProfitPix / basketCosts.totalCost) * 100 : 0;
+  const isNegativeProfit = basketProfitPix < 0;
+
+  // Calculate % when margin is typed (for Pix only - non-basket products)
   useEffect(() => {
-    if (isMarginDriven.current) {
+    if (isMarginDriven.current && !isBasket) {
       isMarginDriven.current = false;
       
       const marginValue = parseFloat(desiredMargin);
-      const effectiveCost = isBasket ? basketCosts.totalCost : costPrice;
       
-      if (!isNaN(marginValue) && marginValue >= 0 && effectiveCost > 0) {
-        const calculatedPix = effectiveCost * (1 + marginValue / 100);
+      if (!isNaN(marginValue) && marginValue >= 0 && costPrice > 0) {
+        const calculatedPix = costPrice * (1 + marginValue / 100);
         const roundedPix = Math.round(calculatedPix * 100) / 100;
         form.setValue("pricePix", roundedPix, { shouldValidate: true });
         form.setValue("salePrice", roundedPix, { shouldValidate: true });
       }
     }
-  }, [desiredMargin, costPrice, basketCosts.totalCost, isBasket, form]);
+  }, [desiredMargin, costPrice, isBasket, form]);
 
-  // Initialize desired margin when editing a product
+  // Initialize desired margin when editing a non-basket product
   useEffect(() => {
-    if (editProduct) {
-      const effectiveCost = editProduct.isBasket ? editProduct.costPrice : editProduct.costPrice;
+    if (editProduct && !editProduct.isBasket) {
+      const effectiveCost = editProduct.costPrice;
       const pix = editProduct.pricePix || editProduct.salePrice;
       if (effectiveCost > 0 && pix > effectiveCost) {
         const calculatedMargin = ((pix - effectiveCost) / effectiveCost * 100).toFixed(1);
@@ -259,22 +298,35 @@ function ProductFormContent({
     }
   }, [editProduct]);
 
-  // Handle Pix price change - calculate margin from it
+  // Handle Pix price change - for non-basket products
   const handlePixPriceChange = (value: number) => {
     isPixDriven.current = true;
     form.setValue("pricePix", value, { shouldValidate: true });
     form.setValue("salePrice", value, { shouldValidate: true });
     
-    const effectiveCost = isBasket ? basketCosts.totalCost : costPrice;
-    if (effectiveCost > 0 && value > 0) {
-      const newMargin = ((value - effectiveCost) / effectiveCost * 100).toFixed(1);
+    if (costPrice > 0 && value > 0) {
+      const newMargin = ((value - costPrice) / costPrice * 100).toFixed(1);
       setDesiredMargin(newMargin);
-    } else if (effectiveCost === 0) {
+    } else if (costPrice === 0) {
       setDesiredMargin("—");
     }
   };
 
-  // Handle margin change - calculate Pix from it
+  // Handle manual Pix price change for baskets
+  const handleBasketPixPriceChange = (value: number) => {
+    setIsPixManuallyOverridden(true);
+    form.setValue("pricePix", value, { shouldValidate: true });
+    form.setValue("salePrice", value, { shouldValidate: true });
+  };
+
+  // Recalculate Pix from discount
+  const handleRecalculatePix = () => {
+    setIsPixManuallyOverridden(false);
+    form.setValue("pricePix", suggestedPixPrice, { shouldValidate: true });
+    form.setValue("salePrice", suggestedPixPrice, { shouldValidate: true });
+  };
+
+  // Handle margin change - for non-basket products
   const handleDesiredMarginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     isMarginDriven.current = true;
@@ -704,31 +756,60 @@ function ProductFormContent({
           </div>
         )}
 
-        {/* Preços de Venda for baskets */}
+        {/* Preços de Venda for baskets - New discount-based system */}
         {isBasket && (
           <>
-            {/* % de ganho (Pix) for baskets */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                % de ganho (Pix)
-              </label>
+            {/* Discount Section */}
+            <div className="space-y-3 p-4 rounded-lg bg-muted/30 border border-border/50">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Desconto para o Cliente</Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant={discountMode === "value" ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setDiscountMode("value")}
+                  >
+                    R$
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={discountMode === "percent" ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setDiscountMode("percent")}
+                  >
+                    %
+                  </Button>
+                </div>
+              </div>
               <div className="relative">
                 <Input 
-                  type="text" 
+                  type="number" 
+                  step={discountMode === "value" ? "0.01" : "1"}
+                  min="0"
                   inputMode="decimal"
-                  placeholder="Ex: 50" 
-                  className="input-styled min-h-[44px] pr-8"
-                  value={desiredMargin}
-                  onChange={handleDesiredMarginChange}
-                  disabled={basketCosts.totalCost === 0}
+                  placeholder={discountMode === "value" ? "0,00" : "0"}
+                  className="input-styled min-h-[44px] pr-10"
+                  value={discountValue}
+                  onChange={(e) => {
+                    setDiscountValue(e.target.value);
+                    setIsPixManuallyOverridden(false);
+                  }}
                 />
-                <Percent className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                  {discountMode === "value" ? "R$" : "%"}
+                </span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Calcula o Preço Pix automaticamente. Cartão é sempre manual.
-              </p>
+              {discountAmount > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Desconto aplicado: R$ {discountAmount.toFixed(2)}
+                </p>
+              )}
             </div>
 
+            {/* Pix Price */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -738,26 +819,45 @@ function ProductFormContent({
                     <FormLabel className="flex items-center gap-1.5">
                       💵 Pix / Dinheiro (R$)
                     </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01"
-                        min="0"
-                        inputMode="decimal"
-                        placeholder="0,00" 
-                        className="input-styled min-h-[44px]"
-                        value={field.value || ""}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value) || 0;
-                          handlePixPriceChange(value);
-                        }}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
-                    </FormControl>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01"
+                          min="0"
+                          inputMode="decimal"
+                          placeholder="0,00" 
+                          className={cn(
+                            "input-styled min-h-[44px]",
+                            isPixManuallyOverridden && "border-primary/50"
+                          )}
+                          value={field.value || ""}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            handleBasketPixPriceChange(value);
+                          }}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      {isPixManuallyOverridden && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-[44px] w-[44px] flex-shrink-0"
+                          onClick={handleRecalculatePix}
+                          title="Recalcular do desconto"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                     <FormDescription className="text-xs">
-                      Digitar ou usar % de ganho acima
+                      {isPixManuallyOverridden 
+                        ? "Valor editado manualmente" 
+                        : "Calculado: Base - Desconto"}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -786,7 +886,7 @@ function ProductFormContent({
                       />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      Preço para pagamento no cartão (manual)
+                      Sempre manual
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -812,36 +912,68 @@ function ProductFormContent({
           </div>
         )}
 
-        {/* Cálculos automáticos - for baskets */}
-        {isBasket && basketCosts.totalCost > 0 && pricePix > 0 && (
-          <div className="bg-success/5 border border-success/20 rounded-lg p-3 sm:p-4 animate-fade-in">
+        {/* Resumo completo for baskets */}
+        {isBasket && basketItems.length > 0 && (
+          <div className={cn(
+            "rounded-lg p-3 sm:p-4 animate-fade-in border",
+            isNegativeProfit 
+              ? "bg-destructive/5 border-destructive/20" 
+              : "bg-success/5 border-success/20"
+          )}>
             <div className="space-y-3">
+              {/* Row 1: Costs */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground text-xs">Custo Total</p>
+                  <p className="text-muted-foreground text-xs">Custo Total (interno)</p>
                   <p className="font-medium">R$ {basketCosts.totalCost.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Preço Pix</p>
-                  <p className="font-bold text-success">R$ {pricePix.toFixed(2)}</p>
+                  <p className="text-muted-foreground text-xs">Preço Base (soma Pix itens)</p>
+                  <p className="font-medium text-blue-600">R$ {baseCustomerPrice.toFixed(2)}</p>
                 </div>
               </div>
-              {pricePix > basketCosts.totalCost && (
-                <div className="border-t border-success/20 pt-3">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground text-xs">Lucro (Pix)</p>
-                      <p className="font-bold text-success">
-                        R$ {(pricePix - basketCosts.totalCost).toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground text-xs">Margem</p>
-                      <p className="font-bold text-success">
-                        {(((pricePix - basketCosts.totalCost) / basketCosts.totalCost) * 100).toFixed(1)}%
-                      </p>
-                    </div>
-                  </div>
+              
+              {/* Row 2: Discount and Final Price */}
+              <div className="grid grid-cols-2 gap-4 text-sm border-t border-border/50 pt-3">
+                <div>
+                  <p className="text-muted-foreground text-xs">Desconto aplicado</p>
+                  <p className="font-medium text-orange-600">- R$ {discountAmount.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Preço Pix final</p>
+                  <p className="font-bold text-primary">R$ {pricePix.toFixed(2)}</p>
+                </div>
+              </div>
+
+              {/* Row 3: Profit and Margin */}
+              <div className="grid grid-cols-2 gap-4 text-sm border-t border-border/50 pt-3">
+                <div>
+                  <p className="text-muted-foreground text-xs">Lucro (Pix)</p>
+                  <p className={cn(
+                    "font-bold",
+                    isNegativeProfit ? "text-destructive" : "text-success"
+                  )}>
+                    R$ {basketProfitPix.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Margem</p>
+                  <p className={cn(
+                    "font-bold",
+                    isNegativeProfit ? "text-destructive" : "text-success"
+                  )}>
+                    {basketMarginPix.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+
+              {/* Warning for negative profit */}
+              {isNegativeProfit && (
+                <div className="flex items-start gap-2 p-2 bg-destructive/10 rounded-md mt-2">
+                  <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-destructive">
+                    Atenção: preço Pix abaixo do custo total. Lucro negativo.
+                  </p>
                 </div>
               )}
             </div>

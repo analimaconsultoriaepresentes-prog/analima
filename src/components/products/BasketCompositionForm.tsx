@@ -21,6 +21,8 @@ export interface BasketItemInput {
   quantity: number;
   costPrice: number;
   salePrice: number;
+  // New: manual sale price override (when item has no pricePix)
+  manualSalePrice?: number;
 }
 
 export interface BasketExtraInput {
@@ -104,6 +106,15 @@ export function BasketCompositionForm({
 
   const totalCost = totalItemsCost + packagingCost + totalExtrasCost;
 
+  // Calculate base customer price (sum of Pix prices or manual prices)
+  const baseCustomerPrice = useMemo(() => {
+    return items.reduce((sum, item) => {
+      // Use manual price if set, otherwise use salePrice (which is pricePix from product)
+      const priceToUse = item.manualSalePrice !== undefined ? item.manualSalePrice : item.salePrice;
+      return sum + priceToUse * item.quantity;
+    }, 0);
+  }, [items]);
+
   // Handlers for items
   const handleAddProduct = () => {
     if (!selectedProductId) {
@@ -125,12 +136,15 @@ export function BasketCompositionForm({
       );
       toast.success(`Quantidade de ${product.name} aumentada`);
     } else {
+      // Use pricePix if available, otherwise 0 (user will need to set manually)
+      const itemPricePix = product.pricePix || 0;
       const newItem: BasketItemInput = {
         productId: product.id,
         productName: product.name,
         quantity: 1,
         costPrice: product.costPrice,
-        salePrice: product.salePrice,
+        salePrice: itemPricePix,
+        manualSalePrice: itemPricePix === 0 ? undefined : undefined, // will be set manually if needed
       };
       onItemsChange([...items, newItem]);
       toast.success(`${product.name} adicionado à cesta`);
@@ -151,6 +165,15 @@ export function BasketCompositionForm({
     onItemsChange(
       items.map((i) =>
         i.productId === productId ? { ...i, quantity } : i
+      )
+    );
+  };
+
+  // Handle manual sale price change for items without pricePix
+  const handleManualSalePriceChange = (productId: string, price: number) => {
+    onItemsChange(
+      items.map((i) =>
+        i.productId === productId ? { ...i, manualSalePrice: price } : i
       )
     );
   };
@@ -231,7 +254,7 @@ export function BasketCompositionForm({
                     <div className="flex items-center justify-between gap-2">
                       <span>{product.name}</span>
                       <span className="text-xs text-muted-foreground">
-                        R$ {product.costPrice.toFixed(2)} | Est: {product.stock}
+                        Pix: R$ {(product.pricePix || 0).toFixed(2)} | Est: {product.stock}
                       </span>
                     </div>
                   </SelectItem>
@@ -257,55 +280,80 @@ export function BasketCompositionForm({
           <Label className="text-sm font-medium">
             Itens da Cesta ({items.length})
           </Label>
-          <ScrollArea className="max-h-[200px]">
+          <ScrollArea className="max-h-[250px]">
             <div className="space-y-2">
               {items.map((item) => {
                 const product = availableProducts.find((p) => p.id === item.productId);
                 const currentStock = product?.stock ?? 0;
                 const hasLowStock = product && currentStock < item.quantity;
                 const hasNoStock = currentStock === 0;
+                const needsManualPrice = item.salePrice === 0;
+                const effectivePrice = item.manualSalePrice !== undefined ? item.manualSalePrice : item.salePrice;
                 
                 return (
                   <div
                     key={item.productId}
                     className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg border",
+                      "flex flex-col gap-2 p-3 rounded-lg border",
                       hasNoStock
                         ? "bg-destructive/5 border-destructive/30"
                         : hasLowStock 
                           ? "bg-warning/5 border-warning/30" 
-                          : "bg-muted/50 border-border/50"
+                          : needsManualPrice
+                            ? "bg-muted/70 border-primary/30"
+                            : "bg-muted/50 border-border/50"
                     )}
                   >
-                    <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                      <Package className="w-4 h-4 text-muted-foreground" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                        <Package className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{item.productName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Custo: R$ {item.costPrice.toFixed(2)} | Pix: R$ {effectivePrice.toFixed(2)} × {item.quantity}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            handleQuantityChange(item.productId, parseInt(e.target.value) || 1)
+                          }
+                          className="w-16 h-8 text-center input-styled"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleRemoveItem(item.productId)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{item.productName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        R$ {item.costPrice.toFixed(2)} × {item.quantity} = R$ {(item.costPrice * item.quantity).toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          handleQuantityChange(item.productId, parseInt(e.target.value) || 1)
-                        }
-                        className="w-16 h-8 text-center input-styled"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleRemoveItem(item.productId)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    
+                    {/* Manual price input for items without pricePix */}
+                    {needsManualPrice && (
+                      <div className="flex items-center gap-2 ml-11">
+                        <Label className="text-xs text-primary whitespace-nowrap">Preço Pix:</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0,00"
+                          value={item.manualSalePrice ?? ""}
+                          onChange={(e) =>
+                            handleManualSalePriceChange(item.productId, parseFloat(e.target.value) || 0)
+                          }
+                          className="w-24 h-7 text-sm input-styled"
+                        />
+                        <span className="text-xs text-muted-foreground">(sem preço cadastrado)</span>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -496,6 +544,13 @@ export function BasketCompositionForm({
           </div>
         </div>
 
+        {/* Base Customer Price */}
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground font-semibold">Preço Base do Cliente (soma Pix dos itens)</Label>
+          <div className="h-[40px] flex items-center px-3 bg-blue-500/10 rounded-md border border-blue-500/20">
+            <span className="font-bold text-blue-600">R$ {baseCustomerPrice.toFixed(2)}</span>
+          </div>
+        </div>
 
         {/* Stock Warning */}
         {hasStockWarning && (
@@ -509,4 +564,12 @@ export function BasketCompositionForm({
       </div>
     </div>
   );
+}
+
+// Export the base customer price calculator for use in ProductForm
+export function calculateBaseCustomerPrice(items: BasketItemInput[]): number {
+  return items.reduce((sum, item) => {
+    const priceToUse = item.manualSalePrice !== undefined ? item.manualSalePrice : item.salePrice;
+    return sum + priceToUse * item.quantity;
+  }, 0);
 }
