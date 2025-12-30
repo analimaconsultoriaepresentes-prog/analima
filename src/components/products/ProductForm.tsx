@@ -212,38 +212,16 @@ function ProductFormContent({
   const hasMarginChanged = initialMarginRef.current !== null && 
     Math.abs(basketDesiredMargin - initialMarginRef.current) > 0.01;
 
-  // Update form values when basket composition changes
-  // Card fee rate (5%)
-  const CARD_FEE_RATE = 0.05;
-
+  // Update form values when basket composition changes (only costs, not prices)
   useEffect(() => {
     if (isBasket) {
       form.setValue("costPrice", basketCosts.totalCost, { shouldValidate: true });
       form.setValue("packagingCost", basketCosts.packagingCost, { shouldValidate: true });
       form.setValue("packagingProductId", basketPackagingProductId, { shouldValidate: true });
       form.setValue("packagingQty", basketPackagingQty, { shouldValidate: true });
-      
-      // Recalculate prices when:
-      // - New product (no editProduct)
-      // - Basket composition changed
-      // - Desired margin changed from initial value
-      const shouldRecalculate = !editProduct?.isBasket || hasBasketChanged || hasMarginChanged;
-      
-      if (basketDesiredMargin > 0 && basketCosts.totalCost > 0 && shouldRecalculate) {
-        // Pix/Dinheiro = Custo Total * (1 + Margem/100)
-        const calculatedPricePix = basketCosts.totalCost * (1 + basketDesiredMargin / 100);
-        const roundedPricePix = Math.round(calculatedPricePix * 100) / 100;
-        
-        // Cartão = Pix / (1 - taxaCartao) = Pix / 0.95
-        const calculatedPriceCard = roundedPricePix / (1 - CARD_FEE_RATE);
-        const roundedPriceCard = Math.round(calculatedPriceCard * 100) / 100;
-        
-        form.setValue("salePrice", roundedPricePix, { shouldValidate: true });
-        form.setValue("pricePix", roundedPricePix, { shouldValidate: true });
-        form.setValue("priceCard", roundedPriceCard, { shouldValidate: true });
-      }
+      // Prices (pricePix, priceCard) are NOT auto-calculated - they are 100% manual
     }
-  }, [isBasket, basketCosts, basketDesiredMargin, basketPackagingProductId, basketPackagingQty, form, editProduct?.isBasket, hasBasketChanged, hasMarginChanged]);
+  }, [isBasket, basketCosts, basketPackagingProductId, basketPackagingQty, form]);
 
   // Reset basket items when switching to non-basket (only for new products)
   useEffect(() => {
@@ -276,7 +254,8 @@ function ProductFormContent({
   const profitPix = pricePix > costPrice ? (pricePix - costPrice).toFixed(2) : "0.00";
   const profitCard = priceCard > costPrice ? (priceCard - costPrice).toFixed(2) : "0.00";
 
-  // Auto-calculate sale prices when cost or desired margin changes (for non-baskets)
+  // Prices (pricePix, priceCard) are NOT auto-calculated - they are 100% manual
+  // Desired margin only updates salePrice for reference display, not pricePix/priceCard
   useEffect(() => {
     if (isBasket) return;
     if (isManualSalePriceEdit.current) {
@@ -288,8 +267,7 @@ function ProductFormContent({
     if (!isNaN(marginValue) && marginValue > 0 && costPrice > 0) {
       const calculatedPrice = costPrice * (1 + marginValue / 100);
       const roundedPrice = Math.round(calculatedPrice * 100) / 100;
-      form.setValue("pricePix", roundedPrice, { shouldValidate: true });
-      form.setValue("priceCard", roundedPrice, { shouldValidate: true });
+      // Only update salePrice for internal reference, NOT pricePix/priceCard
       form.setValue("salePrice", roundedPrice, { shouldValidate: true });
     }
   }, [costPrice, desiredMargin, form, isBasket]);
