@@ -233,6 +233,9 @@ export function KitCalculator({
     const kitPriceNum = parseFloat(kitPrice) || 0;
     const kitCostNum = parseFloat(kitCost) || 0;
 
+    // Calculate sum of items (always, even without valid results)
+    const sumItemsFullPrice = validItems.reduce((sum, item) => sum + (item.fullPrice * item.quantity), 0);
+
     // Need at least one valid item and all required fields
     if (validItems.length === 0 || kitFullPriceNum <= 0 || kitPriceNum <= 0 || kitCostNum < 0) {
       return { 
@@ -242,6 +245,8 @@ export function KitCalculator({
         kitCostNum, 
         totalProfit: 0,
         totalMargin: 0,
+        sumItemsFullPrice,
+        sumItemsCost: 0,
         hasValidResults: false
       };
     }
@@ -267,6 +272,7 @@ export function KitCalculator({
 
     const totalProfit = kitPriceNum - kitCostNum;
     const totalMargin = kitPriceNum > 0 ? (totalProfit / kitPriceNum) * 100 : 0;
+    const sumItemsCost = calculatedItems.reduce((sum, item) => sum + item.costInKit, 0);
 
     return {
       items: calculatedItems,
@@ -275,6 +281,8 @@ export function KitCalculator({
       kitCostNum,
       totalProfit,
       totalMargin,
+      sumItemsFullPrice,
+      sumItemsCost,
       hasValidResults: true
     };
   }, [validItems, kitFullPrice, kitPrice, kitCost]);
@@ -603,39 +611,72 @@ export function KitCalculator({
             <Label className="text-base font-semibold">Resultado do Cálculo</Label>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 p-4 bg-primary/5 rounded-lg">
-            <div>
-              <p className="text-xs text-muted-foreground">Preço Cheio</p>
-              <p className="text-lg font-semibold text-foreground">
-                R$ {calculations.kitFullPriceNum.toFixed(2)}
-              </p>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 p-4 bg-primary/5 rounded-lg">
+              <div>
+                <p className="text-xs text-muted-foreground">Preço Cheio</p>
+                <p className="text-lg font-semibold text-foreground">
+                  R$ {calculations.kitFullPriceNum.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Preço Cliente</p>
+                <p className="text-lg font-semibold text-success">
+                  R$ {calculations.kitPriceNum.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Desconto</p>
+                <p className="text-lg font-semibold text-primary">
+                  {calculations.kitFullPriceNum > 0
+                    ? (((calculations.kitFullPriceNum - calculations.kitPriceNum) / calculations.kitFullPriceNum) * 100).toFixed(1)
+                    : "0.0"}%
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Custo Loja</p>
+                <p className="text-lg font-semibold text-warning">
+                  R$ {calculations.kitCostNum.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Lucro / Margem</p>
+                <p className="text-lg font-semibold text-success">
+                  R$ {calculations.totalProfit.toFixed(2)} ({calculations.totalMargin.toFixed(1)}%)
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Preço Cliente</p>
-              <p className="text-lg font-semibold text-success">
-                R$ {calculations.kitPriceNum.toFixed(2)}
-              </p>
+
+            {/* Somas e validação dos itens */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 p-3 bg-muted/30 rounded-lg text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Soma Itens (Preço Cheio):</span>
+                <span className="font-semibold">R$ {calculations.sumItemsFullPrice.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Soma Itens (Custo):</span>
+                <span className="font-semibold">R$ {calculations.sumItemsCost.toFixed(2)}</span>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Desconto</p>
-              <p className="text-lg font-semibold text-primary">
-                {calculations.kitFullPriceNum > 0
-                  ? (((calculations.kitFullPriceNum - calculations.kitPriceNum) / calculations.kitFullPriceNum) * 100).toFixed(1)
-                  : "0.0"}%
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Custo Loja</p>
-              <p className="text-lg font-semibold text-warning">
-                R$ {calculations.kitCostNum.toFixed(2)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Lucro / Margem</p>
-              <p className="text-lg font-semibold text-success">
-                R$ {calculations.totalProfit.toFixed(2)} ({calculations.totalMargin.toFixed(1)}%)
-              </p>
-            </div>
+
+            {/* Indicador de validação */}
+            {(() => {
+              const diff = Math.abs(calculations.sumItemsFullPrice - calculations.kitFullPriceNum);
+              const isValid = diff <= 0.50;
+              return (
+                <div className={`flex items-start gap-2 p-2 rounded-lg text-sm ${
+                  isValid ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                }`}>
+                  <span>{isValid ? '✅' : '⚠️'}</span>
+                  <span>
+                    {isValid 
+                      ? 'Soma dos itens confere com o total do kit.'
+                      : 'A soma dos itens não bate com o total do kit. Verifique os preços cheios.'
+                    }
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="border border-border rounded-lg overflow-x-auto">
