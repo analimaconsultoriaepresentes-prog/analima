@@ -108,12 +108,21 @@ export function BasketCompositionForm({
 
   const totalCost = totalItemsCost + packagingCost + totalExtrasCost;
 
-  const suggestedSalePrice = useMemo(() => {
+  // Card fee rate (5%)
+  const CARD_FEE_RATE = 0.05;
+
+  const suggestedPricePix = useMemo(() => {
     if (desiredMargin <= 0 || totalCost <= 0) return 0;
     return totalCost * (1 + desiredMargin / 100);
   }, [totalCost, desiredMargin]);
 
-  const estimatedProfit = suggestedSalePrice - totalCost;
+  const suggestedPriceCard = useMemo(() => {
+    if (suggestedPricePix <= 0) return 0;
+    return suggestedPricePix / (1 - CARD_FEE_RATE);
+  }, [suggestedPricePix]);
+
+  const cardFeeDifference = suggestedPriceCard - suggestedPricePix;
+  const estimatedProfit = suggestedPricePix - totalCost;
 
   // Handlers for items
   const handleAddProduct = () => {
@@ -521,19 +530,30 @@ export function BasketCompositionForm({
           />
         </div>
 
-        {/* Suggested Price & Profit */}
+        {/* Suggested Prices & Profit */}
         {desiredMargin > 0 && totalCost > 0 && (
-          <div className="bg-success/5 border border-success/20 rounded-lg p-4 animate-fade-in">
+          <div className="bg-success/5 border border-success/20 rounded-lg p-4 animate-fade-in space-y-3">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-muted-foreground text-xs">Preço de Venda Sugerido</p>
+                <p className="text-muted-foreground text-xs">Preço Pix/Dinheiro</p>
                 <p className="font-bold text-success text-lg">
-                  R$ {suggestedSalePrice.toFixed(2)}
+                  R$ {suggestedPricePix.toFixed(2)}
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs">Lucro Estimado</p>
+                <p className="text-muted-foreground text-xs">Preço Cartão</p>
                 <p className="font-bold text-success text-lg">
+                  R$ {suggestedPriceCard.toFixed(2)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  +R$ {cardFeeDifference.toFixed(2)} (taxa 5%)
+                </p>
+              </div>
+            </div>
+            <div className="border-t border-success/20 pt-3">
+              <div className="flex justify-between items-center">
+                <p className="text-muted-foreground text-xs">Lucro Estimado (Pix)</p>
+                <p className="font-bold text-success">
                   R$ {estimatedProfit.toFixed(2)}
                 </p>
               </div>
