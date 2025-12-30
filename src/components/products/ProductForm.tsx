@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Package, Percent, Gift, ShoppingBasket, Box, Tag } from "lucide-react";
+import { CalendarIcon, Package, Percent, Gift, ShoppingBasket, Box, Tag, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -295,6 +295,13 @@ function ProductFormContent({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 sm:space-y-5">
+        {/* Aviso de edição de preços */}
+        {editProduct && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border border-border/50 text-sm text-muted-foreground">
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>Alterações de preço valem apenas para novas vendas.</span>
+          </div>
+        )}
         {/* Tipo de Produto - Switch para Cesta */}
         <FormField
           control={form.control}
