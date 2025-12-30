@@ -97,6 +97,7 @@ function SaleFormContent({
   const isMobile = useIsMobile();
   const [channel, setChannel] = useState<SaleChannel>(defaultChannel);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showProductList, setShowProductList] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
@@ -493,52 +494,115 @@ function SaleFormContent({
       </div>
 
       {/* Busca de produtos */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar produto..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="input-styled pl-10 min-h-[48px] text-base"
-          autoFocus
-        />
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar produto..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                setShowProductList(true);
+              }
+            }}
+            className="input-styled pl-10 min-h-[48px] text-base"
+            autoFocus
+          />
+        </div>
+        <Button
+          type="button"
+          onClick={() => setShowProductList(true)}
+          className="min-h-[48px] px-4"
+        >
+          <Search className="w-4 h-4 mr-2" />
+          Pesquisar
+        </Button>
       </div>
 
       {/* Lista de produtos disponíveis */}
-      {searchTerm && (
-        <div className="max-h-48 overflow-y-auto border border-border rounded-lg divide-y divide-border">
+      {showProductList && (
+        <div className="max-h-64 overflow-y-auto border border-border rounded-lg divide-y divide-border bg-card shadow-lg">
+          <div className="sticky top-0 p-2 bg-muted/80 backdrop-blur-sm border-b border-border flex justify-between items-center">
+            <span className="text-xs text-muted-foreground font-medium">
+              {availableProducts.length} produto{availableProducts.length !== 1 ? 's' : ''} encontrado{availableProducts.length !== 1 ? 's' : ''}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowProductList(false)}
+              className="h-6 px-2 text-xs"
+            >
+              Fechar
+            </Button>
+          </div>
           {availableProducts.length === 0 ? (
             <div className="p-4 text-sm text-muted-foreground text-center">
               Nenhum produto encontrado
             </div>
           ) : (
-            availableProducts.slice(0, 5).map((product) => (
-              <button
-                key={product.id}
-                type="button"
-                className="w-full p-3 flex items-center justify-between hover:bg-muted/50 active:bg-muted transition-colors text-left min-h-[56px]"
-                onClick={() => addToCart(product)}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground text-sm truncate">
-                    {product.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {product.brand} • {product.stock} un.
-                  </p>
-                </div>
-                <div className="text-right ml-2">
-                  <p className="font-semibold text-success">
-                    R$ {getProductPrice(product).toFixed(2)}
-                  </p>
-                  {product.pricePix !== product.priceCard && (
-                    <p className="text-xs text-muted-foreground">
-                      {paymentMethod === "cartao" ? "💵" : "💳"} R$ {(paymentMethod === "cartao" ? product.pricePix : product.priceCard).toFixed(2)}
-                    </p>
-                  )}
-                </div>
-              </button>
-            ))
+            availableProducts.map((product) => {
+              const lowStock = product.stock <= 3;
+              const productTypeLabel = product.isBasket 
+                ? (product.category === "Presente" ? "Presente" : "Cesta")
+                : "Produto";
+              
+              return (
+                <button
+                  key={product.id}
+                  type="button"
+                  className="w-full p-3 flex items-center justify-between hover:bg-muted/50 active:bg-muted transition-colors text-left min-h-[64px]"
+                  onClick={() => {
+                    addToCart(product);
+                    setShowProductList(false);
+                  }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-foreground text-sm truncate">
+                        {product.name}
+                      </p>
+                      <span className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                        product.isBasket ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                      )}>
+                        {productTypeLabel}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={cn(
+                        "text-xs",
+                        lowStock ? "text-destructive font-medium" : "text-muted-foreground"
+                      )}>
+                        {lowStock && "⚠️ "}
+                        {product.stock} un. disponíveis
+                      </span>
+                      {product.brand && (
+                        <span className="text-xs text-muted-foreground">• {product.brand}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right ml-3 flex-shrink-0">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground">PIX</span>
+                      <span className="font-semibold text-success">
+                        R$ {product.pricePix.toFixed(2)}
+                      </span>
+                    </div>
+                    {product.priceCard > 0 && product.priceCard !== product.pricePix && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground">Cartão</span>
+                        <span className="text-xs text-foreground">
+                          R$ {product.priceCard.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
       )}
