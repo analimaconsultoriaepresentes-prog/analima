@@ -66,6 +66,7 @@ export function QuickProductModal({
         packagingCost: 0,
         productType: "item",
         packagingQty: 1,
+        packagingDiscount: 0,
       };
 
       const productId = await onSave(productData);

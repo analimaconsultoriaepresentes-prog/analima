@@ -340,6 +340,7 @@ export function KitCalculator({
         packagingProductId: undefined,
         packagingQty: 1,
         packagingCost: 0,
+        packagingDiscount: 0,
       };
 
       const basketItems = validation.validItemsWithProduct.map((item) => ({

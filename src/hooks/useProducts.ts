@@ -40,6 +40,7 @@ export interface Product {
   packagingProductId?: string;
   packagingQty: number;
   giftType?: GiftType;
+  packagingDiscount: number;
 }
 
 export interface ProductFormData {
@@ -60,6 +61,7 @@ export interface ProductFormData {
   packagingProductId?: string;
   packagingQty: number;
   giftType?: GiftType;
+  packagingDiscount: number;
 }
 
 export function useProducts() {
@@ -103,6 +105,7 @@ export function useProducts() {
         packagingProductId: p.packaging_product_id || undefined,
         packagingQty: p.packaging_qty || 1,
         giftType: (p.gift_type as GiftType) || undefined,
+        packagingDiscount: Number(p.packaging_discount) || 0,
       }));
 
       setProducts(mapped);
@@ -145,6 +148,7 @@ export function useProducts() {
         packaging_product_id: data.packagingProductId || null,
         packaging_qty: data.packagingQty || 1,
         gift_type: data.giftType || null,
+        packaging_discount: data.packagingDiscount || 0,
       }).select('id').single();
 
       if (error) throw error;
@@ -188,6 +192,7 @@ export function useProducts() {
           packaging_product_id: data.packagingProductId || null,
           packaging_qty: data.packagingQty || 1,
           gift_type: data.giftType || null,
+          packaging_discount: data.packagingDiscount || 0,
         })
         .eq("id", id);
 
