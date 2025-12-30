@@ -58,8 +58,8 @@ const productSchema = z.object({
   brand: z.string().min(1, "Informe a marca").max(50, "Marca muito longa"),
   costPrice: z.coerce.number().min(0, "Preço de custo não pode ser negativo"),
   salePrice: z.coerce.number().min(0, "Preço de venda deve ser maior que zero"),
-  pricePix: z.coerce.number().min(0.01, "Preço Pix deve ser maior que zero"),
-  priceCard: z.coerce.number().min(0.01, "Preço Cartão deve ser maior que zero"),
+  pricePix: z.coerce.number().min(0, "Preço Pix não pode ser negativo"),
+  priceCard: z.coerce.number().min(0, "Preço Cartão não pode ser negativo"),
   stock: z.coerce.number().int().min(0, "Estoque não pode ser negativo"),
   expiryDate: z.date().optional(),
   origin: z.enum(["purchased", "gift"]),
@@ -71,12 +71,12 @@ const productSchema = z.object({
   packagingQty: z.coerce.number().int().min(1, "Quantidade deve ser maior que zero"),
   giftType: z.enum(["presente", "cesta", "kit", "mini_presente", "lembrancinha"]).optional(),
 }).refine((data) => {
-  // For baskets, prices just need to be > 0
-  if (data.isBasket) {
-    return data.pricePix > 0 && data.priceCard > 0;
-  }
-  // For packaging/extra, just need prices > 0
+  // Packaging/extra products don't need sale prices - they are internal cost only
   if (data.productType === "packaging" || data.productType === "extra") {
+    return true;
+  }
+  // For baskets, prices need to be > 0
+  if (data.isBasket) {
     return data.pricePix > 0 && data.priceCard > 0;
   }
   // For gifts (cost = 0), only require prices > 0
@@ -625,11 +625,11 @@ function ProductFormContent({
           </div>
         )}
 
-        {/* Preços de Venda por Forma de Pagamento - for non-baskets */}
-        {!isBasket && (
+        {/* Preços de Venda por Forma de Pagamento - for non-baskets, non-packaging/extra */}
+        {!isBasket && !isPackagingOrExtra && (
           <>
             {/* Margem desejada (%) - for Pix only */}
-            {(!isGift || isPackagingOrExtra) && (
+            {!isGift && (
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   % de ganho (Pix)
@@ -715,12 +715,23 @@ function ProductFormContent({
               />
             </div>
 
-            {isGift && !isPackagingOrExtra && (
+            {isGift && (
               <p className="text-xs text-muted-foreground">
                 Brindes têm custo zero. Defina os preços de venda livremente.
               </p>
             )}
           </>
+        )}
+
+        {/* Aviso para packaging/extra */}
+        {isPackagingOrExtra && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border border-border/50 text-sm text-muted-foreground">
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>
+              {productType === "packaging" ? "Embalagens" : "Extras"} não têm preço de venda. 
+              São usados apenas para cálculo de custo em cestas e combos.
+            </span>
+          </div>
         )}
 
         {/* Preços de Venda for baskets */}
