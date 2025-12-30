@@ -122,7 +122,6 @@ function ProductFormContent({
   const [basketExtras, setBasketExtras] = useState<BasketExtraInput[]>([]);
   const [basketPackagingProductId, setBasketPackagingProductId] = useState<string | undefined>();
   const [basketPackagingQty, setBasketPackagingQty] = useState<number>(1);
-  const [basketDesiredMargin, setBasketDesiredMargin] = useState<number>(50);
   
   // Track if the change is from margin input to avoid loops
   const isMarginDriven = useRef(false);
@@ -162,15 +161,14 @@ function ProductFormContent({
     if (editProduct?.isBasket) {
       setBasketPackagingProductId(editProduct.packagingProductId);
       setBasketPackagingQty(editProduct.packagingQty || 1);
-      // Calculate margin from existing prices
-      if (editProduct.costPrice > 0 && editProduct.salePrice > editProduct.costPrice) {
-        const existingMargin = ((editProduct.salePrice - editProduct.costPrice) / editProduct.costPrice) * 100;
-        setBasketDesiredMargin(Math.round(existingMargin * 10) / 10);
+      // Initialize margin from existing prices
+      if (editProduct.costPrice > 0 && editProduct.pricePix > editProduct.costPrice) {
+        const existingMargin = ((editProduct.pricePix - editProduct.costPrice) / editProduct.costPrice) * 100;
+        setDesiredMargin(existingMargin.toFixed(1));
       }
     } else {
       setBasketPackagingProductId(undefined);
       setBasketPackagingQty(1);
-      setBasketDesiredMargin(50);
     }
   }, [editProduct]);
 
@@ -188,32 +186,6 @@ function ProductFormContent({
     const totalCost = totalItemsCost + packagingCost + totalExtrasCost;
     return { totalItemsCost, packagingCost, totalExtrasCost, totalCost };
   }, [basketItems, basketExtras, selectedPackaging, basketPackagingQty]);
-  
-  // Track if basket composition has changed from initial state
-  const hasBasketChanged = useMemo(() => {
-    if (basketItems.length !== initialBasketItems.length) return true;
-    if (basketExtras.length !== initialBasketExtras.length) return true;
-    return basketItems.some((item) => {
-      const initial = initialBasketItems.find(i => i.productId === item.productId);
-      return !initial || initial.quantity !== item.quantity;
-    });
-  }, [basketItems, basketExtras, initialBasketItems, initialBasketExtras]);
-
-  // Track if margin has changed from initial calculated value
-  const initialMarginRef = useRef<number | null>(null);
-  
-  // Set initial margin reference when editing
-  useEffect(() => {
-    if (editProduct?.isBasket && editProduct.costPrice > 0 && editProduct.salePrice > editProduct.costPrice) {
-      const existingMargin = ((editProduct.salePrice - editProduct.costPrice) / editProduct.costPrice) * 100;
-      initialMarginRef.current = Math.round(existingMargin * 10) / 10;
-    } else {
-      initialMarginRef.current = null;
-    }
-  }, [editProduct]);
-
-  const hasMarginChanged = initialMarginRef.current !== null && 
-    Math.abs(basketDesiredMargin - initialMarginRef.current) > 0.01;
 
   // Update form values when basket composition changes (only costs, not prices)
   useEffect(() => {
@@ -479,8 +451,6 @@ function ProductFormContent({
             onPackagingQtyChange={setBasketPackagingQty}
             extras={basketExtras}
             onExtrasChange={setBasketExtras}
-            desiredMargin={basketDesiredMargin}
-            onDesiredMarginChange={setBasketDesiredMargin}
             isEditing={!!editProduct}
           />
         )}
@@ -827,7 +797,7 @@ function ProductFormContent({
         )}
 
         {/* Cálculos automáticos - for non-baskets */}
-        {!isBasket && costPrice > 0 && pricePix > 0 && pricePix > costPrice && (
+        {!isBasket && !isPackagingOrExtra && costPrice > 0 && pricePix > 0 && pricePix > costPrice && (
           <div className="bg-success/5 border border-success/20 rounded-lg p-3 sm:p-4 animate-fade-in">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -838,6 +808,42 @@ function ProductFormContent({
                 <p className="text-muted-foreground text-xs sm:text-sm">Lucro Cartão/unidade</p>
                 <p className="font-bold text-success text-base sm:text-lg">R$ {profitCard}</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cálculos automáticos - for baskets */}
+        {isBasket && basketCosts.totalCost > 0 && pricePix > 0 && (
+          <div className="bg-success/5 border border-success/20 rounded-lg p-3 sm:p-4 animate-fade-in">
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground text-xs">Custo Total</p>
+                  <p className="font-medium">R$ {basketCosts.totalCost.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Preço Pix</p>
+                  <p className="font-bold text-success">R$ {pricePix.toFixed(2)}</p>
+                </div>
+              </div>
+              {pricePix > basketCosts.totalCost && (
+                <div className="border-t border-success/20 pt-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs">Lucro (Pix)</p>
+                      <p className="font-bold text-success">
+                        R$ {(pricePix - basketCosts.totalCost).toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Margem</p>
+                      <p className="font-bold text-success">
+                        {(((pricePix - basketCosts.totalCost) / basketCosts.totalCost) * 100).toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
