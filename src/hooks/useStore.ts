@@ -26,6 +26,7 @@ export interface Store {
   birthdayMessage: string;
   alertSettings: AlertSettings;
   packagingCosts: PackagingCosts;
+  maintenanceMode: boolean;
 }
 
 const DEFAULT_ALERT_SETTINGS: AlertSettings = {
@@ -84,6 +85,7 @@ export function useStore() {
             packagingCost1Bag: Number(data.packaging_cost_1_bag) || 0,
             packagingCost2Bags: Number(data.packaging_cost_2_bags) || 0,
           },
+          maintenanceMode: data.maintenance_mode ?? false,
         });
       }
     } catch (error) {
@@ -246,6 +248,36 @@ export function useStore() {
     }
   };
 
+  const updateMaintenanceMode = async (enabled: boolean): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from("stores")
+        .update({ maintenance_mode: enabled })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setStore(prev => prev ? { ...prev, maintenanceMode: enabled } : null);
+      toast({
+        title: enabled ? "Modo manutenção ativado" : "Modo manutenção desativado",
+        description: enabled 
+          ? "O sistema está em manutenção para outros usuários." 
+          : "O sistema voltou ao funcionamento normal.",
+      });
+      return true;
+    } catch (error) {
+      console.error("Error updating maintenance mode:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     store,
     loading,
@@ -253,6 +285,7 @@ export function useStore() {
     updateAlertSettings,
     updatePackagingCosts,
     uploadLogo,
+    updateMaintenanceMode,
     refetch: fetchStore,
   };
 }

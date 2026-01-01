@@ -544,6 +544,7 @@ export type Database = {
           logo_url: string | null
           low_stock_enabled: boolean
           low_stock_threshold: number
+          maintenance_mode: boolean
           name: string
           packaging_cost_1_bag: number
           packaging_cost_2_bags: number
@@ -563,6 +564,7 @@ export type Database = {
           logo_url?: string | null
           low_stock_enabled?: boolean
           low_stock_threshold?: number
+          maintenance_mode?: boolean
           name?: string
           packaging_cost_1_bag?: number
           packaging_cost_2_bags?: number
@@ -582,6 +584,7 @@ export type Database = {
           logo_url?: string | null
           low_stock_enabled?: boolean
           low_stock_threshold?: number
+          maintenance_mode?: boolean
           name?: string
           packaging_cost_1_bag?: number
           packaging_cost_2_bags?: number
