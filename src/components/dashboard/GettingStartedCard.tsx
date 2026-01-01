@@ -6,6 +6,11 @@ import { CheckCircle2, EyeOff, RotateCcw, Sparkles, ArrowRight } from 'lucide-re
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 
+// ========================================
+// TEMPORARY FLAG - Set to true to re-enable the Getting Started guide
+// ========================================
+const ENABLE_GETTING_STARTED = false;
+
 interface GettingStartedCardProps {
   onOpenGiftModal?: () => void;
 }
@@ -22,6 +27,11 @@ export const GettingStartedCard = ({ onOpenGiftModal }: GettingStartedCardProps)
     hideGuide,
     showGuide,
   } = useGettingStarted();
+
+  // Temporary disable - change ENABLE_GETTING_STARTED to true to re-enable
+  if (!ENABLE_GETTING_STARTED) {
+    return null;
+  }
 
   if (isLoading) {
     return null;
