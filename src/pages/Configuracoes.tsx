@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles } from "lucide-react";
+import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,9 +28,12 @@ const EMAIL_CONFIGURED = true; // Will be controlled by actual secret check
 export default function Configuracoes() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo } = useStore();
+  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo, updateMaintenanceMode } = useStore();
   const { isHidden, showGuide, allCompleted } = useGettingStarted();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [savingMaintenance, setSavingMaintenance] = useState(false);
 
   const [storeName, setStoreName] = useState("");
   const [selectedColor, setSelectedColor] = useState("#F97316");
@@ -65,6 +68,7 @@ export default function Configuracoes() {
       setSelectedColor(store.primaryColor);
       setBirthdayMessage(store.birthdayMessage);
       setAlertSettings(store.alertSettings);
+      setMaintenanceMode(store.maintenanceMode);
       setAlertsLoaded(true);
     }
     if (store && !packagingLoaded) {
@@ -149,6 +153,16 @@ export default function Configuracoes() {
 
   const updateAlertSetting = <K extends keyof AlertSettings>(key: K, value: AlertSettings[K]) => {
     setAlertSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleToggleMaintenance = async () => {
+    setSavingMaintenance(true);
+    const newValue = !maintenanceMode;
+    const success = await updateMaintenanceMode(newValue);
+    if (success) {
+      setMaintenanceMode(newValue);
+    }
+    setSavingMaintenance(false);
   };
 
   if (loading) {
@@ -318,6 +332,37 @@ export default function Configuracoes() {
               </Button>
             </div>
           )}
+
+          {/* Maintenance Mode - Admin only */}
+          <div className="bg-card rounded-xl border border-amber-500/30 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Construction className="w-5 h-5 text-amber-500" />
+              Modo Manutenção
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Quando ativado, apenas você (admin) poderá acessar o sistema. Outros usuários verão uma página de manutenção.
+            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-foreground">
+                  {maintenanceMode ? "Sistema em manutenção" : "Sistema operacional"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {maintenanceMode 
+                    ? "Usuários comuns não conseguem acessar" 
+                    : "Todos os usuários autorizados podem acessar"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {savingMaintenance && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                <Switch 
+                  checked={maintenanceMode}
+                  onCheckedChange={handleToggleMaintenance}
+                  disabled={savingMaintenance}
+                />
+              </div>
+            </div>
+          </div>
 
           <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
