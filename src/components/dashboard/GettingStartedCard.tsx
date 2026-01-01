@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useGettingStarted } from '@/hooks/useGettingStarted';
-import { CheckCircle2, Circle, EyeOff, RotateCcw, Sparkles, ArrowRight } from 'lucide-react';
+import { CheckCircle2, EyeOff, RotateCcw, Sparkles, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,7 +19,6 @@ export const GettingStartedCard = ({ onOpenGiftModal }: GettingStartedCardProps)
     allCompleted,
     isHidden,
     isLoading,
-    handleStepAction,
     hideGuide,
     showGuide,
   } = useGettingStarted();
@@ -48,7 +47,8 @@ export const GettingStartedCard = ({ onOpenGiftModal }: GettingStartedCardProps)
     return null;
   }
 
-  const progressPercent = (completedCount / totalSteps) * 100;
+  // Avoid NaN/Infinity: if no steps, progress is 0
+  const progressPercent = totalSteps > 0 ? (completedCount / totalSteps) * 100 : 0;
 
   const handleAction = (step: typeof steps[0]) => {
     if (step.action === 'openGiftModal' && onOpenGiftModal) {
@@ -149,7 +149,7 @@ export const GettingStartedCard = ({ onOpenGiftModal }: GettingStartedCardProps)
                     >
                       {step.title}
                     </p>
-                    <p className="text-sm text-muted-foreground truncate">
+                    <p className="text-sm text-muted-foreground line-clamp-2">
                       {step.description}
                     </p>
                   </div>
