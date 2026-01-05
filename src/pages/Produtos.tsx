@@ -8,10 +8,13 @@ import { StockEntryModal } from "@/components/products/StockEntryModal";
 import { ProductFilters, type ProductFiltersState } from "@/components/products/ProductFilters";
 import { ProductTable } from "@/components/products/ProductTable";
 import { ProductMobileList } from "@/components/products/ProductMobileList";
+import { ProductCardGrid } from "@/components/products/ProductCardGrid";
+import { ViewModeToggle } from "@/components/products/ViewModeToggle";
 import { KitCalculator } from "@/components/products/KitCalculator";
 import { useProducts, type Product, type ProductFormData } from "@/hooks/useProducts";
 import { useBaskets } from "@/hooks/useBaskets";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useViewMode } from "@/hooks/useViewMode";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +53,7 @@ export default function Produtos() {
   });
 
   const isMobile = useIsMobile();
+  const [viewMode, setViewMode] = useViewMode("list");
   const { products, loading, addProduct, updateProduct, deleteProduct, archiveProduct, reactivateProduct, checkProductDependencies, restoreStock } = useProducts();
   const { saveBasketItems, saveBasketExtras, fetchBasketItems, fetchBasketExtras } = useBaskets();
 
@@ -330,30 +334,40 @@ export default function Produtos() {
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 animate-slide-up">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou marca..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 input-styled"
-          />
+      {/* Search, Filters and View Toggle */}
+      <div className="flex flex-col gap-3 animate-slide-up">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou marca..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 input-styled"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="gap-2 relative"
+              onClick={() => setIsFiltersOpen(true)}
+            >
+              <Filter className="w-4 h-4" />
+              <span className="hidden sm:inline">Filtros</span>
+              {activeFiltersCount > 0 && (
+                <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </Button>
+            {!isMobile && (
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            )}
+          </div>
         </div>
-        <Button 
-          variant="outline" 
-          className="gap-2 relative"
-          onClick={() => setIsFiltersOpen(true)}
-        >
-          <Filter className="w-4 h-4" />
-          Filtros
-          {activeFiltersCount > 0 && (
-            <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-medium">
-              {activeFiltersCount}
-            </span>
-          )}
-        </Button>
+        {isMobile && (
+          <ViewModeToggle value={viewMode} onChange={setViewMode} />
+        )}
       </div>
 
       {/* Loading */}
@@ -385,12 +399,35 @@ export default function Produtos() {
         </div>
       )}
 
-      {/* Products Table (Desktop) / List (Mobile) */}
+      {/* Products View */}
       {!loading && filteredProducts.length > 0 && (
         <>
           {isMobile ? (
-            <ProductMobileList
+            viewMode === "list" ? (
+              <ProductMobileList
+                products={filteredProducts}
+                onEdit={openEditModal}
+                onStockEntry={(product) => setStockEntryProduct(product)}
+                onArchive={(product) => handleProductAction(product, "archive")}
+                onDelete={(product) => handleProductAction(product, "delete")}
+                onReactivate={handleReactivateProduct}
+              />
+            ) : (
+              <ProductCardGrid
+                products={filteredProducts}
+                onEdit={openEditModal}
+                onStockEntry={(product) => setStockEntryProduct(product)}
+                onArchive={(product) => handleProductAction(product, "archive")}
+                onDelete={(product) => handleProductAction(product, "delete")}
+                onReactivate={handleReactivateProduct}
+              />
+            )
+          ) : viewMode === "list" ? (
+            <ProductTable
               products={filteredProducts}
+              selectedProducts={selectedProducts}
+              onToggleSelect={handleToggleSelect}
+              onSelectAll={handleSelectAll}
               onEdit={openEditModal}
               onStockEntry={(product) => setStockEntryProduct(product)}
               onArchive={(product) => handleProductAction(product, "archive")}
@@ -398,11 +435,8 @@ export default function Produtos() {
               onReactivate={handleReactivateProduct}
             />
           ) : (
-            <ProductTable
+            <ProductCardGrid
               products={filteredProducts}
-              selectedProducts={selectedProducts}
-              onToggleSelect={handleToggleSelect}
-              onSelectAll={handleSelectAll}
               onEdit={openEditModal}
               onStockEntry={(product) => setStockEntryProduct(product)}
               onArchive={(product) => handleProductAction(product, "archive")}
