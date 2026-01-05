@@ -291,6 +291,7 @@ export type Database = {
           expiry_date: string | null
           gift_type: string | null
           id: string
+          image_url: string | null
           is_active: boolean
           is_basket: boolean
           name: string
@@ -317,6 +318,7 @@ export type Database = {
           expiry_date?: string | null
           gift_type?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
           is_basket?: boolean
           name: string
@@ -343,6 +345,7 @@ export type Database = {
           expiry_date?: string | null
           gift_type?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
           is_basket?: boolean
           name?: string

@@ -1,4 +1,4 @@
-import { Package, Gift, ShoppingBasket, AlertTriangle, Pencil, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw } from "lucide-react";
+import { Gift, ShoppingBasket, AlertTriangle, Pencil, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { type Product, GIFT_TYPE_LABELS } from "@/hooks/useProducts";
+import { ProductThumbnail } from "./ProductThumbnail";
 
 interface ProductMobileListProps {
   products: Product[];
@@ -48,16 +49,12 @@ export function ProductMobileList({
           {/* Header Row */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <div className={cn(
-                "w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0",
-                product.isBasket ? "bg-primary/10" : "bg-muted"
-              )}>
-                {product.isBasket ? (
-                  <ShoppingBasket className="w-4 h-4 text-primary" />
-                ) : (
-                  <Package className="w-4 h-4 text-muted-foreground" />
-                )}
-              </div>
+              <ProductThumbnail
+                imageUrl={product.imageUrl}
+                isBasket={product.isBasket}
+                size="md"
+                className="w-11 h-11 rounded-md"
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="font-medium text-foreground truncate">

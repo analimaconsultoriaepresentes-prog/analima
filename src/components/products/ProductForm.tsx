@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Package, Percent, Gift, ShoppingBasket, Box, Tag, Info, AlertTriangle, RefreshCw } from "lucide-react";
+import { CalendarIcon, Package, Percent, Gift, ShoppingBasket, Box, Tag, Info, AlertTriangle, RefreshCw, ImagePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BasketCompositionForm, calculateItemsPrice, calculateBaseGiftPrice, type BasketItemInput, type BasketExtraInput } from "./BasketCompositionForm";
+import { ProductImageUpload } from "./ProductImageUpload";
 import type { Product, ProductFormData, ProductType, GiftType } from "@/hooks/useProducts";
 import { GIFT_TYPE_LABELS } from "@/hooks/useProducts";
 
@@ -72,6 +73,7 @@ const productSchema = z.object({
   packagingQty: z.coerce.number().int().min(1, "Quantidade deve ser maior que zero"),
   giftType: z.enum(["presente", "cesta", "kit", "mini_presente", "lembrancinha"]).optional(),
   packagingDiscount: z.coerce.number().min(0, "Desconto não pode ser negativo"),
+  imageUrl: z.string().optional(),
 }).refine((data) => {
   // Packaging/extra products don't need sale prices - they are internal cost only
   if (data.productType === "packaging" || data.productType === "extra") {
@@ -134,6 +136,9 @@ function ProductFormContent({
   const [basketPackagingProductId, setBasketPackagingProductId] = useState<string | undefined>();
   const [basketPackagingQty, setBasketPackagingQty] = useState<number>(1);
   
+  // Image URL state
+  const [imageUrl, setImageUrl] = useState<string | null>(editProduct?.imageUrl || null);
+  
   // Track if the change is from margin input to avoid loops (for non-basket)
   const isMarginDriven = useRef(false);
   const isPixDriven = useRef(false);
@@ -180,6 +185,11 @@ function ProductFormContent({
       setBasketPackagingQty(1);
       setPackagingDiscountValue("");
     }
+  }, [editProduct]);
+
+  // Initialize imageUrl when editing
+  useEffect(() => {
+    setImageUrl(editProduct?.imageUrl || null);
   }, [editProduct]);
 
   // Get the selected packaging product for cost calculation
@@ -346,8 +356,11 @@ function ProductFormContent({
   };
 
   function handleSubmit(data: ProductFormData) {
-    onSubmit(data, isBasket ? basketItems : undefined, isBasket ? basketExtras : undefined);
+    // Include imageUrl in the data
+    const dataWithImage = { ...data, imageUrl: imageUrl || undefined };
+    onSubmit(dataWithImage, isBasket ? basketItems : undefined, isBasket ? basketExtras : undefined);
     form.reset();
+    setImageUrl(null);
   }
 
   return (
@@ -360,6 +373,13 @@ function ProductFormContent({
             <span>Alterações de preço valem apenas para novas vendas.</span>
           </div>
         )}
+
+        {/* Foto do Produto */}
+        <ProductImageUpload
+          imageUrl={imageUrl}
+          onImageChange={setImageUrl}
+          productId={editProduct?.id}
+        />
         {/* Tipo de Produto - Switch para Cesta */}
         <FormField
           control={form.control}
