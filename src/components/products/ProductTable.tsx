@@ -88,15 +88,16 @@ export function ProductTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {products.map((product) => (
+        {products.map((product) => (
             <TableRow
               key={product.id}
               className={cn(
-                "transition-colors",
+                "transition-colors cursor-pointer hover:bg-muted/40",
                 !product.isActive && "opacity-60 bg-muted/20"
               )}
+              onDoubleClick={() => onEdit(product)}
             >
-              <TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
                 <Checkbox
                   checked={selectedProducts.includes(product.id)}
                   onCheckedChange={() => onToggleSelect(product.id)}
@@ -177,7 +178,7 @@ export function ProductTable({
                   </Badge>
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-center gap-1">
                   {product.isActive && (
                     <Button
