@@ -425,9 +425,6 @@ export default function Produtos() {
           ) : viewMode === "list" ? (
             <ProductTable
               products={filteredProducts}
-              selectedProducts={selectedProducts}
-              onToggleSelect={handleToggleSelect}
-              onSelectAll={handleSelectAll}
               onEdit={openEditModal}
               onStockEntry={(product) => setStockEntryProduct(product)}
               onArchive={(product) => handleProductAction(product, "archive")}
