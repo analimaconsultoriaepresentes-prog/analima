@@ -57,7 +57,11 @@ export default function Despesas() {
 
   const formatDate = (dateStr: string) => {
     try {
-      return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+      // Parse date string as local date to avoid timezone issues
+      // Input format: "YYYY-MM-DD"
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day);
+      return format(localDate, "dd/MM/yyyy", { locale: ptBR });
     } catch {
       return dateStr;
     }
