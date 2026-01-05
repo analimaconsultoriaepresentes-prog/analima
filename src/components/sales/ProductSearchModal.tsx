@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { isInternalProduct, type ProductType, type GiftType, GIFT_TYPE_LABELS } from "@/hooks/useProducts";
+import { ProductThumbnail } from "@/components/products/ProductThumbnail";
 
 interface Product {
   id: string;
@@ -32,6 +33,7 @@ interface Product {
   productType?: ProductType;
   cycle?: number;
   giftType?: GiftType;
+  imageUrl?: string | null;
 }
 
 interface ProductSearchModalProps {
@@ -39,6 +41,7 @@ interface ProductSearchModalProps {
   onOpenChange: (open: boolean) => void;
   products: Product[];
   onSelectProduct: (product: Product) => void;
+  showPhotos?: boolean;
 }
 
 export function ProductSearchModal({
@@ -46,6 +49,7 @@ export function ProductSearchModal({
   onOpenChange,
   products,
   onSelectProduct,
+  showPhotos = true,
 }: ProductSearchModalProps) {
   const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState("");
@@ -161,17 +165,27 @@ export function ProductSearchModal({
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    {/* Product Info */}
-                    <div className="flex-1 min-w-0">
-                      {/* Name and Type */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-foreground truncate">
-                          {product.name}
-                        </p>
-                        {isGift && (
-                          <span className="text-amber-500">🎁</span>
-                        )}
-                      </div>
+                    {/* Product Thumbnail + Info */}
+                    <div className="flex gap-3 flex-1 min-w-0">
+                      {showPhotos && (
+                        <ProductThumbnail
+                          imageUrl={product.imageUrl}
+                          isBasket={!!isGift}
+                          size={isMobile ? "sm" : "md"}
+                          className="flex-shrink-0"
+                        />
+                      )}
+                      {/* Product Info */}
+                      <div className="flex-1 min-w-0">
+                        {/* Name and Type */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-foreground truncate">
+                            {product.name}
+                          </p>
+                          {isGift && (
+                            <span className="text-amber-500">🎁</span>
+                          )}
+                        </div>
 
                       {/* Meta Info Row */}
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -217,6 +231,7 @@ export function ProductSearchModal({
                         )}
                       </div>
                     </div>
+                  </div>
 
                     {/* Prices */}
                     <div className="text-right flex-shrink-0">

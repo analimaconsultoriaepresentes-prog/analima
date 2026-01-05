@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction } from "lucide-react";
+import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,12 +28,14 @@ const EMAIL_CONFIGURED = true; // Will be controlled by actual secret check
 export default function Configuracoes() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo, updateMaintenanceMode } = useStore();
+  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo, updateMaintenanceMode, updateShowPhotosInSales } = useStore();
   const { isHidden, showGuide, allCompleted } = useGettingStarted();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [savingMaintenance, setSavingMaintenance] = useState(false);
+  const [showPhotosInSales, setShowPhotosInSales] = useState(true);
+  const [savingPhotos, setSavingPhotos] = useState(false);
 
   const [storeName, setStoreName] = useState("");
   const [selectedColor, setSelectedColor] = useState("#F97316");
@@ -69,6 +71,7 @@ export default function Configuracoes() {
       setBirthdayMessage(store.birthdayMessage);
       setAlertSettings(store.alertSettings);
       setMaintenanceMode(store.maintenanceMode);
+      setShowPhotosInSales(store.showPhotosInSales);
       setAlertsLoaded(true);
     }
     if (store && !packagingLoaded) {
@@ -163,6 +166,16 @@ export default function Configuracoes() {
       setMaintenanceMode(newValue);
     }
     setSavingMaintenance(false);
+  };
+
+  const handleToggleShowPhotos = async () => {
+    setSavingPhotos(true);
+    const newValue = !showPhotosInSales;
+    const success = await updateShowPhotosInSales(newValue);
+    if (success) {
+      setShowPhotosInSales(newValue);
+    }
+    setSavingPhotos(false);
   };
 
   if (loading) {
@@ -359,6 +372,37 @@ export default function Configuracoes() {
                   checked={maintenanceMode}
                   onCheckedChange={handleToggleMaintenance}
                   disabled={savingMaintenance}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Show Photos in Sales */}
+          <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Image className="w-5 h-5 text-primary" />
+              Fotos na Tela de Vendas
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Exibe miniaturas dos produtos ao buscar e na lista de itens da venda. Desative para uma tela mais leve.
+            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-foreground">
+                  {showPhotosInSales ? "Fotos ativadas" : "Fotos desativadas"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {showPhotosInSales 
+                    ? "Miniaturas serão exibidas na tela de vendas" 
+                    : "Tela de vendas sem imagens"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {savingPhotos && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                <Switch 
+                  checked={showPhotosInSales}
+                  onCheckedChange={handleToggleShowPhotos}
+                  disabled={savingPhotos}
                 />
               </div>
             </div>
