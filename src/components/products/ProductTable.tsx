@@ -1,4 +1,4 @@
-import { Package, Gift, ShoppingBasket, AlertTriangle, Pencil, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw } from "lucide-react";
+import { Gift, AlertTriangle, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { type Product, GIFT_TYPE_LABELS } from "@/hooks/useProducts";
+import { ProductThumbnail } from "./ProductThumbnail";
 
 interface ProductTableProps {
   products: Product[];
@@ -78,16 +79,12 @@ export function ProductTable({
             >
               <TableCell className="py-1.5 px-2">
                 <div className="flex items-center gap-1.5">
-                  <div className={cn(
-                    "w-6 h-6 rounded flex items-center justify-center flex-shrink-0",
-                    product.isBasket ? "bg-primary/10" : "bg-muted"
-                  )}>
-                    {product.isBasket ? (
-                      <ShoppingBasket className="w-3 h-3 text-primary" />
-                    ) : (
-                      <Package className="w-3 h-3 text-muted-foreground" />
-                    )}
-                  </div>
+                  <ProductThumbnail
+                    imageUrl={product.imageUrl}
+                    isBasket={product.isBasket}
+                    size="sm"
+                    className="w-8 h-8 rounded"
+                  />
                   <div className="flex items-center gap-1 min-w-0 flex-1">
                     <span className="text-sm font-medium text-foreground line-clamp-2 leading-tight">
                       {product.name}
