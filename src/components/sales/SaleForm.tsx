@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Minus, Plus, ShoppingCart, Trash2, Search, User, UserPlus, Phone, Loader2, Store, Globe, Info, Package } from "lucide-react";
 import { ProductSearchModal } from "./ProductSearchModal";
+import { ProductThumbnail } from "@/components/products/ProductThumbnail";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ interface Product {
   productType?: ProductType;
   cycle?: number;
   giftType?: GiftType;
+  imageUrl?: string | null;
 }
 
 interface CartItem {
@@ -71,6 +73,7 @@ interface SaleFormProps {
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
   defaultChannel?: SaleChannel;
   packagingCosts: PackagingCosts;
+  showPhotos?: boolean;
 }
 
 const paymentMethods = [
@@ -88,6 +91,7 @@ function SaleFormContent({
   onAddCustomer,
   defaultChannel = "store",
   packagingCosts,
+  showPhotos = true,
 }: {
   products: Product[];
   customers: Customer[];
@@ -96,6 +100,7 @@ function SaleFormContent({
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
   defaultChannel?: SaleChannel;
   packagingCosts: PackagingCosts;
+  showPhotos?: boolean;
 }) {
   const isMobile = useIsMobile();
   const [channel, setChannel] = useState<SaleChannel>(defaultChannel);
@@ -511,6 +516,7 @@ function SaleFormContent({
         onOpenChange={setShowProductSearchModal}
         products={availableProducts}
         onSelectProduct={addToCart}
+        showPhotos={showPhotos}
       />
 
       {/* Carrinho */}
@@ -524,19 +530,29 @@ function SaleFormContent({
               Adicione produtos
             </div>
           ) : (
-            cart.map((item) => (
-              <div
-                key={item.product.id}
-                className="p-3 flex items-center gap-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground text-sm truncate">
-                    {item.product.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    R$ {getProductPrice(item.product).toFixed(2)} cada
-                  </p>
-                </div>
+            cart.map((item) => {
+              const isGift = item.product.isBasket || item.product.productType === 'basket';
+              return (
+                <div
+                  key={item.product.id}
+                  className="p-3 flex items-center gap-3"
+                >
+                  {showPhotos && (
+                    <ProductThumbnail
+                      imageUrl={item.product.imageUrl}
+                      isBasket={isGift}
+                      size="sm"
+                      className="flex-shrink-0"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground text-sm truncate">
+                      {item.product.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      R$ {getProductPrice(item.product).toFixed(2)} cada
+                    </p>
+                  </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1 bg-muted rounded-lg">
                     <Button
@@ -572,7 +588,8 @@ function SaleFormContent({
                   </Button>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -684,6 +701,7 @@ export function SaleForm({
   onAddCustomer, 
   defaultChannel = "store",
   packagingCosts,
+  showPhotos = true,
 }: SaleFormProps) {
   const isMobile = useIsMobile();
 
@@ -719,6 +737,7 @@ export function SaleForm({
               onAddCustomer={onAddCustomer} 
               defaultChannel={defaultChannel}
               packagingCosts={packagingCosts}
+              showPhotos={showPhotos}
             />
           </div>
         </DrawerContent>
@@ -742,6 +761,7 @@ export function SaleForm({
             onAddCustomer={onAddCustomer} 
             defaultChannel={defaultChannel}
             packagingCosts={packagingCosts}
+            showPhotos={showPhotos}
           />
         </div>
       </DialogContent>

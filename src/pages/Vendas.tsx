@@ -63,6 +63,7 @@ export default function Vendas() {
 
   // Usar custos de embalagem da configuração da loja
   const packagingCosts = store?.packagingCosts || { packagingCost1Bag: 0, packagingCost2Bags: 0 };
+  const showPhotosInSales = store?.showPhotosInSales ?? true;
 
   const handleNewSale = async (
     cartItems: { product: typeof products[0]; quantity: number }[],
@@ -333,6 +334,7 @@ export default function Vendas() {
         onAddCustomer={addCustomer}
         defaultChannel={defaultChannel}
         packagingCosts={packagingCosts}
+        showPhotos={showPhotosInSales}
       />
 
       {/* Cancel Confirmation Dialog */}

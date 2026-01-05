@@ -27,6 +27,7 @@ export interface Store {
   alertSettings: AlertSettings;
   packagingCosts: PackagingCosts;
   maintenanceMode: boolean;
+  showPhotosInSales: boolean;
 }
 
 const DEFAULT_ALERT_SETTINGS: AlertSettings = {
@@ -86,6 +87,7 @@ export function useStore() {
             packagingCost2Bags: Number(data.packaging_cost_2_bags) || 0,
           },
           maintenanceMode: data.maintenance_mode ?? false,
+          showPhotosInSales: data.show_photos_in_sales ?? true,
         });
       }
     } catch (error) {
@@ -278,6 +280,36 @@ export function useStore() {
     }
   };
 
+  const updateShowPhotosInSales = async (enabled: boolean): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from("stores")
+        .update({ show_photos_in_sales: enabled })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setStore(prev => prev ? { ...prev, showPhotosInSales: enabled } : null);
+      toast({
+        title: "Configuração salva",
+        description: enabled 
+          ? "Fotos serão exibidas na tela de vendas." 
+          : "Fotos foram ocultadas da tela de vendas.",
+      });
+      return true;
+    } catch (error) {
+      console.error("Error updating show photos in sales:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     store,
     loading,
@@ -286,6 +318,7 @@ export function useStore() {
     updatePackagingCosts,
     uploadLogo,
     updateMaintenanceMode,
+    updateShowPhotosInSales,
     refetch: fetchStore,
   };
 }
