@@ -1,6 +1,5 @@
 import { Package, Gift, ShoppingBasket, AlertTriangle, Pencil, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -21,9 +20,6 @@ import { type Product, GIFT_TYPE_LABELS } from "@/hooks/useProducts";
 
 interface ProductTableProps {
   products: Product[];
-  selectedProducts: string[];
-  onToggleSelect: (productId: string) => void;
-  onSelectAll: (checked: boolean) => void;
   onEdit: (product: Product) => void;
   onStockEntry: (product: Product) => void;
   onArchive: (product: Product) => void;
@@ -47,34 +43,17 @@ const productTypeLabels: Record<string, string> = {
 
 export function ProductTable({
   products,
-  selectedProducts,
-  onToggleSelect,
-  onSelectAll,
   onEdit,
   onStockEntry,
   onArchive,
   onDelete,
   onReactivate,
 }: ProductTableProps) {
-  const allSelected = products.length > 0 && selectedProducts.length === products.length;
-  const someSelected = selectedProducts.length > 0 && selectedProducts.length < products.length;
-
   return (
     <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className="w-12">
-              <Checkbox
-                checked={allSelected}
-                ref={(el) => {
-                  if (el) {
-                    (el as HTMLButtonElement & { indeterminate?: boolean }).indeterminate = someSelected;
-                  }
-                }}
-                onCheckedChange={(checked) => onSelectAll(!!checked)}
-              />
-            </TableHead>
             <TableHead className="min-w-[200px]">Produto</TableHead>
             <TableHead>Marca</TableHead>
             <TableHead>Categoria</TableHead>
@@ -97,12 +76,6 @@ export function ProductTable({
               )}
               onDoubleClick={() => onEdit(product)}
             >
-              <TableCell onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-                <Checkbox
-                  checked={selectedProducts.includes(product.id)}
-                  onCheckedChange={() => onToggleSelect(product.id)}
-                />
-              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <div className={cn(
