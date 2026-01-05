@@ -76,10 +76,38 @@ const SORT_OPTIONS = [
 export function ProductFilters({
   open,
   onOpenChange,
-  filters,
+  filters: filtersProp,
   onFiltersChange,
-  availableBrands,
+  availableBrands: availableBrandsProp,
 }: ProductFiltersProps) {
+  // Safe fallbacks to prevent "undefined.length" and similar runtime errors
+  const categoriesSafe = filtersProp?.categories ?? [];
+  const originsSafe = filtersProp?.origins ?? [];
+  const brandsSafe = filtersProp?.brands ?? [];
+  const productTypeSafe =
+    (filtersProp?.productType ?? "all") as ProductTypeFilter;
+  const stockFilterSafe = filtersProp?.stockFilter ?? "all";
+  const cycleSafe = filtersProp?.cycle ?? "";
+  const statusFilterSafe =
+    (filtersProp?.statusFilter ?? "active") as StatusFilter;
+  const sortFieldSafe = (filtersProp?.sortField ?? "name") as SortField;
+  const sortDirectionSafe =
+    (filtersProp?.sortDirection ?? "asc") as SortDirection;
+
+  const filters: ProductFiltersState = {
+    categories: categoriesSafe,
+    origins: originsSafe,
+    brands: brandsSafe,
+    productType: productTypeSafe,
+    stockFilter: stockFilterSafe,
+    cycle: cycleSafe,
+    statusFilter: statusFilterSafe,
+    sortField: sortFieldSafe,
+    sortDirection: sortDirectionSafe,
+  };
+
+  const availableBrandsSafe = availableBrandsProp ?? [];
+
   const handleCategoryToggle = (category: string) => {
     const newCategories = filters.categories.includes(category)
       ? filters.categories.filter((c) => c !== category)
@@ -143,18 +171,18 @@ export function ProductFilters({
   };
 
   const hasActiveFilters =
-    filters.categories.length > 0 ||
-    filters.origins.length > 0 ||
-    filters.brands.length > 0 ||
-    filters.productType !== "all" ||
-    filters.stockFilter !== "all" ||
-    filters.cycle !== "" ||
-    filters.statusFilter !== "active";
+    categoriesSafe.length > 0 ||
+    originsSafe.length > 0 ||
+    brandsSafe.length > 0 ||
+    productTypeSafe !== "all" ||
+    stockFilterSafe !== "all" ||
+    cycleSafe !== "" ||
+    statusFilterSafe !== "active";
 
   // Get unique brands from available brands
-  const uniqueBrands = availableBrands.filter((brand, index, self) => 
-    brand && self.indexOf(brand) === index
-  ).sort();
+  const uniqueBrandsSafe = availableBrandsSafe
+    .filter((brand, index, self) => brand && self.indexOf(brand) === index)
+    .sort();
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -234,11 +262,11 @@ export function ProductFilters({
           </div>
 
           {/* Marca */}
-          {uniqueBrands.length > 0 && (
+          {uniqueBrandsSafe.length > 0 && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">Marca</Label>
               <div className="max-h-40 overflow-y-auto space-y-2">
-                {uniqueBrands.map((brand) => (
+                {uniqueBrandsSafe.map((brand) => (
                   <label
                     key={brand}
                     className="flex items-center space-x-2 cursor-pointer"
