@@ -51,19 +51,19 @@ export function ProductTable({
 }: ProductTableProps) {
   return (
     <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
-      <Table>
+      <Table className="table-fixed w-full">
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className="min-w-[200px]">Produto</TableHead>
-            <TableHead>Marca</TableHead>
-            <TableHead>Categoria</TableHead>
-            <TableHead className="text-right">Custo</TableHead>
-            <TableHead className="text-right">Pix</TableHead>
-            <TableHead className="text-right">Cartão</TableHead>
-            <TableHead className="text-right">Estoque</TableHead>
-            <TableHead className="text-center">Ciclo</TableHead>
-            <TableHead className="text-center">Status</TableHead>
-            <TableHead className="w-24 text-center">Ações</TableHead>
+            <TableHead className="w-[180px] py-2 px-2 text-xs">Produto</TableHead>
+            <TableHead className="w-[80px] py-2 px-2 text-xs">Marca</TableHead>
+            <TableHead className="w-[90px] py-2 px-2 text-xs">Categoria</TableHead>
+            <TableHead className="w-[75px] py-2 px-2 text-xs text-right">Custo</TableHead>
+            <TableHead className="w-[75px] py-2 px-2 text-xs text-right">Pix</TableHead>
+            <TableHead className="w-[75px] py-2 px-2 text-xs text-right">Cartão</TableHead>
+            <TableHead className="w-[55px] py-2 px-2 text-xs text-center">Estoque</TableHead>
+            <TableHead className="w-[50px] py-2 px-2 text-xs text-center">Ciclo</TableHead>
+            <TableHead className="w-[70px] py-2 px-2 text-xs text-center">Status</TableHead>
+            <TableHead className="w-[50px] py-2 px-2 text-xs text-center">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -76,98 +76,82 @@ export function ProductTable({
               )}
               onDoubleClick={() => onEdit(product)}
             >
-              <TableCell>
-                <div className="flex items-center gap-2">
+              <TableCell className="py-1.5 px-2">
+                <div className="flex items-center gap-1.5">
                   <div className={cn(
-                    "w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0",
+                    "w-6 h-6 rounded flex items-center justify-center flex-shrink-0",
                     product.isBasket ? "bg-primary/10" : "bg-muted"
                   )}>
                     {product.isBasket ? (
-                      <ShoppingBasket className="w-4 h-4 text-primary" />
+                      <ShoppingBasket className="w-3 h-3 text-primary" />
                     ) : (
-                      <Package className="w-4 h-4 text-muted-foreground" />
+                      <Package className="w-3 h-3 text-muted-foreground" />
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="font-medium text-foreground truncate">
+                  <div className="flex items-center gap-1 min-w-0 flex-1">
+                    <span className="text-sm font-medium text-foreground line-clamp-2 leading-tight">
                       {product.name}
                     </span>
                     {product.origin === "gift" && !product.isBasket && (
                       <span title="Brinde">
-                        <Gift className="w-4 h-4 text-primary flex-shrink-0" />
-                      </span>
-                    )}
-                    {product.isBasket && (
-                      <span title={product.giftType ? GIFT_TYPE_LABELS[product.giftType] : "Cesta"}>
-                        <ShoppingBasket className="w-4 h-4 text-primary flex-shrink-0" />
+                        <Gift className="w-3 h-3 text-primary flex-shrink-0" />
                       </span>
                     )}
                     {!product.isBasket && product.stock < 3 && product.isActive && (
                       <span title="Estoque baixo">
-                        <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0" />
+                        <AlertTriangle className="w-3 h-3 text-warning flex-shrink-0" />
                       </span>
                     )}
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="py-1.5 px-2 text-xs text-muted-foreground truncate">
                 {product.brand || "—"}
               </TableCell>
-              <TableCell>
-                <Badge variant="outline" className={cn("text-xs", categoryColors[product.category])}>
+              <TableCell className="py-1.5 px-2">
+                <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", categoryColors[product.category])}>
                   {product.category}
                 </Badge>
               </TableCell>
-              <TableCell className="text-right font-medium">
+              <TableCell className="py-1.5 px-2 text-right text-xs font-medium">
                 R$ {product.costPrice.toFixed(2)}
               </TableCell>
-              <TableCell className="text-right font-medium text-success">
+              <TableCell className="py-1.5 px-2 text-right text-xs font-medium text-success">
                 {product.productType === "packaging" || product.productType === "extra" 
                   ? "—" 
                   : `R$ ${product.pricePix.toFixed(2)}`}
               </TableCell>
-              <TableCell className="text-right font-medium text-primary">
+              <TableCell className="py-1.5 px-2 text-right text-xs font-medium text-primary">
                 {product.productType === "packaging" || product.productType === "extra"
                   ? "—"
                   : product.priceCard > 0 ? `R$ ${product.priceCard.toFixed(2)}` : "—"}
               </TableCell>
               <TableCell className={cn(
-                "text-right font-medium",
+                "py-1.5 px-2 text-center text-xs font-medium",
                 !product.isBasket && product.stock < 3 && product.isActive ? "text-warning" : ""
               )}>
                 {product.stock}
               </TableCell>
-              <TableCell className="text-center text-muted-foreground">
+              <TableCell className="py-1.5 px-2 text-center text-xs text-muted-foreground">
                 {product.cycle || "—"}
               </TableCell>
-              <TableCell className="text-center">
+              <TableCell className="py-1.5 px-2 text-center">
                 {product.isActive ? (
-                  <Badge variant="outline" className="bg-success/10 text-success border-success/20 text-xs">
+                  <Badge variant="outline" className="bg-success/10 text-success border-success/20 text-[10px] px-1.5 py-0">
                     Ativo
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="bg-muted text-muted-foreground text-xs">
+                  <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0">
                     Inativo
                   </Badge>
                 )}
               </TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-center gap-1">
-                  {product.isActive && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => onEdit(product)}
-                      title="Editar"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                  )}
+              <TableCell className="py-1.5 px-2" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-center">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="w-4 h-4" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <MoreVertical className="w-3.5 h-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
