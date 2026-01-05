@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -110,23 +111,54 @@ export default function Despesas() {
                         <RefreshCw className="w-5 h-5 text-primary" />
                       </div>
                     ) : (
-                      <button
-                        onClick={() => toggleExpenseStatus.mutate({ 
-                          id: expense.id, 
-                          currentStatus: expense.status 
-                        })}
-                        className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover:opacity-80",
-                          expense.status === "pago" ? "bg-success/10" : "bg-warning/10"
-                        )}
-                        title={expense.status === "pago" ? "Marcar como pendente" : "Marcar como pago"}
-                      >
-                        {expense.status === "pago" ? (
-                          <CheckCircle className="w-5 h-5 text-success" />
-                        ) : (
-                          <Clock className="w-5 h-5 text-warning" />
-                        )}
-                      </button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            className={cn(
+                              "w-10 h-10 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover:opacity-80",
+                              expense.status === "pago" ? "bg-success/10" : "bg-warning/10"
+                            )}
+                            title={expense.status === "pago" ? "Marcar como pendente" : "Marcar como pago"}
+                          >
+                            {expense.status === "pago" ? (
+                              <CheckCircle className="w-5 h-5 text-success" />
+                            ) : (
+                              <Clock className="w-5 h-5 text-warning" />
+                            )}
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              {expense.status === "pago" ? "Voltar para pendente?" : "Marcar como pago?"}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {expense.status === "pago" 
+                                ? "Você quer marcar esta despesa como PENDENTE?" 
+                                : "Você quer marcar esta despesa como PAGO?"
+                              }
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => {
+                                toggleExpenseStatus.mutate({ 
+                                  id: expense.id, 
+                                  currentStatus: expense.status 
+                                });
+                                toast.success(
+                                  expense.status === "pago" 
+                                    ? "Despesa marcada como pendente" 
+                                    : "Despesa marcada como paga"
+                                );
+                              }}
+                            >
+                              {expense.status === "pago" ? "Marcar como pendente" : "Marcar como pago"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                     <div>
                       <div className="flex items-center gap-2">
@@ -332,27 +364,58 @@ export default function Despesas() {
                     </AlertDialogContent>
                   </AlertDialog>
                 ) : (
-                  <Button
-                    variant={expense.status === "pago" ? "outline" : "default"}
-                    size="sm"
-                    className="flex-1 min-h-[44px]"
-                    onClick={() => toggleExpenseStatus.mutate({ 
-                      id: expense.id, 
-                      currentStatus: expense.status 
-                    })}
-                  >
-                    {expense.status === "pago" ? (
-                      <>
-                        <Clock className="w-4 h-4 mr-2" />
-                        Pendente
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Marcar Pago
-                      </>
-                    )}
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant={expense.status === "pago" ? "outline" : "default"}
+                        size="sm"
+                        className="flex-1 min-h-[44px]"
+                      >
+                        {expense.status === "pago" ? (
+                          <>
+                            <Clock className="w-4 h-4 mr-2" />
+                            Pendente
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Marcar Pago
+                          </>
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {expense.status === "pago" ? "Voltar para pendente?" : "Marcar como pago?"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {expense.status === "pago" 
+                            ? "Você quer marcar esta despesa como PENDENTE?" 
+                            : "Você quer marcar esta despesa como PAGO?"
+                          }
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => {
+                            toggleExpenseStatus.mutate({ 
+                              id: expense.id, 
+                              currentStatus: expense.status 
+                            });
+                            toast.success(
+                              expense.status === "pago" 
+                                ? "Despesa marcada como pendente" 
+                                : "Despesa marcada como paga"
+                            );
+                          }}
+                        >
+                          {expense.status === "pago" ? "Marcar como pendente" : "Marcar como pago"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
                 {!isRecurringList && (
                   <AlertDialog>
