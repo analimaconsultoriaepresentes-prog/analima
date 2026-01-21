@@ -495,32 +495,53 @@ export type Database = {
       }
       sales: {
         Row: {
+          amount_received: number | null
+          change_amount: number | null
           channel: string
           created_at: string
           customer_id: string | null
+          discount_reason: string | null
+          discount_type: string | null
+          discount_value: number | null
+          estimated_profit: number | null
           id: string
           payment_method: string
           status: string
+          subtotal: number
           total: number
           user_id: string | null
         }
         Insert: {
+          amount_received?: number | null
+          change_amount?: number | null
           channel?: string
           created_at?: string
           customer_id?: string | null
+          discount_reason?: string | null
+          discount_type?: string | null
+          discount_value?: number | null
+          estimated_profit?: number | null
           id?: string
           payment_method: string
           status?: string
+          subtotal?: number
           total?: number
           user_id?: string | null
         }
         Update: {
+          amount_received?: number | null
+          change_amount?: number | null
           channel?: string
           created_at?: string
           customer_id?: string | null
+          discount_reason?: string | null
+          discount_type?: string | null
+          discount_value?: number | null
+          estimated_profit?: number | null
           id?: string
           payment_method?: string
           status?: string
+          subtotal?: number
           total?: number
           user_id?: string | null
         }
