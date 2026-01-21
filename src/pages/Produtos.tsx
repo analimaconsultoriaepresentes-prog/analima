@@ -318,7 +318,11 @@ export default function Produtos() {
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Produtos</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {filteredProducts.length} de {products.length} produtos
+            {(() => {
+              const totalStock = products.filter(p => p.isActive).reduce((sum, p) => sum + p.stock, 0);
+              const totalValue = products.filter(p => p.isActive).reduce((sum, p) => sum + (p.stock * p.costPrice), 0);
+              return `${totalStock} produtos | Valor em estoque: R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            })()}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
