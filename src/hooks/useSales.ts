@@ -4,6 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
 import type { Product } from "./useProducts";
 import { useBaskets } from "./useBaskets";
+import { formatDateTimeInBrazil, getTodayInBrazil, formatDateInBrazil } from "@/lib/timezone";
 
 export interface SaleItem {
   id: string;
@@ -78,6 +79,8 @@ export function useSales() {
           }));
 
         const date = new Date(s.created_at);
+        // Format date and time using Brazil timezone
+        const { date: brazilDate, time: brazilTime } = formatDateTimeInBrazil(date);
         return {
           id: s.id,
           products: saleItems.map((i) => `${i.productName} (${i.quantity}x)`),
@@ -85,11 +88,8 @@ export function useSales() {
           paymentMethod: s.payment_method as Sale["paymentMethod"],
           status: s.status as Sale["status"],
           channel: ((s as { channel?: string }).channel || "store") as SaleChannel,
-          date: date.toISOString().split("T")[0],
-          time: date.toLocaleTimeString("pt-BR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+          date: brazilDate,
+          time: brazilTime,
           items: saleItems,
           customerId: (s as { customer_id?: string }).customer_id || undefined,
         };
@@ -256,11 +256,11 @@ export function useSales() {
     }
   };
 
-  // Stats helpers
-  const today = new Date().toISOString().split("T")[0];
+  // Stats helpers - use Brazil timezone
+  const todayBrazil = getTodayInBrazil();
   
   const todaySales = sales.filter(
-    (s) => s.date === today && s.status === "completed"
+    (s) => s.date === todayBrazil && s.status === "completed"
   );
   
   // Channel breakdown
