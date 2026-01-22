@@ -1,9 +1,17 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
-import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+import { subMonths, format } from "date-fns";
 import { useStore } from "./useStore";
-
+import { 
+  getTodayInBrazil, 
+  getTodayStartUTC, 
+  getTodayEndUTC,
+  getMonthStartUTC,
+  getMonthEndUTC,
+  formatDateInBrazil,
+  isToday as isTodayBrazil
+} from "@/lib/timezone";
 interface DashboardStats {
   // Today
   salesToday: number;
@@ -81,11 +89,14 @@ export function useDashboardData() {
 
     try {
       const today = new Date();
-      const todayStr = format(today, "yyyy-MM-dd");
-      const monthStart = startOfMonth(today);
-      const monthEnd = endOfMonth(today);
-      const lastMonthStart = startOfMonth(subMonths(today, 1));
-      const lastMonthEnd = endOfMonth(subMonths(today, 1));
+      const todayStr = getTodayInBrazil();
+      
+      // Use Brazil timezone for month boundaries
+      const monthStart = getMonthStartUTC(today);
+      const monthEnd = getMonthEndUTC(today);
+      const lastMonth = subMonths(today, 1);
+      const lastMonthStart = getMonthStartUTC(lastMonth);
+      const lastMonthEnd = getMonthEndUTC(lastMonth);
 
       // Fetch sales for current month
       const { data: salesData } = await supabase
@@ -118,9 +129,9 @@ export function useDashboardData() {
         .eq("is_active", true)
         .is("deleted_at", null);
 
-      // Calculate today's stats
+      // Calculate today's stats using Brazil timezone
       const todaySales = (salesData || []).filter((s) =>
-        s.created_at.startsWith(todayStr)
+        isTodayBrazil(s.created_at)
       );
       const revToday = todaySales.reduce((acc, s) => acc + Number(s.total), 0);
       const countToday = todaySales.length;
@@ -268,8 +279,8 @@ export function useDashboardData() {
       const monthlyChartData: Array<{ name: string; vendas: number; despesas: number }> = [];
       for (let i = 5; i >= 0; i--) {
         const monthDate = subMonths(today, i);
-        const mStart = startOfMonth(monthDate);
-        const mEnd = endOfMonth(monthDate);
+        const mStart = getMonthStartUTC(monthDate);
+        const mEnd = getMonthEndUTC(monthDate);
         const { data: mSales } = await supabase
           .from("sales")
           .select("total")

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
-import { startOfMonth, endOfMonth, subMonths, subDays, format } from "date-fns";
+import { subMonths, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getMonthStartUTC, getMonthEndUTC } from "@/lib/timezone";
 
 export type PeriodOption = "30days" | "3months" | "6months" | "1year";
 
@@ -132,8 +133,9 @@ export function useReportsData(period: PeriodOption = "6months") {
           mStart = subDays(today, 30);
           mEnd = today;
         } else {
-          mStart = startOfMonth(monthDate);
-          mEnd = endOfMonth(monthDate);
+          // Use Brazil timezone for month boundaries
+          mStart = getMonthStartUTC(monthDate);
+          mEnd = getMonthEndUTC(monthDate);
         }
 
         // Fetch sales for this period
