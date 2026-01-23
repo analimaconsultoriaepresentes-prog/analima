@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Package, Plus, Gift, X } from "lucide-react";
+import { Search, Package, Plus, Gift, X, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -181,9 +181,17 @@ export function ProductGrid({
                     </p>
 
                     <div className="flex items-center justify-between mt-2">
-                      <span className="font-bold text-primary">
-                        R$ {price.toFixed(2)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-primary">
+                          R$ {price.toFixed(2)}
+                        </span>
+                        {product.priceCard > 0 && product.priceCard !== product.pricePix && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                            <CreditCard className="w-3 h-3" />
+                            R$ {product.priceCard.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
                       {outOfStock ? (
                         <span className="text-[10px] font-medium text-destructive bg-destructive/10 px-2 py-0.5 rounded">
                           Sem estoque
