@@ -290,20 +290,44 @@
     to { opacity: 1; transform: scale(1); }
   }
 
-  /* Subtle mascot pulse - gentle scale */
-  @keyframes mascotPulse {
-    0%, 100% {
-      transform: scale(1);
-      box-shadow: 0 10px 25px -5px hsl(142, 76%, 40%, 0.25);
+  /* Mascot entry animation - slide up with gentle bounce */
+  @keyframes mascotEntry {
+    0% {
+      opacity: 0;
+      transform: translateY(40px) scale(0.8);
     }
-    50% {
-      transform: scale(1.03);
-      box-shadow: 0 12px 28px -5px hsl(142, 76%, 40%, 0.35);
+    60% {
+      opacity: 1;
+      transform: translateY(-8px) scale(1.02);
+    }
+    80% {
+      transform: translateY(4px) scale(0.98);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
     }
   }
 
-  .animate-mascot-gentle-pulse {
-    animation: mascotPulse 2.5s ease-in-out infinite;
+  .animate-mascot-entry {
+    animation: mascotEntry 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  /* Wave animation for hand emoji */
+  @keyframes wave {
+    0%, 100% { transform: rotate(0deg); }
+    15% { transform: rotate(14deg); }
+    30% { transform: rotate(-8deg); }
+    45% { transform: rotate(14deg); }
+    60% { transform: rotate(-4deg); }
+    75% { transform: rotate(10deg); }
+    90% { transform: rotate(0deg); }
+  }
+
+  .animate-wave {
+    display: inline-block;
+    animation: wave 1.5s ease-in-out;
+    transform-origin: 70% 70%;
   }
 
   .delay-100 { animation-delay: 100ms; }
