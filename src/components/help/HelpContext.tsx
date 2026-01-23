@@ -75,6 +75,11 @@ export const helpTopics: Record<string, HelpTopic[]> = {
       content: "Aqui você registra cada venda da loja. Escolha os produtos, a forma de pagamento e pronto!",
     },
     {
+      id: "vendas-meta",
+      title: "Meta do Dia",
+      content: "A barra de progresso mostra quanto você já vendeu em relação à meta diária. Quando chegar a 100%, a barra fica verde! 🎉",
+    },
+    {
       id: "vendas-pix",
       title: "Preço Pix",
       content: "É o valor que você cobra quando o cliente paga por Pix. Geralmente é menor porque não tem taxa.",
