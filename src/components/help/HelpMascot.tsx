@@ -169,32 +169,30 @@ export function HelpMascot() {
       </div>
 
       {/* Mascot Button with Character Image */}
+      {/* Mascot Button - Clean style without borders */}
       <button
         onClick={handleMascotClick}
         className={cn(
           "fixed bottom-4 right-4 z-50",
-          "w-20 h-20 rounded-full overflow-hidden",
-          "bg-white border-[3px] border-emerald-400",
-          "shadow-lg shadow-emerald-500/20",
+          "w-24 h-24",
           "transition-all duration-300 ease-out",
-          "hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/30 hover:border-emerald-500",
+          "hover:scale-105",
           "active:scale-95",
-          "focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2",
-          hasAnimated ? "animate-mascot-entry" : "opacity-0 translate-y-8",
-          isOpen && "ring-2 ring-emerald-500"
+          "focus:outline-none",
+          hasAnimated ? "animate-mascot-entry" : "opacity-0 translate-y-8"
         )}
         aria-label={isOpen ? "Fechar ajuda" : "Abrir ajuda"}
         style={{ animationFillMode: 'forwards' }}
       >
         {isOpen ? (
-          <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
-            <X className="w-7 h-7 text-white" />
+          <div className="w-16 h-16 mx-auto rounded-full bg-muted/80 backdrop-blur-sm flex items-center justify-center shadow-lg">
+            <X className="w-6 h-6 text-foreground" />
           </div>
         ) : (
           <img 
             src={mascotImage} 
             alt="Ana - Assistente de Ajuda"
-            className="w-[140%] h-auto absolute top-1 left-1/2 -translate-x-1/2"
+            className="w-full h-full object-contain drop-shadow-lg"
           />
         )}
       </button>
@@ -212,14 +210,14 @@ export function HelpMascot() {
             : "opacity-0 scale-95 translate-y-4 pointer-events-none"
         )}
       >
-        {/* Header with larger mascot image */}
-        <div className="p-4 border-b border-border bg-gradient-to-r from-emerald-50 to-green-50 rounded-t-2xl">
+        {/* Header with mascot image - clean style */}
+        <div className="p-4 border-b border-border bg-muted/30 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-emerald-400 shadow-md relative bg-white">
+            <div className="w-12 h-12 flex-shrink-0">
               <img 
                 src={mascotImage} 
                 alt="Ana"
-                className="w-[180%] h-auto absolute top-0 left-1/2 -translate-x-1/2"
+                className="w-full h-full object-contain"
               />
             </div>
             <div>
