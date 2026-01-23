@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useHelp, helpTopics, complexPages } from "./HelpContext";
 
 const INACTIVITY_TIMEOUT = 8000; // 8 seconds of inactivity before pulsing
+const BUBBLE_TRIGGER_DELAY = 1500; // Delay before showing bubble on page change
 
 export function HelpMascot() {
   const { 
@@ -15,7 +16,10 @@ export function HelpMascot() {
     triggerPulse, 
     stopPulse,
     visitedPages,
-    markPageVisited 
+    markPageVisited,
+    bubbleMessage,
+    showBubble,
+    hideBubble
   } = useHelp();
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -39,9 +43,10 @@ export function HelpMascot() {
     if (!isOpen) {
       inactivityTimerRef.current = setTimeout(() => {
         triggerPulse();
+        showBubble(); // Show bubble when pulsing from inactivity
       }, INACTIVITY_TIMEOUT);
     }
-  }, [isOpen, stopPulse, triggerPulse]);
+  }, [isOpen, stopPulse, triggerPulse, showBubble]);
 
   // Handle page changes - pulse on first visit to complex pages
   useEffect(() => {
@@ -53,12 +58,16 @@ export function HelpMascot() {
       const timer = setTimeout(() => {
         triggerPulse();
         markPageVisited(currentPage);
+        // Show bubble after a bit more delay
+        setTimeout(() => {
+          showBubble();
+        }, BUBBLE_TRIGGER_DELAY);
       }, 500);
       return () => clearTimeout(timer);
     } else {
       markPageVisited(currentPage);
     }
-  }, [currentPage, visitedPages, triggerPulse, markPageVisited]);
+  }, [currentPage, visitedPages, triggerPulse, markPageVisited, showBubble]);
 
   // Setup inactivity detection
   useEffect(() => {
@@ -89,19 +98,39 @@ export function HelpMascot() {
   useEffect(() => {
     if (isOpen) {
       stopPulse();
+      hideBubble();
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
       }
     }
-  }, [isOpen, stopPulse]);
+  }, [isOpen, stopPulse, hideBubble]);
 
   const handleMascotClick = () => {
     stopPulse();
+    hideBubble();
     setIsOpen(!isOpen);
   };
 
   return (
     <>
+      {/* Speech Bubble */}
+      <div
+        className={cn(
+          "fixed bottom-[88px] right-6 z-50",
+          "max-w-[200px] px-4 py-2.5",
+          "bg-card border border-border rounded-2xl shadow-lg",
+          "transition-all duration-300 ease-out",
+          "origin-bottom-right",
+          bubbleMessage && !isOpen
+            ? "opacity-100 scale-100 translate-y-0"
+            : "opacity-0 scale-90 translate-y-2 pointer-events-none"
+        )}
+      >
+        <p className="text-sm text-foreground leading-snug">{bubbleMessage}</p>
+        {/* Bubble tail */}
+        <div className="absolute -bottom-2 right-6 w-4 h-4 bg-card border-r border-b border-border rotate-45 transform" />
+      </div>
+
       {/* Mascot Button */}
       <button
         onClick={handleMascotClick}
