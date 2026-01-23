@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   Loader2,
   Users,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -41,42 +42,42 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile menu button - always visible, large touch target */}
+      {/* Mobile menu button - premium gradient style */}
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-3 left-3 z-50 lg:hidden min-h-[44px] min-w-[44px] bg-card/80 backdrop-blur-sm shadow-md border border-border/50"
+        className="fixed top-3 left-3 z-50 lg:hidden min-h-[44px] min-w-[44px] bg-card/90 backdrop-blur-md shadow-lg border border-border/30 hover:shadow-xl transition-all duration-300"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
       >
         {isMobileOpen ? <X size={24} /> : <Menu size={24} />}
       </Button>
 
-      {/* Mobile overlay */}
+      {/* Mobile overlay with blur */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-foreground/40 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Premium dark gradient */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-full bg-sidebar border-r border-sidebar-border z-40 transition-all duration-300 ease-in-out",
+          "fixed left-0 top-0 h-full gradient-sidebar z-40 transition-all duration-300 ease-in-out shadow-xl",
           isCollapsed ? "w-20" : "w-64",
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        {/* Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
+        {/* Header with logo */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border/50">
           <div className={cn("flex items-center gap-3 overflow-hidden", isCollapsed && "justify-center")}>
             {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              <Loader2 className="w-5 h-5 animate-spin text-sidebar-muted" />
             ) : storeLogo ? (
-              <img src={storeLogo} alt={storeName} className="w-10 h-10 rounded-lg object-cover" />
+              <img src={storeLogo} alt={storeName} className="w-10 h-10 rounded-xl object-cover ring-2 ring-primary/30" />
             ) : (
-              <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
-                <Store className="w-5 h-5 text-primary-foreground" />
+              <div className="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center shadow-lg">
+                <Store className="w-5 h-5 text-white" />
               </div>
             )}
             {!isCollapsed && !loading && (
@@ -86,10 +87,10 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="hidden lg:flex text-muted-foreground hover:text-foreground"
+            className="hidden lg:flex text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
             onClick={() => setIsCollapsed(!isCollapsed)}
           >
-            <ChevronLeft className={cn("w-5 h-5 transition-transform", isCollapsed && "rotate-180")} />
+            <ChevronLeft className={cn("w-5 h-5 transition-transform duration-300", isCollapsed && "rotate-180")} />
           </Button>
         </div>
 
@@ -108,18 +109,19 @@ export function Sidebar() {
                   isCollapsed && "justify-center px-3"
                 )}
               >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-primary")} />
                 {!isCollapsed && <span>{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        {/* Footer */}
+        {/* Footer with branding */}
         {!isCollapsed && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
-            <div className="text-xs text-muted-foreground text-center">
-              © 2026 ANALIMA
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border/50">
+            <div className="flex items-center justify-center gap-1.5 text-xs text-sidebar-muted">
+              <Sparkles className="w-3 h-3 text-primary" />
+              <span>© 2026 ANALIMA</span>
             </div>
           </div>
         )}

@@ -10,25 +10,50 @@ interface StatCardProps {
     value: number;
     isPositive: boolean;
   };
-  variant?: "default" | "primary" | "success" | "warning";
+  variant?: "default" | "sales" | "financial" | "stock" | "primary" | "success" | "warning";
   className?: string;
 }
 
+const variantStyles = {
+  default: {
+    card: "stat-card",
+    iconBg: "icon-bg-default",
+  },
+  sales: {
+    card: "stat-card-sales",
+    iconBg: "icon-bg-sales",
+  },
+  financial: {
+    card: "stat-card-financial",
+    iconBg: "icon-bg-financial",
+  },
+  stock: {
+    card: "stat-card-stock",
+    iconBg: "icon-bg-stock",
+  },
+  primary: {
+    card: "stat-card-sales",
+    iconBg: "icon-bg-sales",
+  },
+  success: {
+    card: "stat-card-financial",
+    iconBg: "icon-bg-financial",
+  },
+  warning: {
+    card: "stat-card-stock",
+    iconBg: "icon-bg-stock",
+  },
+};
+
 export function StatCard({ title, value, icon, trend, variant = "default", className }: StatCardProps) {
+  const styles = variantStyles[variant];
+  
   return (
-    <div
-      className={cn(
-        "stat-card animate-slide-up",
-        variant === "primary" && "border-primary/20 bg-primary/5",
-        variant === "success" && "border-success/20 bg-success/5",
-        variant === "warning" && "border-warning/20 bg-warning/5",
-        className
-      )}
-    >
+    <div className={cn(styles.card, "animate-slide-up", className)}>
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1 sm:space-y-2 flex-1 min-w-0">
           <p className="text-xs sm:text-sm text-muted-foreground font-medium truncate">{title}</p>
-          <p className="text-lg sm:text-2xl font-bold text-foreground truncate">{value}</p>
+          <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground truncate">{value}</p>
           {trend && (
             <div className={cn(
               "flex items-center gap-1 text-xs sm:text-sm font-medium",
@@ -40,13 +65,7 @@ export function StatCard({ title, value, icon, trend, variant = "default", class
             </div>
           )}
         </div>
-        <div className={cn(
-          "p-2 sm:p-3 rounded-lg sm:rounded-xl flex-shrink-0",
-          variant === "default" && "bg-muted",
-          variant === "primary" && "bg-primary/10 text-primary",
-          variant === "success" && "bg-success/10 text-success",
-          variant === "warning" && "bg-warning/10 text-warning"
-        )}>
+        <div className={styles.iconBg}>
           {icon}
         </div>
       </div>
