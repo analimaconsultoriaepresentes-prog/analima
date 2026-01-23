@@ -61,6 +61,7 @@ export function QuickProductModal({
         pricePix: parseFloat(salePrice) || 0,
         priceCard: parseFloat(salePrice) || 0,
         stock: parseInt(stock) || 0,
+        proveQty: 0,
         origin: "purchased",
         isBasket: false,
         packagingCost: 0,

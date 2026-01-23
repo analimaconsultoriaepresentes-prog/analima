@@ -303,6 +303,7 @@ export type Database = {
           price_card: number
           price_pix: number
           product_type: string
+          prove_qty: number
           sale_price: number
           stock: number
           updated_at: string
@@ -330,6 +331,7 @@ export type Database = {
           price_card?: number
           price_pix?: number
           product_type?: string
+          prove_qty?: number
           sale_price?: number
           stock?: number
           updated_at?: string
@@ -357,6 +359,7 @@ export type Database = {
           price_card?: number
           price_pix?: number
           product_type?: string
+          prove_qty?: number
           sale_price?: number
           stock?: number
           updated_at?: string
