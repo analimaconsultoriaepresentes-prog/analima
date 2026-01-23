@@ -7,47 +7,47 @@ export interface HelpTopic {
   icon?: string;
 }
 
-// Contextual bubble messages by page
+// Contextual bubble messages by page - more active microcopy
 export const bubbleMessages: Record<string, string[]> = {
   dashboard: [
-    "Posso te ajudar? 😊",
-    "Aqui você vê o resumo da loja!",
+    "Quer uma ajudinha? 😊",
+    "Posso te explicar esses números!",
   ],
   produtos: [
-    "Ficou em dúvida? Te explico rapidinho 😊",
-    "PROVE, Pix, Cartão... posso explicar!",
-    "Qual valor usar aqui?",
+    "Ficou em dúvida? 💡",
+    "Quer que eu explique?",
+    "PROVE, Pix, Cartão... tô aqui!",
   ],
   vendas: [
-    "Posso te ajudar com a venda? 🛒",
-    "Qual forma de pagamento usar?",
-    "Ficou em dúvida? Tô aqui!",
+    "Precisa de uma mãozinha? 🛒",
+    "Ficou em dúvida?",
+    "Quer ajuda com a venda?",
   ],
   despesas: [
-    "Isso é um gasto da loja?",
-    "Posso te ajudar a registrar! 💡",
-    "Despesa fixa ou variável?",
+    "Isso é um gasto fixo? 🤔",
+    "Posso te ajudar a entender!",
+    "Ficou em dúvida?",
   ],
   clientes: [
-    "Cadastre seus clientes favoritos! 💜",
-    "Posso te ajudar?",
+    "Quer organizar seus clientes? 💜",
+    "Posso ajudar!",
   ],
   contas: [
-    "Contas a pagar ou receber?",
-    "Posso explicar a diferença!",
+    "Pagar ou receber? 💸",
+    "Ficou em dúvida?",
   ],
   configuracoes: [
-    "Personalize sua loja aqui!",
+    "Personalize sua loja! ✨",
     "Precisa de ajuda?",
   ],
   relatorios: [
-    "Entenda seus números! 📊",
-    "Posso explicar os relatórios!",
+    "Quer entender seus números? 📊",
+    "Posso explicar!",
   ],
   geral: [
-    "Posso te ajudar? 😊",
-    "Ficou em dúvida? Te explico!",
-    "Tô aqui se precisar! 💜",
+    "Quer uma ajudinha? 😊",
+    "Ficou em dúvida?",
+    "Tô aqui pra ajudar! 💜",
   ],
 };
 
