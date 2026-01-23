@@ -498,6 +498,7 @@ export type Database = {
           amount_received: number | null
           change_amount: number | null
           channel: string
+          cost_total: number | null
           created_at: string
           customer_id: string | null
           discount_reason: string | null
@@ -505,7 +506,11 @@ export type Database = {
           discount_value: number | null
           estimated_profit: number | null
           id: string
+          notes: string | null
           payment_method: string
+          recipient: string | null
+          record_type: string
+          reference_value: number | null
           status: string
           subtotal: number
           total: number
@@ -515,6 +520,7 @@ export type Database = {
           amount_received?: number | null
           change_amount?: number | null
           channel?: string
+          cost_total?: number | null
           created_at?: string
           customer_id?: string | null
           discount_reason?: string | null
@@ -522,7 +528,11 @@ export type Database = {
           discount_value?: number | null
           estimated_profit?: number | null
           id?: string
+          notes?: string | null
           payment_method: string
+          recipient?: string | null
+          record_type?: string
+          reference_value?: number | null
           status?: string
           subtotal?: number
           total?: number
@@ -532,6 +542,7 @@ export type Database = {
           amount_received?: number | null
           change_amount?: number | null
           channel?: string
+          cost_total?: number | null
           created_at?: string
           customer_id?: string | null
           discount_reason?: string | null
@@ -539,7 +550,11 @@ export type Database = {
           discount_value?: number | null
           estimated_profit?: number | null
           id?: string
+          notes?: string | null
           payment_method?: string
+          recipient?: string | null
+          record_type?: string
+          reference_value?: number | null
           status?: string
           subtotal?: number
           total?: number

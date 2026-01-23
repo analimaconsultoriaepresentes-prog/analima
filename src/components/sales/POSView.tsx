@@ -1,18 +1,19 @@
 import { useState, useMemo } from "react";
-import { ShoppingCart, User, UserPlus, Phone, Loader2, Store, Globe, X, Search } from "lucide-react";
+import { ShoppingCart, User, UserPlus, Phone, Loader2, Store, Globe, X, Search, Heart } from "lucide-react";
 import { ProductGrid } from "./ProductGrid";
 import { CartItems, type CartItem } from "./CartItems";
 import { DiscountBlock, type DiscountData, type DiscountType } from "./DiscountBlock";
 import { PaymentMethodSelector, type PaymentMethod } from "./PaymentMethodSelector";
 import { SaleTotals } from "./SaleTotals";
+import { RecordTypeSelector } from "./RecordTypeSelector";
+import { DonationFields } from "./DonationFields";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Customer, CustomerFormData } from "@/hooks/useCustomers";
-import type { SaleChannel } from "@/hooks/useSales";
+import type { SaleChannel, RecordType, DonationData } from "@/hooks/useSales";
 import type { PackagingCosts } from "@/hooks/useStore";
 import type { ProductType, GiftType } from "@/hooks/useProducts";
 
@@ -46,6 +47,8 @@ export interface SaleFormData {
   estimatedProfit: number;
   customerId?: string;
   channel: SaleChannel;
+  recordType: RecordType;
+  donationData?: DonationData;
 }
 
 interface POSViewProps {
@@ -57,7 +60,9 @@ interface POSViewProps {
     total: number, 
     customerId?: string, 
     channel?: SaleChannel,
-    saleData?: Partial<SaleFormData>
+    saleData?: Partial<SaleFormData>,
+    recordType?: RecordType,
+    donationData?: DonationData
   ) => void;
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
   packagingCosts: PackagingCosts;
@@ -73,6 +78,7 @@ export function POSView({
   showPhotos = true,
 }: POSViewProps) {
   const isMobile = useIsMobile();
+  const [recordType, setRecordType] = useState<RecordType>("sale");
   const [channel, setChannel] = useState<SaleChannel>("store");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
@@ -85,6 +91,11 @@ export function POSView({
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerBirthday, setNewCustomerBirthday] = useState("");
   const [savingCustomer, setSavingCustomer] = useState(false);
+  
+  // Donation fields
+  const [donationNotes, setDonationNotes] = useState("");
+  const [donationRecipient, setDonationRecipient] = useState("");
+  const [donationReferenceValue, setDonationReferenceValue] = useState("");
 
   const filteredCustomers = customers.filter(
     (c) =>
@@ -147,7 +158,7 @@ export function POSView({
     const lucroReal = total - custoTotal;
     const margemReal = total > 0 ? (lucroReal / total) * 100 : 0;
 
-    return { lucroReal, margemReal };
+    return { lucroReal, margemReal, custoTotal };
   }, [cart, total, packagingCosts]);
 
   // Calculate change
@@ -213,6 +224,10 @@ export function POSView({
     setSelectedCustomerId("");
     setCustomerSearch("");
     setChannel("store");
+    setRecordType("sale");
+    setDonationNotes("");
+    setDonationRecipient("");
+    setDonationReferenceValue("");
   };
 
   const handleSubmit = () => {
@@ -225,7 +240,8 @@ export function POSView({
       return;
     }
 
-    if (!paymentMethod) {
+    // For sales, require payment method
+    if (recordType === "sale" && !paymentMethod) {
       toast({
         title: "Pagamento",
         description: "Selecione uma forma de pagamento.",
@@ -234,11 +250,21 @@ export function POSView({
       return;
     }
 
-    // For cash payments, validate amount received
-    if (paymentMethod === "dinheiro" && amountReceived < total) {
+    // For sales with cash, validate amount received
+    if (recordType === "sale" && paymentMethod === "dinheiro" && amountReceived < total) {
       toast({
         title: "Valor insuficiente",
         description: "O valor recebido é menor que o total.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // For donations, require notes
+    if (recordType === "donation" && !donationNotes.trim()) {
+      toast({
+        title: "Motivo obrigatório",
+        description: "Informe o motivo da doação.",
         variant: "destructive",
       });
       return;
@@ -252,15 +278,32 @@ export function POSView({
       amountReceived: paymentMethod === "dinheiro" ? amountReceived : undefined,
       changeAmount: paymentMethod === "dinheiro" ? changeAmount : undefined,
       estimatedProfit: profitData.lucroReal,
+      recordType,
     };
 
     // Map new payment methods to existing ones for backward compatibility
-    let mappedPaymentMethod: string = paymentMethod;
+    let mappedPaymentMethod: string = paymentMethod || "pix";
     if (paymentMethod === "credito" || paymentMethod === "debito") {
       mappedPaymentMethod = "cartao";
     }
 
-    onSubmit(cart, mappedPaymentMethod, total, selectedCustomerId || undefined, channel, saleData);
+    // Prepare donation data if applicable
+    const donationData: DonationData | undefined = recordType === "donation" ? {
+      notes: donationNotes.trim(),
+      recipient: donationRecipient.trim() || undefined,
+      referenceValue: donationReferenceValue ? parseFloat(donationReferenceValue) : undefined,
+    } : undefined;
+
+    onSubmit(
+      cart, 
+      mappedPaymentMethod, 
+      total, 
+      selectedCustomerId || undefined, 
+      channel, 
+      saleData,
+      recordType,
+      donationData
+    );
     
     // Reset form after successful sale
     resetForm();
@@ -299,6 +342,12 @@ export function POSView({
   if (isMobile) {
     return (
       <div className="flex flex-col gap-4 pb-4">
+        {/* Record Type Selector */}
+        <RecordTypeSelector
+          recordType={recordType}
+          onRecordTypeChange={setRecordType}
+        />
+
         {/* Channel Toggle */}
         <div className="flex rounded-lg border border-border overflow-hidden">
           <button
@@ -379,8 +428,20 @@ export function POSView({
           </div>
         </div>
 
-        {/* Discount */}
-        {cart.length > 0 && (
+        {/* Donation Fields - Only show for donations */}
+        {recordType === "donation" && cart.length > 0 && (
+          <DonationFields
+            notes={donationNotes}
+            onNotesChange={setDonationNotes}
+            recipient={donationRecipient}
+            onRecipientChange={setDonationRecipient}
+            referenceValue={donationReferenceValue}
+            onReferenceValueChange={setDonationReferenceValue}
+          />
+        )}
+
+        {/* Discount - Only for sales */}
+        {recordType === "sale" && cart.length > 0 && (
           <DiscountBlock
             subtotal={subtotal}
             discount={discount}
@@ -388,8 +449,8 @@ export function POSView({
           />
         )}
 
-        {/* Payment Method */}
-        {cart.length > 0 && (
+        {/* Payment Method - Only for sales */}
+        {recordType === "sale" && cart.length > 0 && (
           <PaymentMethodSelector
             total={total}
             selectedMethod={paymentMethod}
@@ -403,22 +464,38 @@ export function POSView({
         {cart.length > 0 && (
           <SaleTotals
             subtotal={subtotal}
-            discountAmount={discountAmount}
-            total={total}
-            profit={profitData.lucroReal}
-            profitMargin={profitData.margemReal}
+            discountAmount={recordType === "sale" ? discountAmount : 0}
+            total={recordType === "sale" ? total : 0}
+            profit={recordType === "sale" ? profitData.lucroReal : -profitData.custoTotal}
+            profitMargin={recordType === "sale" ? profitData.margemReal : 0}
+            isDonation={recordType === "donation"}
+            costTotal={profitData.custoTotal}
           />
         )}
 
         {/* Submit Button */}
         <Button
           type="button"
-          className="w-full btn-primary py-6 text-lg"
+          className={cn(
+            "w-full py-6 text-lg",
+            recordType === "donation" 
+              ? "bg-accent hover:bg-accent/90 text-accent-foreground" 
+              : "btn-primary"
+          )}
           onClick={handleSubmit}
-          disabled={cart.length === 0 || !paymentMethod}
+          disabled={cart.length === 0 || (recordType === "sale" && !paymentMethod)}
         >
-          <ShoppingCart className="w-5 h-5 mr-2" />
-          Registrar Venda
+          {recordType === "donation" ? (
+            <>
+              <Heart className="w-5 h-5 mr-2" />
+              Registrar Doação
+            </>
+          ) : (
+            <>
+              <ShoppingCart className="w-5 h-5 mr-2" />
+              Registrar Venda
+            </>
+          )}
         </Button>
       </div>
     );
@@ -446,12 +523,27 @@ export function POSView({
       <div className="w-[400px] flex flex-col bg-card border border-border rounded-xl overflow-hidden">
         <div className="p-4 border-b border-border">
           <h3 className="font-semibold text-lg flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-primary" />
-            Carrinho
+            {recordType === "donation" ? (
+              <>
+                <Heart className="w-5 h-5 text-accent" />
+                Doação
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="w-5 h-5 text-primary" />
+                Carrinho
+              </>
+            )}
           </h3>
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Record Type Selector */}
+          <RecordTypeSelector
+            recordType={recordType}
+            onRecordTypeChange={setRecordType}
+          />
+
           {/* Channel Toggle */}
           <div className="flex rounded-lg border border-border overflow-hidden">
             <button
@@ -522,8 +614,21 @@ export function POSView({
             </div>
           </div>
 
-          {/* Discount */}
-          {cart.length > 0 && (
+          {/* Donation Fields - Only show for donations */}
+          {recordType === "donation" && cart.length > 0 && (
+            <DonationFields
+              notes={donationNotes}
+              onNotesChange={setDonationNotes}
+              recipient={donationRecipient}
+              onRecipientChange={setDonationRecipient}
+              referenceValue={donationReferenceValue}
+              onReferenceValueChange={setDonationReferenceValue}
+              compact
+            />
+          )}
+
+          {/* Discount - Only for sales */}
+          {recordType === "sale" && cart.length > 0 && (
             <DiscountBlock
               subtotal={subtotal}
               discount={discount}
@@ -531,8 +636,8 @@ export function POSView({
             />
           )}
 
-          {/* Payment Method */}
-          {cart.length > 0 && (
+          {/* Payment Method - Only for sales */}
+          {recordType === "sale" && cart.length > 0 && (
             <PaymentMethodSelector
               total={total}
               selectedMethod={paymentMethod}
@@ -546,10 +651,12 @@ export function POSView({
           {cart.length > 0 && (
             <SaleTotals
               subtotal={subtotal}
-              discountAmount={discountAmount}
-              total={total}
-              profit={profitData.lucroReal}
-              profitMargin={profitData.margemReal}
+              discountAmount={recordType === "sale" ? discountAmount : 0}
+              total={recordType === "sale" ? total : 0}
+              profit={recordType === "sale" ? profitData.lucroReal : -profitData.custoTotal}
+              profitMargin={recordType === "sale" ? profitData.margemReal : 0}
+              isDonation={recordType === "donation"}
+              costTotal={profitData.custoTotal}
             />
           )}
         </div>
@@ -558,12 +665,26 @@ export function POSView({
         <div className="p-4 border-t border-border">
           <Button
             type="button"
-            className="w-full btn-primary py-5 text-base"
+            className={cn(
+              "w-full py-5 text-base",
+              recordType === "donation" 
+                ? "bg-accent hover:bg-accent/90 text-accent-foreground" 
+                : "btn-primary"
+            )}
             onClick={handleSubmit}
-            disabled={cart.length === 0 || !paymentMethod}
+            disabled={cart.length === 0 || (recordType === "sale" && !paymentMethod)}
           >
-            <ShoppingCart className="w-5 h-5 mr-2" />
-            Registrar Venda
+            {recordType === "donation" ? (
+              <>
+                <Heart className="w-5 h-5 mr-2" />
+                Registrar Doação
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="w-5 h-5 mr-2" />
+                Registrar Venda
+              </>
+            )}
           </Button>
         </div>
       </div>
