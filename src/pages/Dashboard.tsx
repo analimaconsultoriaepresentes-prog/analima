@@ -56,12 +56,12 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid - 2 cols mobile, 4 cols desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         <StatCard
           title="Faturamento Hoje"
           value={`R$ ${revenueToday.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           icon={<DollarSign className="w-5 h-5" />}
-          variant="primary"
+          variant="sales"
           className="delay-100"
         />
         <StatCard
@@ -73,20 +73,21 @@ export default function Dashboard() {
               ? { value: Math.abs(trends.revenueTrend), isPositive: trends.revenueTrend > 0 }
               : undefined
           }
-          variant="success"
+          variant="financial"
           className="delay-200"
         />
         <StatCard
           title="Ticket Médio"
           value={`R$ ${ticketMonth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           icon={<Receipt className="w-5 h-5" />}
-          variant="warning"
+          variant="stock"
           className="delay-300"
         />
         <StatCard
           title="PA (Itens/Venda)"
           value={paMonth.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
           icon={<Package className="w-5 h-5" />}
+          variant="default"
           className="delay-400"
         />
       </div>

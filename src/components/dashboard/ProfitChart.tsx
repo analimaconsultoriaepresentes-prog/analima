@@ -12,7 +12,7 @@ export function ProfitChart({ data }: ProfitChartProps) {
   const hasData = data && data.length > 0 && data.some(d => d.value > 0);
 
   return (
-    <div className="bg-card rounded-xl border border-border/50 p-4 sm:p-6 shadow-sm animate-slide-up">
+    <div className="bg-card rounded-2xl border border-border/40 p-4 sm:p-6 shadow-md animate-slide-up hover:shadow-lg transition-all duration-300">
       <div className="mb-4 sm:mb-6">
         <h3 className="text-base sm:text-lg font-semibold text-foreground">Vendas por Categoria</h3>
         <p className="text-xs sm:text-sm text-muted-foreground">Distribuição mensal</p>
