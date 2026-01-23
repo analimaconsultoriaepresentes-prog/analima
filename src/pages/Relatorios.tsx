@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Download, TrendingUp, TrendingDown, DollarSign, Calendar, CreditCard } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, DollarSign, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from "recharts";
 import { useReportsData, PeriodOption, periodLabels } from "@/hooks/useReportsData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ComparisonBadge } from "@/components/reports/ComparisonBadge";
-import { useNavigate } from "react-router-dom";
 import {
   Select,
   SelectContent,
@@ -16,7 +15,6 @@ import {
 } from "@/components/ui/select";
 
 export default function Relatorios() {
-  const navigate = useNavigate();
   const [period, setPeriod] = useState<PeriodOption>("6months");
   const { totalReceita, totalDespesa, totalLucro, monthlyData, categoryData, comparison, loading } = useReportsData(period);
 
@@ -137,14 +135,6 @@ export default function Relatorios() {
                 <SelectItem value="1year">{periodLabels["1year"]}</SelectItem>
               </SelectContent>
             </Select>
-            <Button 
-              variant="outline" 
-              className="gap-2 min-h-[48px] w-full sm:w-auto"
-              onClick={() => navigate('/contas')}
-            >
-              <CreditCard className="w-4 h-4" />
-              Contas
-            </Button>
             <Button 
               variant="outline" 
               className="gap-2 min-h-[48px] w-full sm:w-auto"
