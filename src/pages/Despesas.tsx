@@ -11,6 +11,7 @@ import { ptBR } from "date-fns/locale";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { HelpTooltip } from "@/components/help";
+import { useSound } from "@/hooks/useSound";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,7 @@ export default function Despesas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("todas");
+  const { playActionTick } = useSound();
 
   const {
     expenses,
@@ -53,7 +55,10 @@ export default function Despesas() {
 
   const handleCreateExpense = (data: ExpenseFormData) => {
     createExpense.mutate(data, {
-      onSuccess: () => setIsFormOpen(false),
+      onSuccess: () => {
+        playActionTick(); // Play tick sound when expense is created
+        setIsFormOpen(false);
+      },
     });
   };
 

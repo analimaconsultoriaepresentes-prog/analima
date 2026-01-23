@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSound } from "@/hooks/useSound";
 import { Customer, CustomerFormData } from "@/hooks/useCustomers";
 import type { SaleChannel, RecordType, DonationData } from "@/hooks/useSales";
 import type { PackagingCosts } from "@/hooks/useStore";
@@ -79,6 +80,7 @@ export function POSView({
   showPhotos = true,
 }: POSViewProps) {
   const isMobile = useIsMobile();
+  const { playActionTick, playSaleSuccess, playErrorToc } = useSound();
   const [recordType, setRecordType] = useState<RecordType>("sale");
   const [channel, setChannel] = useState<SaleChannel>("store");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -172,6 +174,7 @@ export function POSView({
     
     if (existingItem) {
       if (existingItem.quantity >= product.stock) {
+        playErrorToc();
         toast({
           title: "Estoque insuficiente",
           description: `Só há ${product.stock} unidades.`,
@@ -189,6 +192,7 @@ export function POSView({
     } else {
       setCart([...cart, { product, quantity: 1 }]);
     }
+    playActionTick(); // Sound when adding to cart
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -198,6 +202,7 @@ export function POSView({
           if (item.product.id === productId) {
             const newQuantity = item.quantity + delta;
             if (newQuantity > item.product.stock) {
+              playErrorToc();
               toast({
                 title: "Estoque insuficiente",
                 description: `Só há ${item.product.stock} unidades.`,
@@ -233,6 +238,7 @@ export function POSView({
 
   const handleSubmit = () => {
     if (cart.length === 0) {
+      playErrorToc();
       toast({
         title: "Carrinho vazio",
         description: "Adicione produtos para registrar.",
@@ -243,6 +249,7 @@ export function POSView({
 
     // For sales, require payment method
     if (recordType === "sale" && !paymentMethod) {
+      playErrorToc();
       toast({
         title: "Pagamento",
         description: "Selecione uma forma de pagamento.",
@@ -253,6 +260,7 @@ export function POSView({
 
     // For sales with cash, validate amount received
     if (recordType === "sale" && paymentMethod === "dinheiro" && amountReceived < total) {
+      playErrorToc();
       toast({
         title: "Valor insuficiente",
         description: "O valor recebido é menor que o total.",
@@ -263,6 +271,7 @@ export function POSView({
 
     // For donations, require notes
     if (recordType === "donation" && !donationNotes.trim()) {
+      playErrorToc();
       toast({
         title: "Motivo obrigatório",
         description: "Informe o motivo da doação.",
@@ -305,6 +314,9 @@ export function POSView({
       recordType,
       donationData
     );
+    
+    // Play success sound
+    playSaleSuccess();
     
     // Reset form after successful sale
     resetForm();

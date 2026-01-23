@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Percent, DollarSign, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useSound } from "@/hooks/useSound";
 
 export type DiscountType = "fixed" | "percentage";
 
@@ -21,10 +22,20 @@ interface DiscountBlockProps {
 
 export function DiscountBlock({ subtotal, discount, onDiscountChange }: DiscountBlockProps) {
   const [localValue, setLocalValue] = useState(discount.value.toString());
+  const { playActionTick } = useSound();
+  const prevValueRef = useRef(discount.value);
 
   useEffect(() => {
     setLocalValue(discount.value.toString());
   }, [discount.value]);
+
+  // Play sound when discount goes from 0 to > 0
+  useEffect(() => {
+    if (prevValueRef.current === 0 && discount.value > 0) {
+      playActionTick();
+    }
+    prevValueRef.current = discount.value;
+  }, [discount.value, playActionTick]);
 
   const handleTypeChange = (type: DiscountType) => {
     onDiscountChange({ ...discount, type, value: 0 });

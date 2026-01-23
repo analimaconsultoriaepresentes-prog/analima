@@ -15,6 +15,7 @@ import { useProducts, type Product, type ProductFormData } from "@/hooks/useProd
 import { useBaskets } from "@/hooks/useBaskets";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useViewMode } from "@/hooks/useViewMode";
+import { useSound } from "@/hooks/useSound";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +41,7 @@ export default function Produtos() {
   const [editBasketExtras, setEditBasketExtras] = useState<BasketExtraInput[]>([]);
   const [openAsGift, setOpenAsGift] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const { playActionTick } = useSound();
   const [filters, setFilters] = useState<ProductFiltersState>({
     categories: [],
     origins: [],
@@ -184,6 +186,7 @@ export default function Produtos() {
           );
         }
       }
+      playActionTick(); // Sound when product is created
       setIsFormOpen(false);
     }
   };
@@ -213,6 +216,7 @@ export default function Produtos() {
           );
         }
       }
+      playActionTick(); // Sound when product is updated
       setEditProduct(null);
       setEditBasketItems([]);
       setEditBasketExtras([]);
