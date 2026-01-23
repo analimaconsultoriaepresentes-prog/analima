@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { HelpCircle, X, Sparkles, ChevronRight, MessageCircle } from "lucide-react";
+import { HelpCircle, X, ChevronRight } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useHelp, helpTopics, complexPages } from "./HelpContext";
 import { useSound } from "@/hooks/useSound";
+import mascotImage from "@/assets/mascot-ana.png";
 
-const INACTIVITY_TIMEOUT = 8000; // 8 seconds of inactivity before pulsing
+const INACTIVITY_TIMEOUT = 8000; // 8 seconds of inactivity before showing bubble
 const BUBBLE_TRIGGER_DELAY = 1500; // Delay before showing bubble on page change
 
 export function HelpMascot() {
@@ -24,6 +25,8 @@ export function HelpMascot() {
   } = useHelp();
   const { playHelpPop } = useSound();
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const [showWave, setShowWave] = useState(false);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const pageTopics = helpTopics[currentPage] || [];
@@ -41,16 +44,19 @@ export function HelpMascot() {
     // Stop current pulse on user activity
     stopPulse();
     
-    // Set new timer for inactivity pulse
+    // Set new timer for inactivity
     if (!isOpen) {
       inactivityTimerRef.current = setTimeout(() => {
         triggerPulse();
-        showBubble(); // Show bubble when pulsing from inactivity
+        showBubble();
+        setShowWave(true);
+        // Hide wave after animation
+        setTimeout(() => setShowWave(false), 2000);
       }, INACTIVITY_TIMEOUT);
     }
   }, [isOpen, stopPulse, triggerPulse, showBubble]);
 
-  // Handle page changes - pulse on first visit to complex pages
+  // Handle page changes - animate on first visit to complex pages
   useEffect(() => {
     const isComplexPage = complexPages.includes(currentPage);
     const isFirstVisit = !visitedPages.has(currentPage);
@@ -58,18 +64,30 @@ export function HelpMascot() {
     if (isComplexPage && isFirstVisit) {
       // Small delay to let the page render first
       const timer = setTimeout(() => {
+        setHasAnimated(false);
         triggerPulse();
         markPageVisited(currentPage);
+        // Trigger entry animation
+        requestAnimationFrame(() => {
+          setHasAnimated(true);
+          setShowWave(true);
+        });
         // Show bubble after a bit more delay
         setTimeout(() => {
           showBubble();
         }, BUBBLE_TRIGGER_DELAY);
+        // Hide wave after animation completes
+        setTimeout(() => setShowWave(false), 2500);
       }, 500);
       return () => clearTimeout(timer);
     } else {
       markPageVisited(currentPage);
+      // Still animate on mount
+      if (!hasAnimated) {
+        requestAnimationFrame(() => setHasAnimated(true));
+      }
     }
-  }, [currentPage, visitedPages, triggerPulse, markPageVisited, showBubble]);
+  }, [currentPage, visitedPages, triggerPulse, markPageVisited, showBubble, hasAnimated]);
 
   // Setup inactivity detection
   useEffect(() => {
@@ -101,6 +119,7 @@ export function HelpMascot() {
     if (isOpen) {
       stopPulse();
       hideBubble();
+      setShowWave(false);
       if (inactivityTimerRef.current) {
         clearTimeout(inactivityTimerRef.current);
       }
@@ -110,68 +129,80 @@ export function HelpMascot() {
   const handleMascotClick = () => {
     stopPulse();
     hideBubble();
+    setShowWave(false);
     if (!isOpen) {
-      playHelpPop(); // Play pop sound when opening
+      playHelpPop();
     }
     setIsOpen(!isOpen);
   };
 
   return (
     <>
-      {/* Speech Bubble - Green help style */}
+      {/* Speech Bubble with Wave Icon */}
       <div
         className={cn(
-          "fixed bottom-[88px] right-6 z-50",
+          "fixed bottom-[100px] right-6 z-50",
           "max-w-[220px] px-4 py-3",
           "bg-[#ECFDF5] border-2 border-[#22C55E]/60 rounded-2xl",
           "shadow-lg shadow-[#22C55E]/10",
-          "transition-all duration-300 ease-out",
+          "transition-all duration-500 ease-out",
           "origin-bottom-right",
           bubbleMessage && !isOpen
             ? "opacity-100 scale-100 translate-y-0"
             : "opacity-0 scale-90 translate-y-2 pointer-events-none"
         )}
       >
-        <p className="text-sm text-[#065F46] font-medium leading-snug">{bubbleMessage}</p>
+        <div className="flex items-start gap-2">
+          {/* Animated wave icon */}
+          <span 
+            className={cn(
+              "text-lg transition-all duration-300",
+              showWave && "animate-wave"
+            )}
+          >
+            👋
+          </span>
+          <p className="text-sm text-[#065F46] font-medium leading-snug flex-1">{bubbleMessage}</p>
+        </div>
         {/* Bubble tail */}
-        <div className="absolute -bottom-2 right-6 w-4 h-4 bg-[#ECFDF5] border-r-2 border-b-2 border-[#22C55E]/60 rotate-45 transform" />
+        <div className="absolute -bottom-2 right-8 w-4 h-4 bg-[#ECFDF5] border-r-2 border-b-2 border-[#22C55E]/60 rotate-45 transform" />
       </div>
 
-      {/* Mascot Button */}
+      {/* Mascot Button with Character Image */}
       <button
         onClick={handleMascotClick}
         className={cn(
-          "fixed bottom-6 right-6 z-50",
-          "w-14 h-14 rounded-full",
-          "bg-gradient-to-br from-emerald-500 to-emerald-600",
-          "text-white shadow-lg shadow-emerald-500/20",
-          "flex items-center justify-center",
+          "fixed bottom-4 right-4 z-50",
+          "w-20 h-20 rounded-full overflow-hidden",
+          "bg-white border-3 border-emerald-400",
+          "shadow-lg shadow-emerald-500/20",
           "transition-all duration-300 ease-out",
-          "hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/30",
+          "hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/30 hover:border-emerald-500",
           "active:scale-95",
-          "group",
-          isOpen && "rotate-180",
-          shouldPulse && "animate-mascot-gentle-pulse"
+          "focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2",
+          hasAnimated ? "animate-mascot-entry" : "opacity-0 translate-y-8",
+          isOpen && "ring-2 ring-emerald-500"
         )}
         aria-label={isOpen ? "Fechar ajuda" : "Abrir ajuda"}
+        style={{ animationFillMode: 'forwards' }}
       >
         {isOpen ? (
-          <X className="w-6 h-6 transition-transform" />
-        ) : (
-          <div className="relative">
-            <MessageCircle className="w-6 h-6" />
-            <Sparkles className={cn(
-              "w-3 h-3 absolute -top-1 -right-1 text-warning",
-              shouldPulse ? "animate-pulse" : ""
-            )} />
+          <div className="w-full h-full bg-emerald-500 flex items-center justify-center">
+            <X className="w-8 h-8 text-white" />
           </div>
+        ) : (
+          <img 
+            src={mascotImage} 
+            alt="Ana - Assistente de Ajuda"
+            className="w-full h-full object-cover object-top scale-[1.8] translate-y-3"
+          />
         )}
       </button>
 
       {/* Help Panel */}
       <div
         className={cn(
-          "fixed bottom-24 right-6 z-40",
+          "fixed bottom-28 right-6 z-40",
           "w-80 max-h-[70vh]",
           "bg-card border border-border rounded-2xl shadow-2xl",
           "transition-all duration-300 ease-out",
@@ -181,23 +212,27 @@ export function HelpMascot() {
             : "opacity-0 scale-95 translate-y-4 pointer-events-none"
         )}
       >
-        {/* Header */}
-        <div className="p-4 border-b border-border bg-gradient-to-r from-primary/10 to-accent/10 rounded-t-2xl">
+        {/* Header with larger mascot image */}
+        <div className="p-4 border-b border-border bg-gradient-to-r from-emerald-50 to-green-50 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <HelpCircle className="w-5 h-5 text-white" />
+            <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-emerald-400 shadow-md">
+              <img 
+                src={mascotImage} 
+                alt="Ana"
+                className="w-full h-full object-cover object-top scale-150 translate-y-1"
+              />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">Olá! Precisa de ajuda?</h3>
+              <h3 className="font-semibold text-foreground">Olá! Sou a Ana 😊</h3>
               <p className="text-xs text-muted-foreground">
-                Toque em um tema para saber mais
+                Posso te ajudar com qualquer dúvida!
               </p>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <ScrollArea className="h-[calc(70vh-120px)] max-h-80">
+        <ScrollArea className="h-[calc(70vh-140px)] max-h-72">
           <div className="p-3">
             {selectedTopic && selectedTopicData ? (
               // Topic Detail View
