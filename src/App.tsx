@@ -1,13 +1,15 @@
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useMaintenanceMode } from "@/hooks/useMaintenanceMode";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HelpProvider, HelpMascot, useHelp } from "@/components/help";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Produtos from "./pages/Produtos";
@@ -71,7 +73,30 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <AppLayout>{children}</AppLayout>;
+  return (
+    <HelpPageTracker>
+      <AppLayout>{children}</AppLayout>
+    </HelpPageTracker>
+  );
+}
+
+// Component to track current page for help context
+function HelpPageTracker({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { setCurrentPage } = useHelp();
+
+  // Update help context based on current route
+  React.useEffect(() => {
+    const path = location.pathname.replace("/", "") || "dashboard";
+    setCurrentPage(path);
+  }, [location.pathname, setCurrentPage]);
+
+  return (
+    <>
+      {children}
+      <HelpMascot />
+    </>
+  );
 }
 
 const AppRoutes = () => {
@@ -115,11 +140,13 @@ const AppRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <HelpProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </HelpProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

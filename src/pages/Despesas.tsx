@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { HelpTooltip } from "@/components/help";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -460,7 +461,10 @@ export default function Despesas() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Despesas</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Despesas</h1>
+            <HelpTooltip fieldKey="despesas" position="right" />
+          </div>
           <p className="text-muted-foreground mt-1">Controle seus gastos de forma simples</p>
         </div>
         <Button className="btn-primary gap-2" onClick={() => setIsFormOpen(true)}>
@@ -529,9 +533,10 @@ export default function Despesas() {
           <TabsTrigger value="todas" className="min-h-[44px]">
             Todas ({filteredExpenses.length})
           </TabsTrigger>
-          <TabsTrigger value="recorrentes" className="min-h-[44px]">
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <TabsTrigger value="recorrentes" className="min-h-[44px] gap-2">
+            <RefreshCw className="w-4 h-4" />
             Recorrentes ({filteredRecurring.length})
+            <HelpTooltip fieldKey="recorrente" position="top" />
           </TabsTrigger>
         </TabsList>
         
