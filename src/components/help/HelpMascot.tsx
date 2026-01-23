@@ -1,13 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { HelpCircle, X, Sparkles, ChevronRight, MessageCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useHelp, helpTopics } from "./HelpContext";
+import { useHelp, helpTopics, complexPages } from "./HelpContext";
+
+const INACTIVITY_TIMEOUT = 8000; // 8 seconds of inactivity before pulsing
 
 export function HelpMascot() {
-  const { isOpen, setIsOpen, currentPage } = useHelp();
+  const { 
+    isOpen, 
+    setIsOpen, 
+    currentPage, 
+    shouldPulse, 
+    triggerPulse, 
+    stopPulse,
+    visitedPages,
+    markPageVisited 
+  } = useHelp();
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const pageTopics = helpTopics[currentPage] || [];
   const generalTopics = helpTopics.geral || [];
@@ -15,11 +26,85 @@ export function HelpMascot() {
 
   const selectedTopicData = allTopics.find((t) => t.id === selectedTopic);
 
+  // Reset inactivity timer on user activity
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    
+    // Stop current pulse on user activity
+    stopPulse();
+    
+    // Set new timer for inactivity pulse
+    if (!isOpen) {
+      inactivityTimerRef.current = setTimeout(() => {
+        triggerPulse();
+      }, INACTIVITY_TIMEOUT);
+    }
+  }, [isOpen, stopPulse, triggerPulse]);
+
+  // Handle page changes - pulse on first visit to complex pages
+  useEffect(() => {
+    const isComplexPage = complexPages.includes(currentPage);
+    const isFirstVisit = !visitedPages.has(currentPage);
+    
+    if (isComplexPage && isFirstVisit) {
+      // Small delay to let the page render first
+      const timer = setTimeout(() => {
+        triggerPulse();
+        markPageVisited(currentPage);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      markPageVisited(currentPage);
+    }
+  }, [currentPage, visitedPages, triggerPulse, markPageVisited]);
+
+  // Setup inactivity detection
+  useEffect(() => {
+    const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "click"];
+    
+    const handleActivity = () => {
+      resetInactivityTimer();
+    };
+
+    events.forEach((event) => {
+      document.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    // Initial timer setup
+    resetInactivityTimer();
+
+    return () => {
+      events.forEach((event) => {
+        document.removeEventListener(event, handleActivity);
+      });
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, [resetInactivityTimer]);
+
+  // Stop pulse when panel opens
+  useEffect(() => {
+    if (isOpen) {
+      stopPulse();
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    }
+  }, [isOpen, stopPulse]);
+
+  const handleMascotClick = () => {
+    stopPulse();
+    setIsOpen(!isOpen);
+  };
+
   return (
     <>
       {/* Mascot Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleMascotClick}
         className={cn(
           "fixed bottom-6 right-6 z-50",
           "w-14 h-14 rounded-full",
@@ -30,7 +115,8 @@ export function HelpMascot() {
           "hover:scale-110 hover:shadow-xl hover:shadow-primary/25",
           "active:scale-95",
           "group",
-          isOpen && "rotate-180"
+          isOpen && "rotate-180",
+          shouldPulse && "animate-mascot-pulse"
         )}
         aria-label={isOpen ? "Fechar ajuda" : "Abrir ajuda"}
       >
@@ -39,7 +125,10 @@ export function HelpMascot() {
         ) : (
           <div className="relative">
             <MessageCircle className="w-6 h-6" />
-            <Sparkles className="w-3 h-3 absolute -top-1 -right-1 text-yellow-300 animate-pulse" />
+            <Sparkles className={cn(
+              "w-3 h-3 absolute -top-1 -right-1 text-warning",
+              shouldPulse ? "animate-pulse" : ""
+            )} />
           </div>
         )}
       </button>

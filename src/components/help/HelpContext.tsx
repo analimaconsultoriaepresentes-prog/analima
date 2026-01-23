@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback } from "react";
 
 export interface HelpTopic {
   id: string;
@@ -6,6 +6,9 @@ export interface HelpTopic {
   content: string;
   icon?: string;
 }
+
+// Pages that have potentially confusing fields - mascot should pulse on first visit
+export const complexPages = ["produtos", "vendas", "despesas"];
 
 // Contextual help content organized by page/feature
 export const helpTopics: Record<string, HelpTopic[]> = {
@@ -137,6 +140,11 @@ interface HelpContextType {
   setCurrentPage: (page: string) => void;
   activeTooltip: string | null;
   setActiveTooltip: (tooltip: string | null) => void;
+  shouldPulse: boolean;
+  triggerPulse: () => void;
+  stopPulse: () => void;
+  visitedPages: Set<string>;
+  markPageVisited: (page: string) => void;
 }
 
 const HelpContext = createContext<HelpContextType | undefined>(undefined);
@@ -145,6 +153,20 @@ export function HelpProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [shouldPulse, setShouldPulse] = useState(false);
+  const [visitedPages, setVisitedPages] = useState<Set<string>>(new Set());
+
+  const triggerPulse = useCallback(() => {
+    setShouldPulse(true);
+  }, []);
+
+  const stopPulse = useCallback(() => {
+    setShouldPulse(false);
+  }, []);
+
+  const markPageVisited = useCallback((page: string) => {
+    setVisitedPages((prev) => new Set(prev).add(page));
+  }, []);
 
   return (
     <HelpContext.Provider
@@ -155,6 +177,11 @@ export function HelpProvider({ children }: { children: ReactNode }) {
         setCurrentPage,
         activeTooltip,
         setActiveTooltip,
+        shouldPulse,
+        triggerPulse,
+        stopPulse,
+        visitedPages,
+        markPageVisited,
       }}
     >
       {children}
