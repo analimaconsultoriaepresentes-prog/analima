@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, Package, Percent, Gift, ShoppingBasket, Box, Tag, Info, AlertTriangle, RefreshCw, ImagePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HelpTooltip } from "@/components/help";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
@@ -725,6 +726,7 @@ function ProductFormContent({
                   <FormItem>
                     <FormLabel className="flex items-center gap-1.5">
                       💵 Pix / Dinheiro (R$)
+                      <HelpTooltip fieldKey="pricePix" position="top" />
                     </FormLabel>
                     <FormControl>
                       <Input 
@@ -759,6 +761,7 @@ function ProductFormContent({
                   <FormItem>
                     <FormLabel className="flex items-center gap-1.5">
                       💳 Cartão (R$)
+                      <HelpTooltip fieldKey="priceCard" position="top" />
                     </FormLabel>
                     <FormControl>
                       <Input 
@@ -1109,6 +1112,7 @@ function ProductFormContent({
                 <FormItem>
                   <FormLabel className="flex items-center gap-2 text-amber-700 dark:text-amber-500">
                     🧴 PROVE (uso interno / amostra)
+                    <HelpTooltip fieldKey="prove" position="top" />
                   </FormLabel>
                   <FormControl>
                     <Input 
