@@ -3,6 +3,7 @@ import { HelpCircle, X, Sparkles, ChevronRight, MessageCircle } from "lucide-rea
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useHelp, helpTopics, complexPages } from "./HelpContext";
+import { useSound } from "@/hooks/useSound";
 
 const INACTIVITY_TIMEOUT = 8000; // 8 seconds of inactivity before pulsing
 const BUBBLE_TRIGGER_DELAY = 1500; // Delay before showing bubble on page change
@@ -21,6 +22,7 @@ export function HelpMascot() {
     showBubble,
     hideBubble
   } = useHelp();
+  const { playHelpPop } = useSound();
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -108,6 +110,9 @@ export function HelpMascot() {
   const handleMascotClick = () => {
     stopPulse();
     hideBubble();
+    if (!isOpen) {
+      playHelpPop(); // Play pop sound when opening
+    }
     setIsOpen(!isOpen);
   };
 

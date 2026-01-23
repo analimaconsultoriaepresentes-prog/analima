@@ -28,6 +28,7 @@ export interface Store {
   packagingCosts: PackagingCosts;
   maintenanceMode: boolean;
   showPhotosInSales: boolean;
+  soundEnabled: boolean;
 }
 
 const DEFAULT_ALERT_SETTINGS: AlertSettings = {
@@ -88,6 +89,7 @@ export function useStore() {
           },
           maintenanceMode: data.maintenance_mode ?? false,
           showPhotosInSales: data.show_photos_in_sales ?? true,
+          soundEnabled: data.sound_enabled ?? false,
         });
       }
     } catch (error) {
@@ -310,6 +312,36 @@ export function useStore() {
     }
   };
 
+  const updateSoundEnabled = async (enabled: boolean): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from("stores")
+        .update({ sound_enabled: enabled })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setStore(prev => prev ? { ...prev, soundEnabled: enabled } : null);
+      toast({
+        title: "Configuração salva",
+        description: enabled 
+          ? "Sons do sistema ativados." 
+          : "Sons do sistema desativados.",
+      });
+      return true;
+    } catch (error) {
+      console.error("Error updating sound enabled:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     store,
     loading,
@@ -319,6 +351,7 @@ export function useStore() {
     uploadLogo,
     updateMaintenanceMode,
     updateShowPhotosInSales,
+    updateSoundEnabled,
     refetch: fetchStore,
   };
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction, Image } from "lucide-react";
+import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction, Image, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +28,7 @@ const EMAIL_CONFIGURED = true; // Will be controlled by actual secret check
 export default function Configuracoes() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo, updateMaintenanceMode, updateShowPhotosInSales } = useStore();
+  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo, updateMaintenanceMode, updateShowPhotosInSales, updateSoundEnabled } = useStore();
   const { isHidden, showGuide, allCompleted } = useGettingStarted();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -36,6 +36,8 @@ export default function Configuracoes() {
   const [savingMaintenance, setSavingMaintenance] = useState(false);
   const [showPhotosInSales, setShowPhotosInSales] = useState(true);
   const [savingPhotos, setSavingPhotos] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [savingSound, setSavingSound] = useState(false);
 
   const [storeName, setStoreName] = useState("");
   const [selectedColor, setSelectedColor] = useState("#F97316");
@@ -72,6 +74,7 @@ export default function Configuracoes() {
       setAlertSettings(store.alertSettings);
       setMaintenanceMode(store.maintenanceMode);
       setShowPhotosInSales(store.showPhotosInSales);
+      setSoundEnabled(store.soundEnabled);
       setAlertsLoaded(true);
     }
     if (store && !packagingLoaded) {
@@ -176,6 +179,16 @@ export default function Configuracoes() {
       setShowPhotosInSales(newValue);
     }
     setSavingPhotos(false);
+  };
+
+  const handleToggleSound = async () => {
+    setSavingSound(true);
+    const newValue = !soundEnabled;
+    const success = await updateSoundEnabled(newValue);
+    if (success) {
+      setSoundEnabled(newValue);
+    }
+    setSavingSound(false);
   };
 
   if (loading) {
@@ -403,6 +416,37 @@ export default function Configuracoes() {
                   checked={showPhotosInSales}
                   onCheckedChange={handleToggleShowPhotos}
                   disabled={savingPhotos}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Sound Settings */}
+          <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Volume2 className="w-5 h-5 text-primary" />
+              Sons do Sistema
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Ativa sons sutis para confirmar ações como vendas finalizadas, produtos adicionados ao carrinho e interações com o mascote de ajuda.
+            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-foreground">
+                  {soundEnabled ? "Sons ativados" : "Sons desativados"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {soundEnabled 
+                    ? "Feedback sonoro sutil em ações importantes" 
+                    : "Nenhum som será tocado"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {savingSound && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                <Switch 
+                  checked={soundEnabled}
+                  onCheckedChange={handleToggleSound}
+                  disabled={savingSound}
                 />
               </div>
             </div>

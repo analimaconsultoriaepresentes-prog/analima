@@ -592,6 +592,7 @@ export type Database = {
           packaging_cost_2_bags: number
           primary_color: string | null
           show_photos_in_sales: boolean
+          sound_enabled: boolean
           updated_at: string
           user_id: string
         }
@@ -613,6 +614,7 @@ export type Database = {
           packaging_cost_2_bags?: number
           primary_color?: string | null
           show_photos_in_sales?: boolean
+          sound_enabled?: boolean
           updated_at?: string
           user_id: string
         }
@@ -634,6 +636,7 @@ export type Database = {
           packaging_cost_2_bags?: number
           primary_color?: string | null
           show_photos_in_sales?: boolean
+          sound_enabled?: boolean
           updated_at?: string
           user_id?: string
         }
