@@ -177,12 +177,6 @@ export const fieldTooltips: Record<string, string> = {
   disponivel: "Estoque menos produtos em PROVE. É o que pode ser vendido.",
 };
 
-// Contextual micro-interaction messages
-export const contextualMessages = {
-  emptyCart: "Escolha um produto pra começar 😊",
-  validationError: "Ops, faltou um detalhe aqui 😊",
-};
-
 interface HelpContextType {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
@@ -198,14 +192,11 @@ interface HelpContextType {
   bubbleMessage: string | null;
   showBubble: (message?: string) => void;
   hideBubble: () => void;
-  showContextualHelp: (key: keyof typeof contextualMessages) => void;
-  contextualShownThisSession: Set<string>;
 }
 
 const HelpContext = createContext<HelpContextType | undefined>(undefined);
 
 const BUBBLE_COOLDOWN = 30000; // 30 seconds minimum between bubbles
-const CONTEXTUAL_BUBBLE_DURATION = 3500; // Contextual messages show for 3.5 seconds
 const BUBBLE_DURATION = 4000; // Show bubble for 4 seconds
 
 export function HelpProvider({ children }: { children: ReactNode }) {
@@ -215,7 +206,6 @@ export function HelpProvider({ children }: { children: ReactNode }) {
   const [shouldPulse, setShouldPulse] = useState(false);
   const [visitedPages, setVisitedPages] = useState<Set<string>>(new Set());
   const [bubbleMessage, setBubbleMessage] = useState<string | null>(null);
-  const [contextualShownThisSession] = useState<Set<string>>(new Set());
   const lastBubbleTimeRef = useRef<number>(0);
   const bubbleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -263,31 +253,6 @@ export function HelpProvider({ children }: { children: ReactNode }) {
     }, BUBBLE_DURATION);
   }, [currentPage]);
 
-  // Show contextual help message (e.g., empty cart, validation error)
-  // Shows only once per session for "emptyCart" type, always for errors
-  const showContextualHelp = useCallback((key: keyof typeof contextualMessages) => {
-    // For empty cart, show only once per session
-    if (key === "emptyCart" && contextualShownThisSession.has(key)) {
-      return;
-    }
-
-    const message = contextualMessages[key];
-    if (!message) return;
-
-    // Mark as shown for session tracking
-    contextualShownThisSession.add(key);
-
-    setBubbleMessage(message);
-
-    // Auto-hide after shorter duration
-    if (bubbleTimeoutRef.current) {
-      clearTimeout(bubbleTimeoutRef.current);
-    }
-    bubbleTimeoutRef.current = setTimeout(() => {
-      setBubbleMessage(null);
-    }, CONTEXTUAL_BUBBLE_DURATION);
-  }, [contextualShownThisSession]);
-
   return (
     <HelpContext.Provider
       value={{
@@ -305,8 +270,6 @@ export function HelpProvider({ children }: { children: ReactNode }) {
         bubbleMessage,
         showBubble,
         hideBubble,
-        showContextualHelp,
-        contextualShownThisSession,
       }}
     >
       {children}
