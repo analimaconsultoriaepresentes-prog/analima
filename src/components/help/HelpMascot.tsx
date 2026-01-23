@@ -174,7 +174,7 @@ export function HelpMascot() {
         className={cn(
           "fixed bottom-4 right-4 z-50",
           "w-20 h-20 rounded-full overflow-hidden",
-          "bg-white border-3 border-emerald-400",
+          "bg-white border-[3px] border-emerald-400",
           "shadow-lg shadow-emerald-500/20",
           "transition-all duration-300 ease-out",
           "hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/30 hover:border-emerald-500",
@@ -187,14 +187,14 @@ export function HelpMascot() {
         style={{ animationFillMode: 'forwards' }}
       >
         {isOpen ? (
-          <div className="w-full h-full bg-emerald-500 flex items-center justify-center">
-            <X className="w-8 h-8 text-white" />
+          <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
+            <X className="w-7 h-7 text-white" />
           </div>
         ) : (
           <img 
             src={mascotImage} 
             alt="Ana - Assistente de Ajuda"
-            className="w-full h-full object-cover object-top scale-[1.8] translate-y-3"
+            className="w-[140%] h-auto absolute top-1 left-1/2 -translate-x-1/2"
           />
         )}
       </button>
@@ -215,11 +215,11 @@ export function HelpMascot() {
         {/* Header with larger mascot image */}
         <div className="p-4 border-b border-border bg-gradient-to-r from-emerald-50 to-green-50 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-emerald-400 shadow-md">
+            <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-emerald-400 shadow-md relative bg-white">
               <img 
                 src={mascotImage} 
                 alt="Ana"
-                className="w-full h-full object-cover object-top scale-150 translate-y-1"
+                className="w-[180%] h-auto absolute top-0 left-1/2 -translate-x-1/2"
               />
             </div>
             <div>
