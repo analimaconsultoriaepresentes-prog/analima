@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { ShoppingCart, User, UserPlus, Phone, Loader2, Store, Globe, X, Search, Heart } from "lucide-react";
 import { ProductGrid } from "./ProductGrid";
 import { CartItems, type CartItem } from "./CartItems";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSound } from "@/hooks/useSound";
+import { useHelp } from "@/components/help/HelpContext";
 import { Customer, CustomerFormData } from "@/hooks/useCustomers";
 import type { SaleChannel, RecordType, DonationData } from "@/hooks/useSales";
 import type { PackagingCosts } from "@/hooks/useStore";
@@ -81,6 +82,7 @@ export function POSView({
 }: POSViewProps) {
   const isMobile = useIsMobile();
   const { playActionTick, playSaleSuccess, playErrorToc } = useSound();
+  const { showContextualHelp, contextualShownThisSession } = useHelp();
   const [recordType, setRecordType] = useState<RecordType>("sale");
   const [channel, setChannel] = useState<SaleChannel>("store");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -94,11 +96,23 @@ export function POSView({
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerBirthday, setNewCustomerBirthday] = useState("");
   const [savingCustomer, setSavingCustomer] = useState(false);
+  const hasShownEmptyCartHint = useRef(false);
   
   // Donation fields
   const [donationNotes, setDonationNotes] = useState("");
   const [donationRecipient, setDonationRecipient] = useState("");
   const [donationReferenceValue, setDonationReferenceValue] = useState("");
+
+  // Show empty cart hint once per session when cart is empty
+  useEffect(() => {
+    if (cart.length === 0 && !hasShownEmptyCartHint.current && !contextualShownThisSession.has("emptyCart")) {
+      const timer = setTimeout(() => {
+        showContextualHelp("emptyCart");
+        hasShownEmptyCartHint.current = true;
+      }, 2000); // Small delay to let user orient
+      return () => clearTimeout(timer);
+    }
+  }, [cart.length, showContextualHelp, contextualShownThisSession]);
 
   const filteredCustomers = customers.filter(
     (c) =>
@@ -239,6 +253,7 @@ export function POSView({
   const handleSubmit = () => {
     if (cart.length === 0) {
       playErrorToc();
+      showContextualHelp("validationError");
       toast({
         title: "Carrinho vazio",
         description: "Adicione produtos para registrar.",
@@ -250,6 +265,7 @@ export function POSView({
     // For sales, require payment method
     if (recordType === "sale" && !paymentMethod) {
       playErrorToc();
+      showContextualHelp("validationError");
       toast({
         title: "Pagamento",
         description: "Selecione uma forma de pagamento.",
@@ -261,6 +277,7 @@ export function POSView({
     // For sales with cash, validate amount received
     if (recordType === "sale" && paymentMethod === "dinheiro" && amountReceived < total) {
       playErrorToc();
+      showContextualHelp("validationError");
       toast({
         title: "Valor insuficiente",
         description: "O valor recebido é menor que o total.",
@@ -272,6 +289,7 @@ export function POSView({
     // For donations, require notes
     if (recordType === "donation" && !donationNotes.trim()) {
       playErrorToc();
+      showContextualHelp("validationError");
       toast({
         title: "Motivo obrigatório",
         description: "Informe o motivo da doação.",
