@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction, Image, Volume2 } from "lucide-react";
+import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction, Image, Volume2, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useStore, AlertSettings, PackagingCosts } from "@/hooks/useStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useGettingStarted } from "@/hooks/useGettingStarted";
+import { useGoals, GoalSettings } from "@/hooks/useGoals";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
@@ -30,6 +31,7 @@ export default function Configuracoes() {
   const { user, signOut } = useAuth();
   const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo, updateMaintenanceMode, updateShowPhotosInSales, updateSoundEnabled } = useStore();
   const { isHidden, showGuide, allCompleted } = useGettingStarted();
+  const { goalSettings, updateGoals, loading: loadingGoals } = useGoals();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -45,6 +47,14 @@ export default function Configuracoes() {
   const [saving, setSaving] = useState(false);
   const [savingAlerts, setSavingAlerts] = useState(false);
   const [savingPackaging, setSavingPackaging] = useState(false);
+  const [savingGoals, setSavingGoals] = useState(false);
+
+  // Goal settings state
+  const [goals, setGoals] = useState<GoalSettings>({
+    dailyGoal: 0,
+    monthlyGoal: 0,
+  });
+  const [goalsLoaded, setGoalsLoaded] = useState(false);
   
   // Alert settings state - controlled components
   const [alertSettings, setAlertSettings] = useState<AlertSettings>({
@@ -83,11 +93,32 @@ export default function Configuracoes() {
     }
   }, [store, alertsLoaded, packagingLoaded]);
 
+  // Load goal settings
+  useEffect(() => {
+    if (goalSettings && !goalsLoaded) {
+      setGoals(goalSettings);
+      setGoalsLoaded(true);
+    }
+  }, [goalSettings, goalsLoaded]);
+
   // Reset loaded flags when user changes
   useEffect(() => {
     setAlertsLoaded(false);
     setPackagingLoaded(false);
+    setGoalsLoaded(false);
   }, [user?.id]);
+
+  const handleSaveGoals = async () => {
+    setSavingGoals(true);
+    const success = await updateGoals(goals);
+    setSavingGoals(false);
+    
+    if (!success) {
+      if (goalSettings) {
+        setGoals(goalSettings);
+      }
+    }
+  };
 
   const handleSave = async () => {
     if (!storeName.trim()) {
@@ -297,6 +328,71 @@ export default function Configuracoes() {
             <p className="text-sm text-muted-foreground mt-3">
               Esta cor será usada nos elementos principais do sistema
             </p>
+          </div>
+
+          {/* Goals Section */}
+          <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Target className="w-5 h-5 text-primary" />
+              Metas de Vendas
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Defina suas metas para acompanhar o progresso na tela de vendas.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="dailyGoal">Meta Diária (obrigatória)</Label>
+                <div className="relative mt-1.5">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                  <Input
+                    id="dailyGoal"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={goals.dailyGoal || ""}
+                    onChange={(e) => setGoals(prev => ({
+                      ...prev,
+                      dailyGoal: parseFloat(e.target.value) || 0
+                    }))}
+                    className="pl-10"
+                    placeholder="Ex: 500,00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Exibida na barra de progresso</p>
+              </div>
+              <div>
+                <Label htmlFor="monthlyGoal">Meta Mensal (opcional)</Label>
+                <div className="relative mt-1.5">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                  <Input
+                    id="monthlyGoal"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={goals.monthlyGoal || ""}
+                    onChange={(e) => setGoals(prev => ({
+                      ...prev,
+                      monthlyGoal: parseFloat(e.target.value) || 0
+                    }))}
+                    className="pl-10"
+                    placeholder="Ex: 10.000,00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Para acompanhamento futuro</p>
+              </div>
+            </div>
+            <Button 
+              className="btn-primary gap-2 mt-4" 
+              onClick={handleSaveGoals}
+              disabled={savingGoals}
+            >
+              {savingGoals ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Salvar Metas
+            </Button>
           </div>
 
           <Button 

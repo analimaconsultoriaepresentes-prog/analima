@@ -1,13 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { Search, ShoppingCart, Calendar, XCircle, Loader2, Package, Gift, Globe, Store, History, Plus, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { POSView } from "@/components/sales/POSView";
+import { GoalProgress } from "@/components/sales/GoalProgress";
 import { useProducts, isInternalProduct } from "@/hooks/useProducts";
 import { useSales, SaleChannel, RecordType, DonationData } from "@/hooks/useSales";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useStore } from "@/hooks/useStore";
+import { useGoals } from "@/hooks/useGoals";
+import { useHelp } from "@/components/help/HelpContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,10 +76,21 @@ export default function Vendas() {
   const { sales, loading: loadingSales, addSale, cancelSale: cancelSaleAction, stats } = useSales();
   const { customers, addCustomer } = useCustomers();
   const { store } = useStore();
+  const { goalSettings } = useGoals();
+  const { showBubble } = useHelp();
 
   // Usar custos de embalagem da configuração da loja
   const packagingCosts = store?.packagingCosts || { packagingCost1Bag: 0, packagingCost2Bags: 0 };
   const showPhotosInSales = store?.showPhotosInSales ?? true;
+
+  // Handle goal milestones with mascot messages
+  const handleGoalMilestone = useCallback((type: "near" | "achieved") => {
+    if (type === "near") {
+      showBubble("Quase lá! 💪 Só falta um pouquinho pra bater a meta!");
+    } else if (type === "achieved") {
+      showBubble("Parabéns! 🎉 Você bateu a meta do dia! Incrível!");
+    }
+  }, [showBubble]);
 
   const handleNewSale = async (
     cartItems: { product: typeof products[0]; quantity: number }[],
@@ -162,6 +176,15 @@ export default function Vendas() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
+      )}
+
+      {/* Goal Progress Bar */}
+      {!loading && viewMode === "pos" && goalSettings.dailyGoal > 0 && (
+        <GoalProgress
+          dailyGoal={goalSettings.dailyGoal}
+          totalToday={stats.totalToday}
+          onMilestone={handleGoalMilestone}
+        />
       )}
 
       {/* POS View */}

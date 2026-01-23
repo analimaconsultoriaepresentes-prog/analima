@@ -580,6 +580,7 @@ export type Database = {
           birthday_message: string | null
           created_at: string
           daily_email_enabled: boolean
+          daily_goal: number | null
           expiry_alert_enabled: boolean
           expiry_days_before: number
           id: string
@@ -587,6 +588,7 @@ export type Database = {
           low_stock_enabled: boolean
           low_stock_threshold: number
           maintenance_mode: boolean
+          monthly_goal: number | null
           name: string
           packaging_cost_1_bag: number
           packaging_cost_2_bags: number
@@ -602,6 +604,7 @@ export type Database = {
           birthday_message?: string | null
           created_at?: string
           daily_email_enabled?: boolean
+          daily_goal?: number | null
           expiry_alert_enabled?: boolean
           expiry_days_before?: number
           id?: string
@@ -609,6 +612,7 @@ export type Database = {
           low_stock_enabled?: boolean
           low_stock_threshold?: number
           maintenance_mode?: boolean
+          monthly_goal?: number | null
           name?: string
           packaging_cost_1_bag?: number
           packaging_cost_2_bags?: number
@@ -624,6 +628,7 @@ export type Database = {
           birthday_message?: string | null
           created_at?: string
           daily_email_enabled?: boolean
+          daily_goal?: number | null
           expiry_alert_enabled?: boolean
           expiry_days_before?: number
           id?: string
@@ -631,6 +636,7 @@ export type Database = {
           low_stock_enabled?: boolean
           low_stock_threshold?: number
           maintenance_mode?: boolean
+          monthly_goal?: number | null
           name?: string
           packaging_cost_1_bag?: number
           packaging_cost_2_bags?: number
