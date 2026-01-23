@@ -118,12 +118,13 @@ export function HelpMascot() {
 
   return (
     <>
-      {/* Speech Bubble */}
+      {/* Speech Bubble - Green help style */}
       <div
         className={cn(
           "fixed bottom-[88px] right-6 z-50",
-          "max-w-[200px] px-4 py-2.5",
-          "bg-card border border-border rounded-2xl shadow-lg",
+          "max-w-[220px] px-4 py-3",
+          "bg-[#ECFDF5] border-2 border-[#22C55E]/60 rounded-2xl",
+          "shadow-lg shadow-[#22C55E]/10",
           "transition-all duration-300 ease-out",
           "origin-bottom-right",
           bubbleMessage && !isOpen
@@ -131,9 +132,9 @@ export function HelpMascot() {
             : "opacity-0 scale-90 translate-y-2 pointer-events-none"
         )}
       >
-        <p className="text-sm text-foreground leading-snug">{bubbleMessage}</p>
+        <p className="text-sm text-[#065F46] font-medium leading-snug">{bubbleMessage}</p>
         {/* Bubble tail */}
-        <div className="absolute -bottom-2 right-6 w-4 h-4 bg-card border-r border-b border-border rotate-45 transform" />
+        <div className="absolute -bottom-2 right-6 w-4 h-4 bg-[#ECFDF5] border-r-2 border-b-2 border-[#22C55E]/60 rotate-45 transform" />
       </div>
 
       {/* Mascot Button */}
