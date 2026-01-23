@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback, useRef } from "react";
 
 export interface HelpTopic {
   id: string;
@@ -6,6 +6,50 @@ export interface HelpTopic {
   content: string;
   icon?: string;
 }
+
+// Contextual bubble messages by page
+export const bubbleMessages: Record<string, string[]> = {
+  dashboard: [
+    "Posso te ajudar? 😊",
+    "Aqui você vê o resumo da loja!",
+  ],
+  produtos: [
+    "Ficou em dúvida? Te explico rapidinho 😊",
+    "PROVE, Pix, Cartão... posso explicar!",
+    "Qual valor usar aqui?",
+  ],
+  vendas: [
+    "Posso te ajudar com a venda? 🛒",
+    "Qual forma de pagamento usar?",
+    "Ficou em dúvida? Tô aqui!",
+  ],
+  despesas: [
+    "Isso é um gasto da loja?",
+    "Posso te ajudar a registrar! 💡",
+    "Despesa fixa ou variável?",
+  ],
+  clientes: [
+    "Cadastre seus clientes favoritos! 💜",
+    "Posso te ajudar?",
+  ],
+  contas: [
+    "Contas a pagar ou receber?",
+    "Posso explicar a diferença!",
+  ],
+  configuracoes: [
+    "Personalize sua loja aqui!",
+    "Precisa de ajuda?",
+  ],
+  relatorios: [
+    "Entenda seus números! 📊",
+    "Posso explicar os relatórios!",
+  ],
+  geral: [
+    "Posso te ajudar? 😊",
+    "Ficou em dúvida? Te explico!",
+    "Tô aqui se precisar! 💜",
+  ],
+};
 
 // Pages that have potentially confusing fields - mascot should pulse on first visit
 export const complexPages = ["produtos", "vendas", "despesas"];
@@ -145,9 +189,15 @@ interface HelpContextType {
   stopPulse: () => void;
   visitedPages: Set<string>;
   markPageVisited: (page: string) => void;
+  bubbleMessage: string | null;
+  showBubble: (message?: string) => void;
+  hideBubble: () => void;
 }
 
 const HelpContext = createContext<HelpContextType | undefined>(undefined);
+
+const BUBBLE_COOLDOWN = 30000; // 30 seconds minimum between bubbles
+const BUBBLE_DURATION = 4000; // Show bubble for 4 seconds
 
 export function HelpProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -155,6 +205,9 @@ export function HelpProvider({ children }: { children: ReactNode }) {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [shouldPulse, setShouldPulse] = useState(false);
   const [visitedPages, setVisitedPages] = useState<Set<string>>(new Set());
+  const [bubbleMessage, setBubbleMessage] = useState<string | null>(null);
+  const lastBubbleTimeRef = useRef<number>(0);
+  const bubbleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const triggerPulse = useCallback(() => {
     setShouldPulse(true);
@@ -167,6 +220,38 @@ export function HelpProvider({ children }: { children: ReactNode }) {
   const markPageVisited = useCallback((page: string) => {
     setVisitedPages((prev) => new Set(prev).add(page));
   }, []);
+
+  const hideBubble = useCallback(() => {
+    setBubbleMessage(null);
+    if (bubbleTimeoutRef.current) {
+      clearTimeout(bubbleTimeoutRef.current);
+      bubbleTimeoutRef.current = null;
+    }
+  }, []);
+
+  const showBubble = useCallback((message?: string) => {
+    const now = Date.now();
+    
+    // Check cooldown to avoid repetition
+    if (now - lastBubbleTimeRef.current < BUBBLE_COOLDOWN) {
+      return;
+    }
+
+    // Get message from page-specific or general
+    const pageMessages = bubbleMessages[currentPage] || bubbleMessages.geral;
+    const selectedMessage = message || pageMessages[Math.floor(Math.random() * pageMessages.length)];
+
+    lastBubbleTimeRef.current = now;
+    setBubbleMessage(selectedMessage);
+
+    // Auto-hide after duration
+    if (bubbleTimeoutRef.current) {
+      clearTimeout(bubbleTimeoutRef.current);
+    }
+    bubbleTimeoutRef.current = setTimeout(() => {
+      setBubbleMessage(null);
+    }, BUBBLE_DURATION);
+  }, [currentPage]);
 
   return (
     <HelpContext.Provider
@@ -182,6 +267,9 @@ export function HelpProvider({ children }: { children: ReactNode }) {
         stopPulse,
         visitedPages,
         markPageVisited,
+        bubbleMessage,
+        showBubble,
+        hideBubble,
       }}
     >
       {children}
