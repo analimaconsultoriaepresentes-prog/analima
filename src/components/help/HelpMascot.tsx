@@ -143,15 +143,15 @@ export function HelpMascot() {
         className={cn(
           "fixed bottom-6 right-6 z-50",
           "w-14 h-14 rounded-full",
-          "bg-gradient-to-br from-primary via-primary to-accent",
-          "text-white shadow-lg",
+          "bg-gradient-to-br from-emerald-500 to-emerald-600",
+          "text-white shadow-lg shadow-emerald-500/20",
           "flex items-center justify-center",
           "transition-all duration-300 ease-out",
-          "hover:scale-110 hover:shadow-xl hover:shadow-primary/25",
+          "hover:scale-105 hover:shadow-xl hover:shadow-emerald-500/30",
           "active:scale-95",
           "group",
           isOpen && "rotate-180",
-          shouldPulse && "animate-mascot-pulse"
+          shouldPulse && "animate-mascot-gentle-pulse"
         )}
         aria-label={isOpen ? "Fechar ajuda" : "Abrir ajuda"}
       >
