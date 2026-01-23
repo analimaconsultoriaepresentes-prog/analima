@@ -5,7 +5,6 @@ import {
   Package,
   ShoppingCart,
   Receipt,
-  CreditCard,
   BarChart3,
   Settings,
   Menu,
@@ -20,20 +19,15 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/hooks/useStore";
 
-// Main menu items - Despesas is the primary financial module
-const mainMenuItems = [
+// Menu items - ordered by daily usage priority
+const menuItems = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
-  { icon: Package, label: "Produtos", path: "/produtos" },
   { icon: ShoppingCart, label: "Vendas", path: "/vendas" },
-  { icon: Users, label: "Clientes", path: "/clientes" },
+  { icon: Package, label: "Produtos", path: "/produtos" },
   { icon: Receipt, label: "Despesas", path: "/despesas" },
+  { icon: Users, label: "Clientes", path: "/clientes" },
   { icon: BarChart3, label: "Relatórios", path: "/relatorios" },
   { icon: Settings, label: "Configurações", path: "/configuracoes" },
-];
-
-// Secondary/advanced menu items
-const secondaryMenuItems = [
-  { icon: CreditCard, label: "Contas", path: "/contas", subtitle: "Avançado" },
 ];
 
 export function Sidebar() {
@@ -99,9 +93,9 @@ export function Sidebar() {
           </Button>
         </div>
 
-        {/* Main navigation */}
+        {/* Navigation */}
         <nav className="p-3 space-y-1">
-          {mainMenuItems.map((item) => {
+          {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
@@ -120,32 +114,6 @@ export function Sidebar() {
             );
           })}
         </nav>
-
-        {/* Secondary navigation - less prominent */}
-        {!isCollapsed && (
-          <div className="px-3 mt-2">
-            <div className="border-t border-sidebar-border/30 pt-3">
-              <p className="text-xs text-sidebar-muted/60 px-3 mb-1">Avançado</p>
-              {secondaryMenuItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setIsMobileOpen(false)}
-                    className={cn(
-                      "nav-item opacity-70 hover:opacity-100 text-sm",
-                      isActive && "nav-item-active opacity-100",
-                    )}
-                  >
-                    <item.icon className={cn("w-4 h-4 flex-shrink-0", isActive && "text-primary")} />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Footer with branding */}
         {!isCollapsed && (
