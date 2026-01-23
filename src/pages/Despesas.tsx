@@ -461,7 +461,7 @@ export default function Despesas() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Despesas</h1>
-          <p className="text-muted-foreground mt-1">Controle seus gastos mensais</p>
+          <p className="text-muted-foreground mt-1">Controle seus gastos de forma simples</p>
         </div>
         <Button className="btn-primary gap-2" onClick={() => setIsFormOpen(true)}>
           <Plus className="w-4 h-4" />

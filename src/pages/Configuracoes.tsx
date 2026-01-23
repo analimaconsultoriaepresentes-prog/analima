@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction, Image } from "lucide-react";
+import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction, Image, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -406,6 +406,25 @@ export default function Configuracoes() {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Advanced Financial - Link to Contas */}
+          <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-primary" />
+              Financeiro Avançado
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Gerencie contas a pagar e receber para controle financeiro mais detalhado.
+            </p>
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={() => navigate('/contas')}
+            >
+              <CreditCard className="w-4 h-4" />
+              Acessar Contas
+            </Button>
           </div>
 
           <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
