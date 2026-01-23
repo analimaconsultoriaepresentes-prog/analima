@@ -181,16 +181,9 @@ export function ProductGrid({
                     </p>
 
                     <div className="flex items-center justify-between mt-2">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-bold text-primary">
-                          R$ {price.toFixed(2)}
-                        </span>
-                        {product.priceCard > 0 && product.priceCard !== product.pricePix && (
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            💳 R$ {product.priceCard.toFixed(2)}
-                          </span>
-                        )}
-                      </div>
+                      <span className="font-bold text-primary">
+                        R$ {price.toFixed(2)}
+                      </span>
                       {outOfStock ? (
                         <span className="text-[10px] font-medium text-destructive bg-destructive/10 px-2 py-0.5 rounded">
                           Sem estoque
