@@ -298,13 +298,10 @@ export default function Contas() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Contas a Pagar/Receber</h1>
-          <p className="text-muted-foreground mt-1">
-            Controle avançado de contas • 
-            <span className="text-primary ml-1">Use "Despesas" para gastos do dia a dia</span>
-          </p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Contas</h1>
+          <p className="text-muted-foreground mt-1">Gerencie contas a pagar e receber</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={() => setIsFormOpen(true)}>
+        <Button className="btn-primary gap-2" onClick={() => setIsFormOpen(true)}>
           <Plus className="w-4 h-4" />
           Nova Conta
         </Button>

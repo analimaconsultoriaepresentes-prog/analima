@@ -5,6 +5,7 @@ import {
   Package,
   ShoppingCart,
   Receipt,
+  CreditCard,
   BarChart3,
   Settings,
   Menu,
@@ -19,13 +20,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/hooks/useStore";
 
-// Menu items - ordered by daily usage priority
 const menuItems = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
-  { icon: ShoppingCart, label: "Vendas", path: "/vendas" },
   { icon: Package, label: "Produtos", path: "/produtos" },
-  { icon: Receipt, label: "Despesas", path: "/despesas" },
+  { icon: ShoppingCart, label: "Vendas", path: "/vendas" },
   { icon: Users, label: "Clientes", path: "/clientes" },
+  { icon: Receipt, label: "Despesas", path: "/despesas" },
+  { icon: CreditCard, label: "Contas", path: "/contas" },
   { icon: BarChart3, label: "Relatórios", path: "/relatorios" },
   { icon: Settings, label: "Configurações", path: "/configuracoes" },
 ];
