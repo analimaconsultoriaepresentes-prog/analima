@@ -290,18 +290,20 @@
     to { opacity: 1; transform: scale(1); }
   }
 
-  /* Subtle mascot pulse - scale + gentle opacity */
+  /* Subtle mascot pulse - gentle scale */
   @keyframes mascotPulse {
     0%, 100% {
       transform: scale(1);
-      opacity: 1;
-      box-shadow: 0 10px 25px -5px hsl(280, 85%, 50%, 0.3);
+      box-shadow: 0 10px 25px -5px hsl(142, 76%, 40%, 0.25);
     }
     50% {
-      transform: scale(1.08);
-      opacity: 0.92;
-      box-shadow: 0 14px 35px -5px hsl(280, 85%, 50%, 0.45);
+      transform: scale(1.03);
+      box-shadow: 0 12px 28px -5px hsl(142, 76%, 40%, 0.35);
     }
+  }
+
+  .animate-mascot-gentle-pulse {
+    animation: mascotPulse 2.5s ease-in-out infinite;
   }
 
   .delay-100 { animation-delay: 100ms; }
