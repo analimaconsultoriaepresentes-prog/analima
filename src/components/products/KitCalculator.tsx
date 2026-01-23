@@ -334,6 +334,7 @@ export function KitCalculator({
         pricePix: kitPriceNum,
         priceCard: kitPriceNum,
         stock: 0,
+        proveQty: 0,
         origin: "purchased",
         productType: "item",
         isBasket: true,

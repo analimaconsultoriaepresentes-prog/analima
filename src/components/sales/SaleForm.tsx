@@ -41,6 +41,7 @@ interface Product {
   priceCard: number;
   costPrice: number;
   stock: number;
+  proveQty?: number;
   isBasket?: boolean;
   productType?: ProductType;
   cycle?: number;

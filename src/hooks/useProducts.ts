@@ -29,6 +29,7 @@ export interface Product {
   pricePix: number;
   priceCard: number;
   stock: number;
+  proveQty: number; // Quantity reserved for samples/demos
   expiryDate?: string;
   origin: "purchased" | "gift";
   cycle?: number;
@@ -44,6 +45,11 @@ export interface Product {
   imageUrl?: string;
 }
 
+// Helper to calculate available stock (total - prove)
+export const getAvailableStock = (product: Product): number => {
+  return Math.max(0, product.stock - product.proveQty);
+};
+
 export interface ProductFormData {
   name: string;
   category: "Presente" | "Perfume" | "Cosmético" | "Utensílios";
@@ -53,6 +59,7 @@ export interface ProductFormData {
   pricePix: number;
   priceCard: number;
   stock: number;
+  proveQty: number; // Quantity reserved for samples/demos
   expiryDate?: Date;
   origin: "purchased" | "gift";
   cycle?: number;
@@ -96,6 +103,7 @@ export function useProducts() {
         pricePix: Number(p.price_pix) || Number(p.sale_price),
         priceCard: Number(p.price_card) || Number(p.sale_price),
         stock: p.stock,
+        proveQty: p.prove_qty || 0,
         expiryDate: p.expiry_date || undefined,
         origin: (p.origin as Product["origin"]) || "purchased",
         cycle: p.cycle ?? undefined,
@@ -141,6 +149,7 @@ export function useProducts() {
         price_pix: data.pricePix,
         price_card: data.priceCard,
         stock: data.stock,
+        prove_qty: data.proveQty || 0,
         expiry_date: data.expiryDate?.toISOString().split("T")[0] || null,
         user_id: user.id,
         origin: data.origin,
@@ -187,6 +196,7 @@ export function useProducts() {
           price_pix: data.pricePix,
           price_card: data.priceCard,
           stock: data.stock,
+          prove_qty: data.proveQty || 0,
           expiry_date: data.expiryDate?.toISOString().split("T")[0] || null,
           origin: data.origin,
           cycle: data.cycle || null,

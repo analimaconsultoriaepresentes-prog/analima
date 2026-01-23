@@ -63,6 +63,7 @@ const productSchema = z.object({
   pricePix: z.coerce.number().min(0, "Preço Pix não pode ser negativo"),
   priceCard: z.coerce.number().min(0, "Preço Cartão não pode ser negativo"),
   stock: z.coerce.number().int().min(0, "Estoque não pode ser negativo"),
+  proveQty: z.coerce.number().int().min(0, "Quantidade PROVE não pode ser negativa"),
   expiryDate: z.date().optional(),
   origin: z.enum(["purchased", "gift"]),
   cycle: z.coerce.number().int().min(1, "Ciclo deve ser maior que zero").optional().or(z.literal("")),
@@ -74,6 +75,15 @@ const productSchema = z.object({
   giftType: z.enum(["presente", "cesta", "kit", "mini_presente", "lembrancinha"]).optional(),
   packagingDiscount: z.coerce.number().min(0, "Desconto não pode ser negativo"),
   imageUrl: z.string().optional(),
+}).refine((data) => {
+  // Validate proveQty doesn't exceed stock
+  if (data.proveQty > data.stock) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Quantidade em PROVE não pode ser maior que o estoque total",
+  path: ["proveQty"],
 }).refine((data) => {
   // Packaging/extra products don't need sale prices - they are internal cost only
   if (data.productType === "packaging" || data.productType === "extra") {
@@ -1025,7 +1035,7 @@ function ProductFormContent({
                 <FormLabel>
                   {isBasket ? "Cestas montadas" : 
                    productType === "packaging" ? "Estoque embalagens" :
-                   productType === "extra" ? "Estoque extras" : "Estoque"}
+                   productType === "extra" ? "Estoque extras" : "Estoque Total"}
                 </FormLabel>
                 <FormControl>
                   <Input 
@@ -1068,7 +1078,7 @@ function ProductFormContent({
                         ) : (
                           <span>Opcional</span>
                         )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        <CalendarIcon className="ml-auto h-4 h-4 opacity-50" />
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
@@ -1088,6 +1098,43 @@ function ProductFormContent({
             )}
           />
         </div>
+
+        {/* PROVE - Quantidade para amostra/demonstração - Only for non-baskets and non-packaging/extra */}
+        {!isBasket && !isPackagingOrExtra && (
+          <div className="space-y-3 p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
+            <FormField
+              control={form.control}
+              name="proveQty"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2 text-amber-700 dark:text-amber-500">
+                    🧴 PROVE (uso interno / amostra)
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min="0"
+                      max={form.watch("stock")}
+                      inputMode="numeric"
+                      placeholder="0" 
+                      className="input-styled min-h-[44px]"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Unidades reservadas para demonstração. Não disponíveis para venda.
+                    {form.watch("stock") > 0 && (
+                      <span className="block mt-1 font-medium text-foreground">
+                        Disponível p/ venda: {Math.max(0, form.watch("stock") - (field.value || 0))} un.
+                      </span>
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
 
         {/* Botões - sticky bottom on mobile */}
         <div className="flex gap-3 pt-4 sticky bottom-0 bg-card pb-2">
@@ -1157,6 +1204,7 @@ export function ProductForm({
         pricePix: editProduct.pricePix || editProduct.salePrice,
         priceCard: editProduct.priceCard || editProduct.salePrice,
         stock: editProduct.stock,
+        proveQty: editProduct.proveQty || 0,
         expiryDate: editProduct.expiryDate ? new Date(editProduct.expiryDate) : undefined,
         origin: editProduct.origin,
         cycle: editProduct.cycle,
@@ -1179,6 +1227,7 @@ export function ProductForm({
         pricePix: 0,
         priceCard: 0,
         stock: 0,
+        proveQty: 0,
         origin: "purchased",
         cycle: undefined,
         isBasket: true,
@@ -1198,6 +1247,7 @@ export function ProductForm({
         pricePix: 0,
         priceCard: 0,
         stock: 0,
+        proveQty: 0,
         origin: "purchased",
         cycle: undefined,
         isBasket: false,

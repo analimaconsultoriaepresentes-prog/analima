@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ProductThumbnail } from "@/components/products/ProductThumbnail";
-import { isInternalProduct, type ProductType, type GiftType, GIFT_TYPE_LABELS } from "@/hooks/useProducts";
+import { isInternalProduct, getAvailableStock, type ProductType, type GiftType, GIFT_TYPE_LABELS } from "@/hooks/useProducts";
 
 interface Product {
   id: string;
@@ -16,6 +16,7 @@ interface Product {
   priceCard: number;
   costPrice: number;
   stock: number;
+  proveQty?: number;
   isBasket?: boolean;
   productType?: ProductType;
   cycle?: number;
@@ -138,8 +139,10 @@ export function ProductGrid({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {filteredProducts.map((product) => {
-              const outOfStock = product.stock <= 0;
-              const lowStock = product.stock > 0 && product.stock <= 3;
+              // Use available stock (total - prove) for sales
+              const availableStock = Math.max(0, product.stock - (product.proveQty || 0));
+              const outOfStock = availableStock <= 0;
+              const lowStock = availableStock > 0 && availableStock <= 3;
               const isGift = isGiftProduct(product);
               const price = getPrice(product);
 
@@ -198,11 +201,11 @@ export function ProductGrid({
                         </span>
                       ) : lowStock ? (
                         <span className="text-[10px] font-medium text-warning bg-warning/10 px-2 py-0.5 rounded">
-                          {product.stock} un.
+                          {availableStock} un.
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">
-                          {product.stock} un.
+                          {availableStock} un.
                         </span>
                       )}
                     </div>
