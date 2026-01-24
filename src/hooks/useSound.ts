@@ -2,10 +2,10 @@ import { useCallback, useRef } from "react";
 import { useStore } from "./useStore";
 
 // Sound types mapped to their characteristics
-export type SoundType = "success" | "tick" | "pop" | "error";
+export type SoundType = "success" | "tick" | "pop" | "error" | "celebration";
 
 // Web Audio API-based sound generation for instant, lightweight feedback
-const SOUNDS: Record<SoundType, { frequency: number; duration: number; type: OscillatorType; volume: number }> = {
+const SOUNDS: Record<Exclude<SoundType, "celebration">, { frequency: number; duration: number; type: OscillatorType; volume: number }> = {
   success: { frequency: 880, duration: 150, type: "sine", volume: 0.15 }, // Pleasant "plim"
   tick: { frequency: 1200, duration: 50, type: "sine", volume: 0.08 }, // Subtle "tick"
   pop: { frequency: 600, duration: 80, type: "sine", volume: 0.1 }, // Light "pop"
@@ -23,9 +23,56 @@ export function useSound() {
     return audioContextRef.current;
   }, []);
 
+  // Special celebration fanfare for 150%+ goal achievement
+  const playCelebration = useCallback(() => {
+    if (!store?.soundEnabled) return;
+
+    try {
+      const context = getAudioContext();
+      
+      // Create a triumphant fanfare with multiple ascending notes
+      const notes = [
+        { freq: 523, time: 0 },      // C5
+        { freq: 659, time: 0.1 },    // E5
+        { freq: 784, time: 0.2 },    // G5
+        { freq: 1047, time: 0.35 },  // C6 (hold longer)
+      ];
+
+      notes.forEach(({ freq, time }) => {
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(freq, context.currentTime + time);
+        
+        // Envelope
+        const startTime = context.currentTime + time;
+        const duration = time === 0.35 ? 0.3 : 0.12; // Last note is longer
+        
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.18, startTime + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      });
+    } catch (error) {
+      console.debug("Celebration sound failed:", error);
+    }
+  }, [store?.soundEnabled, getAudioContext]);
+
   const playSound = useCallback((type: SoundType) => {
     // Check if sounds are enabled
     if (!store?.soundEnabled) return;
+
+    // Special handling for celebration
+    if (type === "celebration") {
+      playCelebration();
+      return;
+    }
 
     try {
       const context = getAudioContext();
@@ -58,7 +105,7 @@ export function useSound() {
       // Silently fail - sounds are optional UX enhancement
       console.debug("Sound playback failed:", error);
     }
-  }, [store?.soundEnabled, getAudioContext]);
+  }, [store?.soundEnabled, getAudioContext, playCelebration]);
 
   // Convenience methods for specific actions
   const playSaleSuccess = useCallback(() => playSound("success"), [playSound]);
@@ -72,6 +119,7 @@ export function useSound() {
     playActionTick,
     playHelpPop,
     playErrorToc,
+    playCelebration,
     soundEnabled: store?.soundEnabled ?? false,
   };
 }

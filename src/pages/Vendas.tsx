@@ -12,6 +12,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useStore } from "@/hooks/useStore";
 import { useGoals } from "@/hooks/useGoals";
 import { useHelp } from "@/components/help/HelpContext";
+import { useSound } from "@/hooks/useSound";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,6 +80,7 @@ export default function Vendas() {
   const { store } = useStore();
   const { goalSettings } = useGoals();
   const { showBubble } = useHelp();
+  const { playCelebration, playSaleSuccess } = useSound();
 
   // Usar custos de embalagem da configuração da loja
   const packagingCosts = store?.packagingCosts || { packagingCost1Bag: 0, packagingCost2Bags: 0 };
@@ -120,11 +122,13 @@ export default function Vendas() {
     } else if (type === "achieved") {
       showBubble("🎉 Parabéns! Meta batida com sucesso!");
       triggerConfetti();
+      playSaleSuccess();
     } else if (type === "exceeded") {
       showBubble("👑 Hoje você está voando! Que dia incrível de vendas!");
       triggerConfetti();
+      playCelebration(); // Special fanfare for 150%+ achievement
     }
-  }, [showBubble, triggerConfetti]);
+  }, [showBubble, triggerConfetti, playSaleSuccess, playCelebration]);
 
   const handleNewSale = async (
     cartItems: { product: typeof products[0]; quantity: number }[],
