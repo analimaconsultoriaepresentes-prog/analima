@@ -8,7 +8,9 @@ import { TopProductsCard } from "@/components/dashboard/TopProductsCard";
 import { RecentSalesCard } from "@/components/dashboard/RecentSalesCard";
 import { ProfitChart } from "@/components/dashboard/ProfitChart";
 import { GettingStartedCard } from "@/components/dashboard/GettingStartedCard";
+import { GoalHistoryCard } from "@/components/dashboard/GoalHistoryCard";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { useGoals } from "@/hooks/useGoals";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -24,8 +26,10 @@ export default function Dashboard() {
     topProducts,
     monthlyData,
     categoryData,
+    goalHistory,
     loading,
   } = useDashboardData();
+  const { goalSettings } = useGoals();
 
   const handleOpenGiftModal = () => {
     // Navigate to products page with query param to open gift modal
@@ -91,6 +95,11 @@ export default function Dashboard() {
           className="delay-400"
         />
       </div>
+
+      {/* Goal History + Charts Row - stack on mobile */}
+      {goalSettings.dailyGoal > 0 && (
+        <GoalHistoryCard data={goalHistory} dailyGoal={goalSettings.dailyGoal} />
+      )}
 
       {/* Charts Row - stack on mobile */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">

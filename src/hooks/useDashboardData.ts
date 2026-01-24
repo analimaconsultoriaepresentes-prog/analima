@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
-import { subMonths, format } from "date-fns";
+import { subMonths, subDays, format, startOfDay, endOfDay } from "date-fns";
 import { useStore } from "./useStore";
+import { useGoals } from "./useGoals";
 import { 
   getTodayInBrazil, 
   getTodayStartUTC, 
@@ -57,11 +58,19 @@ interface DashboardStats {
     value: number;
     color: string;
   }>;
+  // Goal history (last 7 days)
+  goalHistory: Array<{
+    date: Date;
+    total: number;
+    goal: number;
+    achieved: boolean;
+  }>;
 }
 
 export function useDashboardData() {
   const { user } = useAuth();
   const { store } = useStore();
+  const { goalSettings } = useGoals();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     salesToday: 0,
@@ -79,6 +88,7 @@ export function useDashboardData() {
     topProducts: [],
     monthlyData: [],
     categoryData: [],
+    goalHistory: [],
   });
 
   const fetchDashboardData = async () => {
@@ -298,6 +308,32 @@ export function useDashboardData() {
         });
       }
 
+      // Goal history for last 7 days
+      const dailyGoal = goalSettings.dailyGoal || 0;
+      const goalHistoryData: Array<{ date: Date; total: number; goal: number; achieved: boolean }> = [];
+      
+      for (let i = 6; i >= 0; i--) {
+        const dayDate = subDays(today, i);
+        const dayStart = startOfDay(dayDate);
+        const dayEnd = endOfDay(dayDate);
+        
+        const { data: daySales } = await supabase
+          .from("sales")
+          .select("total")
+          .eq("status", "completed")
+          .gte("created_at", dayStart.toISOString())
+          .lte("created_at", dayEnd.toISOString());
+        
+        const dayTotal = (daySales || []).reduce((acc, s) => acc + Number(s.total), 0);
+        
+        goalHistoryData.push({
+          date: dayDate,
+          total: dayTotal,
+          goal: dailyGoal,
+          achieved: dailyGoal > 0 && dayTotal >= dailyGoal,
+        });
+      }
+
       setStats({
         salesToday: countToday,
         revenueToday: revToday,
@@ -314,6 +350,7 @@ export function useDashboardData() {
         topProducts: topProds,
         monthlyData: monthlyChartData,
         categoryData: catData,
+        goalHistory: goalHistoryData,
       });
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -322,10 +359,10 @@ export function useDashboardData() {
     }
   };
 
-  // Refetch when user changes or store settings change
+  // Refetch when user changes or store settings change or goal settings change
   useEffect(() => {
     fetchDashboardData();
-  }, [user, store?.alertSettings?.lowStockEnabled, store?.alertSettings?.lowStockThreshold, store?.alertSettings?.expiryAlertEnabled, store?.alertSettings?.expiryDaysBefore]);
+  }, [user, store?.alertSettings?.lowStockEnabled, store?.alertSettings?.lowStockThreshold, store?.alertSettings?.expiryAlertEnabled, store?.alertSettings?.expiryDaysBefore, goalSettings.dailyGoal]);
 
   // Calculate trends
   const trends = useMemo(() => {
