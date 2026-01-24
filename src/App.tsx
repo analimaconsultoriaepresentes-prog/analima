@@ -19,6 +19,7 @@ import Despesas from "./pages/Despesas";
 import Contas from "./pages/Contas";
 import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
+import Etiquetas from "./pages/Etiquetas";
 import Auth from "./pages/Auth";
 import Manutencao from "./pages/Manutencao";
 import NotFound from "./pages/NotFound";
@@ -129,6 +130,7 @@ const AppRoutes = () => {
       <Route path="/vendas" element={<ProtectedRoute><Vendas /></ProtectedRoute>} />
       <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
       <Route path="/despesas" element={<ProtectedRoute><Despesas /></ProtectedRoute>} />
+      <Route path="/etiquetas" element={<ProtectedRoute><Etiquetas /></ProtectedRoute>} />
       <Route path="/contas" element={<ProtectedRoute><Contas /></ProtectedRoute>} />
       <Route path="/relatorios" element={<ProtectedRoute><Relatorios /></ProtectedRoute>} />
       <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />

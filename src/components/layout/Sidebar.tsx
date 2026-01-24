@@ -15,6 +15,7 @@ import {
   Loader2,
   Users,
   Sparkles,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ const mainMenuItems = [
   { icon: ShoppingCart, label: "Vendas", path: "/vendas" },
   { icon: Users, label: "Clientes", path: "/clientes" },
   { icon: Receipt, label: "Despesas", path: "/despesas" },
+  { icon: Tag, label: "Etiquetas", path: "/etiquetas" },
   { icon: BarChart3, label: "Relatórios", path: "/relatorios" },
   { icon: Settings, label: "Configurações", path: "/configuracoes" },
 ];
