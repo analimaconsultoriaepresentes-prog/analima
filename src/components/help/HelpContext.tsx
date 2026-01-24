@@ -44,6 +44,10 @@ export const bubbleMessages: Record<string, string[]> = {
     "Quer entender seus números? 📊",
     "Posso explicar!",
   ],
+  etiquetas: [
+    "Dúvida sobre etiquetas? 🏷️",
+    "Posso te ajudar a imprimir!",
+  ],
   geral: [
     "Quer uma ajudinha? 😊",
     "Ficou em dúvida?",
@@ -144,6 +148,28 @@ export const helpTopics: Record<string, HelpTopic[]> = {
       id: "clientes-aniversario",
       title: "Aniversários",
       content: "O sistema avisa quando um cliente faz aniversário. Ótima oportunidade para mandar uma mensagem especial!",
+    },
+  ],
+  etiquetas: [
+    {
+      id: "etiquetas-selecionar",
+      title: "Como selecionar produtos?",
+      content: "Marque os produtos na lista da esquerda. Cada produto selecionado gera uma etiqueta. Use os botões + e - para ajustar a quantidade.",
+    },
+    {
+      id: "etiquetas-folha",
+      title: "Quantas etiquetas por folha?",
+      content: "Cada folha A4 comporta 48 etiquetas, organizadas em 4 colunas e 12 linhas.",
+    },
+    {
+      id: "etiquetas-tamanho",
+      title: "Qual o tamanho da etiqueta?",
+      content: "Cada etiqueta tem 47mm de largura por 23mm de altura. Ideal para produtos pequenos e médios.",
+    },
+    {
+      id: "etiquetas-imprimir",
+      title: "Como imprimir?",
+      content: "Clique em 'Baixar PDF' ou 'Imprimir'. Para melhor resultado, imprima em escala 100% sem ajuste de página.",
     },
   ],
   geral: [

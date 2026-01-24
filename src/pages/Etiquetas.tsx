@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useProducts, Product, isInternalProduct } from "@/hooks/useProducts";
 import { useStore } from "@/hooks/useStore";
+import { useHelp } from "@/components/help/HelpContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,9 +30,15 @@ interface SelectedProduct {
 export default function Etiquetas() {
   const { products, loading } = useProducts();
   const { store } = useStore();
+  const { setCurrentPage } = useHelp();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Map<string, SelectedProduct>>(new Map());
   const [generating, setGenerating] = useState(false);
+
+  // Set help context for this page
+  useEffect(() => {
+    setCurrentPage("etiquetas");
+  }, [setCurrentPage]);
 
   // Filter only active, sellable products
   const availableProducts = useMemo(() => {
