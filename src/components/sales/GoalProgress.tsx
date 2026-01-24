@@ -15,30 +15,33 @@ export function GoalProgress({ dailyGoal, totalToday, onMilestone }: GoalProgres
   const [previousPercentage, setPreviousPercentage] = useState(percentage);
   const hasTriggered80Ref = useRef(false);
   const hasTriggered100Ref = useRef(false);
-  const hasTriggered110Ref = useRef(false);
+  const hasTriggered150Ref = useRef(false);
+
+  // Calculate actual percentage (can go above 100%)
+  const actualPercentage = dailyGoal > 0 ? (totalToday / dailyGoal) * 100 : 0;
 
   // Track milestone triggers
   useEffect(() => {
-    // Near goal (80%) - only trigger if not yet achieved
-    if (percentage >= 80 && percentage < 100 && previousPercentage < 80 && !hasTriggered80Ref.current) {
+    // Near goal (80%) - only trigger if not yet achieved (< 100%)
+    if (actualPercentage >= 80 && actualPercentage < 100 && previousPercentage < 80 && !hasTriggered80Ref.current) {
       hasTriggered80Ref.current = true;
       onMilestone?.("near");
     }
     
-    // Goal achieved (100%)
-    if (percentage >= 100 && previousPercentage < 100 && !hasTriggered100Ref.current) {
+    // Goal achieved (100%) - trigger once when reaching 100%
+    if (actualPercentage >= 100 && previousPercentage < 100 && !hasTriggered100Ref.current) {
       hasTriggered100Ref.current = true;
       onMilestone?.("achieved");
     }
     
-    // Goal exceeded (110%+)
-    if (percentage >= 110 && previousPercentage < 110 && !hasTriggered110Ref.current) {
-      hasTriggered110Ref.current = true;
+    // Goal exceeded by 50%+ (150%+) - special celebration
+    if (actualPercentage >= 150 && previousPercentage < 150 && !hasTriggered150Ref.current) {
+      hasTriggered150Ref.current = true;
       onMilestone?.("exceeded");
     }
     
-    setPreviousPercentage(percentage);
-  }, [percentage, previousPercentage, onMilestone]);
+    setPreviousPercentage(actualPercentage);
+  }, [actualPercentage, previousPercentage, onMilestone]);
 
   if (dailyGoal <= 0) {
     return null;
