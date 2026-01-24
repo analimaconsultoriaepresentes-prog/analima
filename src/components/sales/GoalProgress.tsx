@@ -7,7 +7,7 @@ import { calculateGoalProgress } from "@/hooks/useGoals";
 interface GoalProgressProps {
   dailyGoal: number;
   totalToday: number;
-  onMilestone?: (type: "near" | "achieved") => void;
+  onMilestone?: (type: "near" | "achieved" | "exceeded") => void;
 }
 
 export function GoalProgress({ dailyGoal, totalToday, onMilestone }: GoalProgressProps) {
@@ -15,17 +15,26 @@ export function GoalProgress({ dailyGoal, totalToday, onMilestone }: GoalProgres
   const [previousPercentage, setPreviousPercentage] = useState(percentage);
   const hasTriggered80Ref = useRef(false);
   const hasTriggered100Ref = useRef(false);
+  const hasTriggered110Ref = useRef(false);
 
   // Track milestone triggers
   useEffect(() => {
-    if (percentage >= 80 && previousPercentage < 80 && !hasTriggered80Ref.current) {
+    // Near goal (80%) - only trigger if not yet achieved
+    if (percentage >= 80 && percentage < 100 && previousPercentage < 80 && !hasTriggered80Ref.current) {
       hasTriggered80Ref.current = true;
       onMilestone?.("near");
     }
     
+    // Goal achieved (100%)
     if (percentage >= 100 && previousPercentage < 100 && !hasTriggered100Ref.current) {
       hasTriggered100Ref.current = true;
       onMilestone?.("achieved");
+    }
+    
+    // Goal exceeded (110%+)
+    if (percentage >= 110 && previousPercentage < 110 && !hasTriggered110Ref.current) {
+      hasTriggered110Ref.current = true;
+      onMilestone?.("exceeded");
     }
     
     setPreviousPercentage(percentage);
