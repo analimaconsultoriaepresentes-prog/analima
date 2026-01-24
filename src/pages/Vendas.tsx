@@ -84,11 +84,13 @@ export default function Vendas() {
   const showPhotosInSales = store?.showPhotosInSales ?? true;
 
   // Handle goal milestones with mascot messages
-  const handleGoalMilestone = useCallback((type: "near" | "achieved") => {
+  const handleGoalMilestone = useCallback((type: "near" | "achieved" | "exceeded") => {
     if (type === "near") {
-      showBubble("Quase lá! 💪 Só falta um pouquinho pra bater a meta!");
+      showBubble("💪 Quase lá! Só falta um pouquinho pra bater a meta!");
     } else if (type === "achieved") {
-      showBubble("Parabéns! 🎉 Você bateu a meta do dia! Incrível!");
+      showBubble("🎉 Parabéns! Meta batida com sucesso! Você é incrível!");
+    } else if (type === "exceeded") {
+      showBubble("🚀 Meta superada! Cada venda agora é lucro extra! 💜");
     }
   }, [showBubble]);
 
