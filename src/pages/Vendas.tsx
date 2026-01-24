@@ -118,10 +118,10 @@ export default function Vendas() {
     if (type === "near") {
       showBubble("💪 Quase lá! Só falta um pouquinho pra bater a meta!");
     } else if (type === "achieved") {
-      showBubble("🎉 Parabéns! Meta batida com sucesso! Você é incrível!");
+      showBubble("🎉 Parabéns! Meta batida com sucesso!");
       triggerConfetti();
     } else if (type === "exceeded") {
-      showBubble("🚀 Meta superada! Cada venda agora é lucro extra! 💜");
+      showBubble("👑 Hoje você está voando! Que dia incrível de vendas!");
       triggerConfetti();
     }
   }, [showBubble, triggerConfetti]);
