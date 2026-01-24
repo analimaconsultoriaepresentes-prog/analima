@@ -64,14 +64,46 @@ function extractVolume(name: string): string | null {
   return null;
 }
 
-// Helper to format product name (remove volume if present, truncate)
-function formatProductName(name: string, maxLength: number = 20): string {
+// Helper to format product name (remove volume if present, no truncation)
+function formatProductName(name: string): string {
   // Remove volume from name to avoid duplication
   let cleanName = name.replace(/\s*\d+\s*(ml|ML|g|G|kg|KG)/i, "").trim();
-  if (cleanName.length > maxLength) {
-    cleanName = cleanName.substring(0, maxLength - 1) + "…";
-  }
   return cleanName.toUpperCase();
+}
+
+// Helper to split text into lines that fit within a given width
+function splitTextIntoLines(
+  doc: jsPDF,
+  text: string,
+  maxWidth: number,
+  fontSize: number,
+  maxLines: number = 2
+): string[] {
+  doc.setFontSize(fontSize);
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const testWidth = doc.getTextWidth(testLine);
+
+    if (testWidth <= maxWidth) {
+      currentLine = testLine;
+    } else {
+      if (currentLine) {
+        lines.push(currentLine);
+        if (lines.length >= maxLines) break;
+      }
+      currentLine = word;
+    }
+  }
+
+  if (currentLine && lines.length < maxLines) {
+    lines.push(currentLine);
+  }
+
+  return lines;
 }
 
 // Format price
@@ -89,7 +121,7 @@ function drawLabel(
   accentColor: [number, number, number]
 ) {
   const volume = extractVolume(product.name);
-  const productName = formatProductName(product.name, volume ? 18 : 22);
+  const productName = formatProductName(product.name);
   
   // Top colored band (approximately 60% of height)
   const topHeight = LABEL_HEIGHT * 0.58;
@@ -105,22 +137,37 @@ function drawLabel(
   doc.rect(x + LABEL_WIDTH * 0.5, y, LABEL_WIDTH * 0.5, topHeight, "F");
   doc.setGState(doc.GState({ opacity: 1 }));
 
-  // Product name (white, bold)
+  // Product name (white, bold, up to 2 lines)
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
   
-  const nameX = x + 2;
-  const nameY = y + topHeight / 2 + 1;
+  // Calculate available width for text (with padding and space for volume if present)
+  const textPadding = 2;
+  const volumeSpace = volume ? 12 : 0;
+  const availableWidth = LABEL_WIDTH - (textPadding * 2) - volumeSpace;
   
+  // Split text into max 2 lines
+  const fontSize = 6.5;
+  const lines = splitTextIntoLines(doc, productName, availableWidth, fontSize, 2);
+  
+  // Calculate vertical positioning to center text in the colored band
+  const lineHeight = fontSize * 0.4; // Approximate line height in mm
+  const totalTextHeight = lines.length * lineHeight;
+  const startY = y + (topHeight / 2) - (totalTextHeight / 2) + lineHeight;
+  
+  // Draw each line centered vertically
+  doc.setFontSize(fontSize);
+  lines.forEach((line, index) => {
+    const lineY = startY + (index * lineHeight);
+    doc.text(line, x + textPadding, lineY);
+  });
+  
+  // Volume badge on the right (if present)
   if (volume) {
-    // Name on left, volume on right
-    doc.text(productName, nameX, nameY);
-    doc.setFontSize(5.5);
+    doc.setFontSize(5);
     doc.setFont("helvetica", "normal");
-    doc.text(volume, x + LABEL_WIDTH - 2, nameY, { align: "right" });
-  } else {
-    doc.text(productName, nameX, nameY);
+    const volumeY = y + topHeight / 2 + 1;
+    doc.text(volume, x + LABEL_WIDTH - textPadding, volumeY, { align: "right" });
   }
 
   // Bottom white area
