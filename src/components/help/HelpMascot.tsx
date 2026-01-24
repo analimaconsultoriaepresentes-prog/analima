@@ -29,11 +29,9 @@ export function HelpMascot() {
   const [showWave, setShowWave] = useState(false);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Only show page-specific topics - no generic topics mixed in
   const pageTopics = helpTopics[currentPage] || [];
-  const generalTopics = helpTopics.geral || [];
-  const allTopics = [...pageTopics, ...generalTopics];
-
-  const selectedTopicData = allTopics.find((t) => t.id === selectedTopic);
+  const selectedTopicData = pageTopics.find((t) => t.id === selectedTopic);
 
   // Reset inactivity timer on user activity
   const resetInactivityTimer = useCallback(() => {
@@ -223,7 +221,7 @@ export function HelpMascot() {
             <div>
               <h3 className="font-semibold text-foreground">Olá! Sou a Ana 😊</h3>
               <p className="text-xs text-muted-foreground">
-                Posso te ajudar com qualquer dúvida!
+                Posso te ajudar aqui rapidinho!
               </p>
             </div>
           </div>
@@ -252,56 +250,30 @@ export function HelpMascot() {
                 </div>
               </div>
             ) : (
-              // Topics List
+              // Topics List - only page-specific topics
               <div className="space-y-2">
-                {pageTopics.length > 0 && (
-                  <>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-2 mb-2">
-                      Sobre esta página
-                    </p>
-                    {pageTopics.map((topic) => (
-                      <button
-                        key={topic.id}
-                        onClick={() => setSelectedTopic(topic.id)}
-                        className={cn(
-                          "w-full text-left p-3 rounded-xl",
-                          "bg-muted/30 hover:bg-muted/60",
-                          "transition-colors duration-200",
-                          "flex items-center justify-between group"
-                        )}
-                      >
-                        <span className="text-sm font-medium text-foreground">
-                          {topic.title}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                      </button>
-                    ))}
-                  </>
-                )}
-
-                {generalTopics.length > 0 && (
-                  <>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-2 mt-4 mb-2">
-                      Termos gerais
-                    </p>
-                    {generalTopics.map((topic) => (
-                      <button
-                        key={topic.id}
-                        onClick={() => setSelectedTopic(topic.id)}
-                        className={cn(
-                          "w-full text-left p-3 rounded-xl",
-                          "bg-muted/30 hover:bg-muted/60",
-                          "transition-colors duration-200",
-                          "flex items-center justify-between group"
-                        )}
-                      >
-                        <span className="text-sm font-medium text-foreground">
-                          {topic.title}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                      </button>
-                    ))}
-                  </>
+                {pageTopics.length > 0 ? (
+                  pageTopics.map((topic) => (
+                    <button
+                      key={topic.id}
+                      onClick={() => setSelectedTopic(topic.id)}
+                      className={cn(
+                        "w-full text-left p-3 rounded-xl",
+                        "bg-muted/30 hover:bg-muted/60",
+                        "transition-colors duration-200",
+                        "flex items-center justify-between group"
+                      )}
+                    >
+                      <span className="text-sm font-medium text-foreground">
+                        {topic.title}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhuma dúvida específica para esta página. 😊
+                  </p>
                 )}
               </div>
             )}
@@ -311,7 +283,7 @@ export function HelpMascot() {
         {/* Footer */}
         <div className="p-3 border-t border-border">
           <p className="text-xs text-center text-muted-foreground">
-            💡 Dica: procure o botão <span className="text-primary font-medium">❓</span> nos campos
+            💡 Clique em qualquer pergunta para ver a resposta!
           </p>
         </div>
       </div>
