@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import confetti from "canvas-confetti";
 import { Search, ShoppingCart, Calendar, XCircle, Loader2, Package, Gift, Globe, Store, History, Plus, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,16 +84,47 @@ export default function Vendas() {
   const packagingCosts = store?.packagingCosts || { packagingCost1Bag: 0, packagingCost2Bags: 0 };
   const showPhotosInSales = store?.showPhotosInSales ?? true;
 
+  // Trigger confetti celebration
+  const triggerConfetti = useCallback(() => {
+    const duration = 3000;
+    const end = Date.now() + duration;
+
+    const frame = () => {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: ['#9333ea', '#d946ef', '#f0abfc', '#fbbf24', '#22c55e']
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: ['#9333ea', '#d946ef', '#f0abfc', '#fbbf24', '#22c55e']
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+
+    frame();
+  }, []);
+
   // Handle goal milestones with mascot messages
   const handleGoalMilestone = useCallback((type: "near" | "achieved" | "exceeded") => {
     if (type === "near") {
       showBubble("💪 Quase lá! Só falta um pouquinho pra bater a meta!");
     } else if (type === "achieved") {
       showBubble("🎉 Parabéns! Meta batida com sucesso! Você é incrível!");
+      triggerConfetti();
     } else if (type === "exceeded") {
       showBubble("🚀 Meta superada! Cada venda agora é lucro extra! 💜");
+      triggerConfetti();
     }
-  }, [showBubble]);
+  }, [showBubble, triggerConfetti]);
 
   const handleNewSale = async (
     cartItems: { product: typeof products[0]; quantity: number }[],
