@@ -184,27 +184,31 @@ function drawLabel(
   const leftCenterX = x + LABEL_WIDTH / 4;
   const bottomCenterY = y + topHeight + bottomHeight / 2;
 
-  doc.setTextColor(120, 120, 120);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(4);
-  doc.text("CARTÃO", leftCenterX, bottomCenterY - 2, { align: "center" });
-
-  doc.setTextColor(50, 50, 50);
+  // Label "CARTÃO" - increased size
+  doc.setTextColor(100, 100, 100);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(6);
-  doc.text(formatPrice(product.priceCard), leftCenterX, bottomCenterY + 2, { align: "center" });
+  doc.setFontSize(5.5);
+  doc.text("CARTÃO", leftCenterX, bottomCenterY - 2.5, { align: "center" });
 
-  // PIX price (right side)
+  // Card price value - significantly increased
+  doc.setTextColor(40, 40, 40);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.text(formatPrice(product.priceCard), leftCenterX, bottomCenterY + 2.5, { align: "center" });
+
+  // PIX price (right side) - with more emphasis
   const rightCenterX = x + (LABEL_WIDTH * 3) / 4;
 
+  // Label "PIX" - increased size
   doc.setTextColor(...SUCCESS_COLOR);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(4);
-  doc.text("PIX", rightCenterX, bottomCenterY - 2, { align: "center" });
-
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(6);
-  doc.text(formatPrice(product.pricePix), rightCenterX, bottomCenterY + 2, { align: "center" });
+  doc.setFontSize(5.5);
+  doc.text("PIX", rightCenterX, bottomCenterY - 2.5, { align: "center" });
+
+  // PIX price value - significantly increased, most prominent
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.text(formatPrice(product.pricePix), rightCenterX, bottomCenterY + 2.5, { align: "center" });
 
   // Optional: thin border around label (helps with cutting)
   doc.setDrawColor(200, 200, 200);
