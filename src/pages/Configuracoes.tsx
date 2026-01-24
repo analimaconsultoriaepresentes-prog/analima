@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction, Image, Volume2, Target } from "lucide-react";
+import { Store, Upload, Palette, Save, User, Bell, Shield, Loader2, LogOut, MessageCircle, Cake, Mail, AlertCircle, Package, Sparkles, Construction, Image, Volume2, Target, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,10 +26,19 @@ const colorOptions = [
 // Email configuration status - in production, check if RESEND_API_KEY is configured
 const EMAIL_CONFIGURED = true; // Will be controlled by actual secret check
 
+// Helper to adjust color brightness for gradient preview
+function adjustColor(hex: string, amount: number): string {
+  const num = parseInt(hex.replace("#", ""), 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + amount));
+  const b = Math.min(255, Math.max(0, (num & 0x0000ff) + amount));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 export default function Configuracoes() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo, updateMaintenanceMode, updateShowPhotosInSales, updateSoundEnabled } = useStore();
+  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo, updateMaintenanceMode, updateShowPhotosInSales, updateSoundEnabled, updateLabelColor } = useStore();
   const { isHidden, showGuide, allCompleted } = useGettingStarted();
   const { goalSettings, updateGoals, loading: loadingGoals } = useGoals();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +49,8 @@ export default function Configuracoes() {
   const [savingPhotos, setSavingPhotos] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [savingSound, setSavingSound] = useState(false);
+  const [labelColor, setLabelColor] = useState("#9333EA");
+  const [savingLabelColor, setSavingLabelColor] = useState(false);
 
   const [storeName, setStoreName] = useState("");
   const [selectedColor, setSelectedColor] = useState("#F97316");
@@ -80,6 +91,7 @@ export default function Configuracoes() {
     if (store && !alertsLoaded) {
       setStoreName(store.name);
       setSelectedColor(store.primaryColor);
+      setLabelColor(store.labelColor);
       setBirthdayMessage(store.birthdayMessage);
       setAlertSettings(store.alertSettings);
       setMaintenanceMode(store.maintenanceMode);
@@ -222,6 +234,12 @@ export default function Configuracoes() {
     setSavingSound(false);
   };
 
+  const handleSaveLabelColor = async () => {
+    setSavingLabelColor(true);
+    await updateLabelColor(labelColor);
+    setSavingLabelColor(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -328,6 +346,58 @@ export default function Configuracoes() {
             <p className="text-sm text-muted-foreground mt-3">
               Esta cor será usada nos elementos principais do sistema
             </p>
+          </div>
+
+          {/* Label Color */}
+          <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Tag className="w-5 h-5 text-primary" />
+              Cor das Etiquetas
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Escolha a cor que será usada nas etiquetas de preços.
+            </p>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={labelColor}
+                  onChange={(e) => setLabelColor(e.target.value)}
+                  className="w-12 h-12 rounded-lg cursor-pointer border-2 border-border"
+                  style={{ backgroundColor: labelColor }}
+                />
+                <div>
+                  <p className="font-medium text-foreground">{labelColor.toUpperCase()}</p>
+                  <p className="text-sm text-muted-foreground">Clique para alterar</p>
+                </div>
+              </div>
+              <Button 
+                variant="outline"
+                className="gap-2 ml-auto"
+                onClick={handleSaveLabelColor}
+                disabled={savingLabelColor}
+              >
+                {savingLabelColor ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                Salvar Cor
+              </Button>
+            </div>
+            {/* Mini preview */}
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-2">Prévia:</p>
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-24 h-10 rounded flex items-center justify-center text-white text-xs font-bold"
+                  style={{ background: `linear-gradient(135deg, ${labelColor}, ${adjustColor(labelColor, 40)})` }}
+                >
+                  PRODUTO
+                </div>
+                <span className="text-xs text-muted-foreground">← Faixa colorida da etiqueta</span>
+              </div>
+            </div>
           </div>
 
           {/* Goals Section */}
