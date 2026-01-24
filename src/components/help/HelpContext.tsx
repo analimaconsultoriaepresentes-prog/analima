@@ -59,134 +59,204 @@ export const bubbleMessages: Record<string, string[]> = {
 export const complexPages = ["produtos", "vendas", "despesas"];
 
 // Contextual help content organized by page/feature
+// Each page has 3-5 short questions with actionable answers
 export const helpTopics: Record<string, HelpTopic[]> = {
   dashboard: [
     {
-      id: "dashboard-intro",
-      title: "Painel Principal",
-      content: "Aqui você vê um resumo rápido de como está sua loja: vendas do dia, lucro e estoque. Tudo num só lugar!",
+      id: "dashboard-resumo",
+      title: "O que vejo aqui?",
+      content: "Um resumo do seu dia: vendas, faturamento e alertas importantes. Tudo em um lugar só!",
     },
     {
-      id: "dashboard-stats",
-      title: "Números do Dia",
-      content: "Os cards coloridos mostram seus resultados de hoje. Roxo é vendas, violeta é dinheiro, e rosa é estoque.",
+      id: "dashboard-cards",
+      title: "O que são esses cards?",
+      content: "Mostram seus números: faturamento de hoje, do mês, ticket médio e itens por venda.",
+    },
+    {
+      id: "dashboard-alertas",
+      title: "O que são os alertas?",
+      content: "Avisos de estoque baixo, produtos vencendo e aniversários de clientes. Fique de olho!",
+    },
+    {
+      id: "dashboard-grafico",
+      title: "Como ler os gráficos?",
+      content: "Mostram a evolução das vendas ao longo do tempo. Quanto mais alto, mais vendeu!",
     },
   ],
   vendas: [
     {
-      id: "vendas-intro",
-      title: "Registrar Vendas",
-      content: "Aqui você registra cada venda da loja. Escolha os produtos, a forma de pagamento e pronto!",
+      id: "vendas-como",
+      title: "Como registrar uma venda?",
+      content: "Clique nos produtos, escolha a quantidade, selecione a forma de pagamento e confirme!",
     },
     {
       id: "vendas-meta",
-      title: "Meta do Dia",
-      content: "A barra de progresso mostra quanto você já vendeu em relação à meta diária. Quando chegar a 100%, a barra fica verde! 🎉",
+      title: "O que é a meta?",
+      content: "É seu objetivo de vendas do dia. A barra mostra o progresso e fica verde quando bate! 🎉",
     },
     {
-      id: "vendas-pix",
-      title: "Preço Pix",
-      content: "É o valor que você cobra quando o cliente paga por Pix. Geralmente é menor porque não tem taxa.",
-    },
-    {
-      id: "vendas-cartao",
-      title: "Preço Cartão",
-      content: "É o valor quando o cliente paga no cartão (crédito ou débito). Pode ser um pouco maior por causa das taxas.",
+      id: "vendas-pix-cartao",
+      title: "Pix ou Cartão?",
+      content: "Pix geralmente tem preço menor (sem taxas). Cartão pode ter valor maior para cobrir taxas.",
     },
     {
       id: "vendas-doacao",
-      title: "Doação",
-      content: "Use para registrar produtos doados. Sai do estoque, mas não entra dinheiro no caixa.",
+      title: "O que é doação?",
+      content: "Produto dado de presente. Sai do estoque, mas não entra dinheiro no caixa.",
+    },
+    {
+      id: "vendas-cancelar",
+      title: "Posso cancelar uma venda?",
+      content: "Sim! Clique nos três pontos da venda no histórico e escolha cancelar. O estoque volta.",
     },
   ],
   produtos: [
     {
-      id: "produtos-intro",
-      title: "Seus Produtos",
-      content: "Aqui ficam todos os produtos da loja. Você pode adicionar novos, editar preços e controlar o estoque.",
+      id: "produtos-cadastrar",
+      title: "Como cadastrar produto?",
+      content: "Clique em 'Novo Produto', preencha nome, preço e estoque. Pronto!",
     },
     {
       id: "produtos-prove",
-      title: "PROVE",
-      content: "PROVE é o produto separado para amostra ou demonstração. Ele sai do estoque de venda, mas não entra no caixa. Ótimo para produtos de teste!",
+      title: "O que é PROVE?",
+      content: "Produtos separados para demonstração. Saem do estoque, mas não entram no caixa.",
     },
     {
       id: "produtos-cesta",
-      title: "Cestas",
-      content: "Cestas são combos de produtos vendidos juntos. Quando você vende uma cesta, o sistema desconta automaticamente cada item do estoque.",
+      title: "O que é uma cesta?",
+      content: "Um combo de produtos vendidos juntos. Ao vender, desconta todos os itens automaticamente.",
     },
     {
-      id: "produtos-ciclo",
-      title: "Ciclo",
-      content: "É o número do catálogo ou revista onde o produto aparece. Ajuda a organizar produtos por temporada.",
+      id: "produtos-estoque",
+      title: "Como controlar estoque?",
+      content: "O estoque baixa automaticamente nas vendas. Use 'Entrada de Estoque' para repor.",
     },
   ],
   despesas: [
     {
-      id: "despesas-intro",
-      title: "Controle de Gastos",
-      content: "Registre aqui tudo que você gasta para manter a loja funcionando: aluguel, luz, materiais, etc.",
+      id: "despesas-cadastrar",
+      title: "Como cadastrar despesa?",
+      content: "Clique em 'Nova Despesa', preencha descrição, valor e vencimento. Simples!",
     },
     {
       id: "despesas-recorrente",
-      title: "Despesa Recorrente",
-      content: "São gastos que se repetem todo mês, como aluguel ou internet. O sistema cria automaticamente para você!",
+      title: "O que é despesa recorrente?",
+      content: "Gastos que se repetem todo mês (aluguel, luz). O sistema cria automaticamente!",
     },
     {
       id: "despesas-status",
-      title: "Paga ou Pendente",
-      content: "Marque como 'Paga' quando já pagou. 'Pendente' são as contas que ainda precisa pagar.",
+      title: "Paga ou Pendente?",
+      content: "Pendente = ainda vai pagar. Paga = já quitou. Marque para manter controle.",
+    },
+    {
+      id: "despesas-categorias",
+      title: "Para que servem as categorias?",
+      content: "Ajudam a organizar e ver onde você mais gasta. Escolha a que faz sentido!",
     },
   ],
   clientes: [
     {
-      id: "clientes-intro",
-      title: "Seus Clientes",
-      content: "Cadastre seus clientes para lembrar deles, ver histórico de compras e não esquecer dos aniversários!",
+      id: "clientes-cadastrar",
+      title: "Como cadastrar cliente?",
+      content: "Clique em 'Novo Cliente' e preencha nome e telefone. O resto é opcional!",
     },
     {
       id: "clientes-aniversario",
-      title: "Aniversários",
-      content: "O sistema avisa quando um cliente faz aniversário. Ótima oportunidade para mandar uma mensagem especial!",
+      title: "Para que serve o aniversário?",
+      content: "O sistema avisa quando um cliente faz aniversário. Ótimo para mandar mensagem!",
+    },
+    {
+      id: "clientes-historico",
+      title: "Posso ver compras do cliente?",
+      content: "Sim! Clique no cliente para ver todas as compras que ele já fez na sua loja.",
+    },
+  ],
+  contas: [
+    {
+      id: "contas-pagar",
+      title: "O que é conta a pagar?",
+      content: "Valores que você deve para alguém: fornecedores, parcelas, empréstimos.",
+    },
+    {
+      id: "contas-receber",
+      title: "O que é conta a receber?",
+      content: "Valores que vão entrar: vendas a prazo, depósitos pendentes, reembolsos.",
+    },
+    {
+      id: "contas-vencimento",
+      title: "Como funciona o vencimento?",
+      content: "Contas vencidas ficam destacadas. Organize para não atrasar pagamentos!",
+    },
+    {
+      id: "contas-quitar",
+      title: "Como marcar como pago?",
+      content: "Clique no botão 'Pagar' ou 'Receber' quando a conta for quitada.",
+    },
+  ],
+  relatorios: [
+    {
+      id: "relatorios-periodo",
+      title: "Como mudar o período?",
+      content: "Use o seletor no topo para ver dados dos últimos 3, 6 ou 12 meses.",
+    },
+    {
+      id: "relatorios-comparacao",
+      title: "O que significam as setas?",
+      content: "Seta verde = melhor que antes. Seta vermelha = pior. Mostra a evolução!",
+    },
+    {
+      id: "relatorios-categorias",
+      title: "O que é desempenho por categoria?",
+      content: "Mostra quais tipos de produto vendem mais e dão mais lucro.",
+    },
+    {
+      id: "relatorios-exportar",
+      title: "Posso exportar os dados?",
+      content: "Sim! Clique em 'Exportar' para baixar um arquivo com todos os números.",
+    },
+  ],
+  configuracoes: [
+    {
+      id: "config-loja",
+      title: "Como personalizar minha loja?",
+      content: "Na aba 'Loja' você muda nome, logo e cor do sistema.",
+    },
+    {
+      id: "config-metas",
+      title: "Como definir minhas metas?",
+      content: "Configure meta diária e mensal na aba 'Loja'. O sistema acompanha seu progresso!",
+    },
+    {
+      id: "config-alertas",
+      title: "O que são os alertas?",
+      content: "Avisos de estoque baixo, vencimentos e aniversários. Configure na aba 'Alertas'.",
+    },
+    {
+      id: "config-som",
+      title: "Posso desligar os sons?",
+      content: "Sim! Na aba 'Conta' você liga ou desliga os sons do sistema.",
     },
   ],
   etiquetas: [
     {
       id: "etiquetas-selecionar",
       title: "Como selecionar produtos?",
-      content: "Marque os produtos na lista da esquerda. Cada produto selecionado gera uma etiqueta. Use os botões + e - para ajustar a quantidade.",
+      content: "Marque os produtos na lista. Use + e - para ajustar a quantidade de cada um.",
     },
     {
       id: "etiquetas-folha",
       title: "Quantas etiquetas por folha?",
-      content: "Cada folha A4 comporta 48 etiquetas, organizadas em 4 colunas e 12 linhas.",
+      content: "48 etiquetas por folha A4 (4 colunas x 12 linhas).",
     },
     {
       id: "etiquetas-tamanho",
       title: "Qual o tamanho da etiqueta?",
-      content: "Cada etiqueta tem 47mm de largura por 23mm de altura. Ideal para produtos pequenos e médios.",
+      content: "47mm x 23mm. Ideal para produtos pequenos e médios.",
     },
     {
       id: "etiquetas-imprimir",
-      title: "Como imprimir?",
-      content: "Clique em 'Baixar PDF' ou 'Imprimir'. Para melhor resultado, imprima em escala 100% sem ajuste de página.",
-    },
-  ],
-  geral: [
-    {
-      id: "geral-lucro",
-      title: "Lucro",
-      content: "É quanto você ganha de verdade: o preço de venda menos o custo do produto. O que sobra no bolso!",
-    },
-    {
-      id: "geral-estoque",
-      title: "Estoque",
-      content: "Quantidade de produtos disponíveis para venda. Quando zera, o produto fica indisponível.",
-    },
-    {
-      id: "geral-margem",
-      title: "Margem",
-      content: "É a porcentagem de lucro sobre a venda. Quanto maior, melhor para o seu negócio!",
+      title: "Como imprimir corretamente?",
+      content: "Baixe o PDF e imprima em escala 100%, sem ajuste de página.",
     },
   ],
 };
