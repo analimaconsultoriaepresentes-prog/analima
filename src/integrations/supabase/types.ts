@@ -584,6 +584,7 @@ export type Database = {
           expiry_alert_enabled: boolean
           expiry_days_before: number
           id: string
+          label_color: string | null
           logo_url: string | null
           low_stock_enabled: boolean
           low_stock_threshold: number
@@ -608,6 +609,7 @@ export type Database = {
           expiry_alert_enabled?: boolean
           expiry_days_before?: number
           id?: string
+          label_color?: string | null
           logo_url?: string | null
           low_stock_enabled?: boolean
           low_stock_threshold?: number
@@ -632,6 +634,7 @@ export type Database = {
           expiry_alert_enabled?: boolean
           expiry_days_before?: number
           id?: string
+          label_color?: string | null
           logo_url?: string | null
           low_stock_enabled?: boolean
           low_stock_threshold?: number

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useProducts, Product, isInternalProduct } from "@/hooks/useProducts";
+import { useStore } from "@/hooks/useStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +28,7 @@ interface SelectedProduct {
 
 export default function Etiquetas() {
   const { products, loading } = useProducts();
+  const { store } = useStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Map<string, SelectedProduct>>(new Map());
   const [generating, setGenerating] = useState(false);
@@ -108,7 +110,7 @@ export default function Etiquetas() {
     setGenerating(true);
     try {
       const items = Array.from(selectedProducts.values());
-      await generateLabelsPDF(items, action);
+      await generateLabelsPDF(items, action, { labelColor: store?.labelColor });
       
       toast({
         title: action === "download" ? "PDF gerado com sucesso" : "Enviando para impressão",

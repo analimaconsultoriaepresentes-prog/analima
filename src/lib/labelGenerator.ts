@@ -6,6 +6,10 @@ interface LabelItem {
   quantity: number;
 }
 
+interface LabelOptions {
+  labelColor?: string;
+}
+
 // A4 dimensions in mm
 const A4_WIDTH = 210;
 const A4_HEIGHT = 297;
@@ -25,10 +29,31 @@ const TOTAL_LABELS_HEIGHT = ROWS * LABEL_HEIGHT; // 276mm
 const MARGIN_LEFT = (A4_WIDTH - TOTAL_LABELS_WIDTH) / 2; // ~11mm
 const MARGIN_TOP = (A4_HEIGHT - TOTAL_LABELS_HEIGHT) / 2; // ~10.5mm
 
-// Colors
-const PRIMARY_COLOR: [number, number, number] = [139, 69, 186]; // Purple
-const ACCENT_COLOR: [number, number, number] = [219, 39, 119]; // Magenta
+// Default colors
+const DEFAULT_PRIMARY_COLOR: [number, number, number] = [147, 51, 234]; // Purple #9333EA
 const SUCCESS_COLOR: [number, number, number] = [34, 139, 34]; // Green for PIX
+
+// Helper to convert hex to RGB
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (result) {
+    return [
+      parseInt(result[1], 16),
+      parseInt(result[2], 16),
+      parseInt(result[3], 16)
+    ];
+  }
+  return DEFAULT_PRIMARY_COLOR;
+}
+
+// Helper to create accent color (lighter version)
+function createAccentColor(rgb: [number, number, number]): [number, number, number] {
+  return [
+    Math.min(255, rgb[0] + 40),
+    Math.min(255, rgb[1] + 20),
+    Math.min(255, rgb[2] + 30)
+  ];
+}
 
 // Helper to extract volume from product name (e.g., "Perfume XYZ 75ml" -> "75ML")
 function extractVolume(name: string): string | null {
@@ -59,7 +84,9 @@ function drawLabel(
   doc: jsPDF,
   x: number,
   y: number,
-  product: Product
+  product: Product,
+  primaryColor: [number, number, number],
+  accentColor: [number, number, number]
 ) {
   const volume = extractVolume(product.name);
   const productName = formatProductName(product.name, volume ? 18 : 22);
@@ -69,11 +96,11 @@ function drawLabel(
   const bottomHeight = LABEL_HEIGHT - topHeight;
 
   // Draw gradient-like top band (solid color in PDF)
-  doc.setFillColor(...PRIMARY_COLOR);
+  doc.setFillColor(...primaryColor);
   doc.rect(x, y, LABEL_WIDTH, topHeight, "F");
 
   // Add slight gradient effect with overlay
-  doc.setFillColor(...ACCENT_COLOR);
+  doc.setFillColor(...accentColor);
   doc.setGState(doc.GState({ opacity: 0.3 }));
   doc.rect(x + LABEL_WIDTH * 0.5, y, LABEL_WIDTH * 0.5, topHeight, "F");
   doc.setGState(doc.GState({ opacity: 1 }));
@@ -140,8 +167,13 @@ function drawLabel(
 
 export async function generateLabelsPDF(
   items: LabelItem[],
-  action: "download" | "print"
+  action: "download" | "print",
+  options?: LabelOptions
 ): Promise<void> {
+  // Get colors
+  const primaryColor = options?.labelColor ? hexToRgb(options.labelColor) : DEFAULT_PRIMARY_COLOR;
+  const accentColor = createAccentColor(primaryColor);
+
   // Create PDF in A4 format
   const doc = new jsPDF({
     orientation: "portrait",
@@ -176,7 +208,7 @@ export async function generateLabelsPDF(
       const x = MARGIN_LEFT + col * LABEL_WIDTH;
       const y = MARGIN_TOP + row * LABEL_HEIGHT;
 
-      drawLabel(doc, x, y, allLabels[i]);
+      drawLabel(doc, x, y, allLabels[i], primaryColor, accentColor);
     }
   }
 

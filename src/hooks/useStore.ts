@@ -23,6 +23,7 @@ export interface Store {
   name: string;
   logoUrl: string | null;
   primaryColor: string;
+  labelColor: string;
   birthdayMessage: string;
   alertSettings: AlertSettings;
   packagingCosts: PackagingCosts;
@@ -73,6 +74,7 @@ export function useStore() {
           name: data.name,
           logoUrl: data.logo_url,
           primaryColor: data.primary_color || "#F97316",
+          labelColor: data.label_color || "#9333EA",
           birthdayMessage: data.birthday_message || "Oi {NOME}! 🎉 Feliz aniversário! Preparamos presentes e cestas personalizadas especialmente para você. Quer que eu te mostre algumas opções?",
           alertSettings: {
             lowStockEnabled: data.low_stock_enabled ?? true,
@@ -342,6 +344,34 @@ export function useStore() {
     }
   };
 
+  const updateLabelColor = async (color: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from("stores")
+        .update({ label_color: color })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setStore(prev => prev ? { ...prev, labelColor: color } : null);
+      toast({
+        title: "Cor das etiquetas atualizada",
+        description: "A nova cor será usada nas próximas etiquetas.",
+      });
+      return true;
+    } catch (error) {
+      console.error("Error updating label color:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     store,
     loading,
@@ -352,6 +382,7 @@ export function useStore() {
     updateMaintenanceMode,
     updateShowPhotosInSales,
     updateSoundEnabled,
+    updateLabelColor,
     refetch: fetchStore,
   };
 }
