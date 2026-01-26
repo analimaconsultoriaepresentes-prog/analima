@@ -154,7 +154,11 @@ export default function Produtos() {
   const inventorySummary = useMemo(() => {
     const activeProducts = products.filter(p => p.isActive);
     return {
-      totalProducts: activeProducts.length,
+      // Total de UNIDADES em estoque (soma de todos os estoques disponíveis)
+      totalUnits: activeProducts.reduce((sum, p) => {
+        const availableStock = Math.max(0, p.stock - p.proveQty);
+        return sum + availableStock;
+      }, 0),
       // Valor em estoque = (estoque disponível × custo unitário)
       // Estoque disponível = stock - proveQty (unidades reservadas como PROVE)
       totalValue: activeProducts.reduce((sum, p) => {
@@ -336,7 +340,7 @@ export default function Produtos() {
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Produtos</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {inventorySummary.totalProducts} produtos | Valor em estoque: R$ {inventorySummary.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {inventorySummary.totalUnits} unidades | Valor em estoque: R$ {inventorySummary.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
