@@ -73,9 +73,6 @@ export interface ProductFormData {
   imageUrl?: string;
 }
 
-// Query key for products
-const PRODUCTS_QUERY_KEY = ["products"];
-
 // Mapper function to convert DB data to Product interface
 const mapDbProductToProduct = (p: any): Product => ({
   id: p.id,
@@ -103,29 +100,26 @@ const mapDbProductToProduct = (p: any): Product => ({
   imageUrl: p.image_url || undefined,
 });
 
-// Fetch products function
-const fetchProducts = async (): Promise<Product[]> => {
-  const { data, error } = await supabase
-    .from("products")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-
-  return (data || []).map(mapDbProductToProduct);
-};
-
 export function useProducts() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Query for fetching products
+  // Query for fetching products - follows same pattern as useExpenses
   const { data: products = [], isLoading: loading, refetch } = useQuery({
-    queryKey: PRODUCTS_QUERY_KEY,
-    queryFn: fetchProducts,
-    enabled: !!user,
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 5 * 60 * 1000, // 5 minutes cache
+    queryKey: ["products", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map(mapDbProductToProduct);
+    },
+    enabled: !!user?.id,
   });
 
   // Mutation for adding a product
@@ -161,7 +155,7 @@ export function useProducts() {
       return insertedData?.id || null;
     },
     onSuccess: (_, data) => {
-      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["products", user?.id] });
       toast({
         title: "Produto adicionado",
         description: `${data.name} foi adicionado ao catálogo.`,
@@ -210,7 +204,7 @@ export function useProducts() {
       return true;
     },
     onSuccess: (_, { data }) => {
-      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["products", user?.id] });
       toast({
         title: "Produto atualizado",
         description: `${data.name} foi atualizado.`,
@@ -238,7 +232,7 @@ export function useProducts() {
       return true;
     },
     onSuccess: (_, { name }) => {
-      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["products", user?.id] });
       toast({
         title: "Produto arquivado",
         description: `${name} foi arquivado e não aparecerá mais na lista.`,
@@ -266,7 +260,7 @@ export function useProducts() {
       return true;
     },
     onSuccess: (_, { name }) => {
-      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["products", user?.id] });
       toast({
         title: "Produto reativado",
         description: `${name} está ativo novamente.`,
@@ -303,7 +297,7 @@ export function useProducts() {
     },
     onSuccess: () => {
       // Invalidate to ensure all components get updated data
-      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["products", user?.id] });
     },
     onError: (error) => {
       console.error("Error updating stock:", error);
@@ -340,7 +334,7 @@ export function useProducts() {
     },
     onSuccess: () => {
       // Invalidate to ensure all components get updated data
-      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["products", user?.id] });
     },
     onError: (error) => {
       console.error("Error restoring stock:", error);
@@ -422,7 +416,7 @@ export function useProducts() {
 
       if (error) throw error;
 
-      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["products", user?.id] });
       toast({
         title: isBasket ? "Cesta excluída" : "Produto excluído",
         description: `${name} foi removido definitivamente.`,
