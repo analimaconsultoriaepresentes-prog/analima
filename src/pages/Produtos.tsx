@@ -150,6 +150,15 @@ export default function Produtos() {
     return result;
   }, [products, searchTerm, filters]);
 
+  // Inventory summary for header
+  const inventorySummary = useMemo(() => {
+    const activeProducts = products.filter(p => p.isActive);
+    return {
+      totalProducts: activeProducts.length,
+      totalValue: activeProducts.reduce((sum, p) => sum + (p.stock * p.costPrice), 0),
+    };
+  }, [products]);
+
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (filters.categories.length > 0) count++;
@@ -322,11 +331,7 @@ export default function Produtos() {
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Produtos</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {(() => {
-              const totalStock = products.filter(p => p.isActive).reduce((sum, p) => sum + p.stock, 0);
-              const totalValue = products.filter(p => p.isActive).reduce((sum, p) => sum + (p.stock * p.costPrice), 0);
-              return `${totalStock} produtos | Valor em estoque: R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            })()}
+            {inventorySummary.totalProducts} produtos | Valor em estoque: R$ {inventorySummary.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
