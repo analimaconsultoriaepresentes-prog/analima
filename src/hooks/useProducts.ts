@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
@@ -73,73 +73,66 @@ export interface ProductFormData {
   imageUrl?: string;
 }
 
+// Query key for products
+const PRODUCTS_QUERY_KEY = ["products"];
+
+// Mapper function to convert DB data to Product interface
+const mapDbProductToProduct = (p: any): Product => ({
+  id: p.id,
+  name: p.name,
+  category: p.category as Product["category"],
+  brand: p.brand || "",
+  costPrice: Number(p.cost_price),
+  salePrice: Number(p.sale_price),
+  pricePix: Number(p.price_pix) || Number(p.sale_price),
+  priceCard: Number(p.price_card) || Number(p.sale_price),
+  stock: p.stock,
+  proveQty: p.prove_qty || 0,
+  expiryDate: p.expiry_date || undefined,
+  origin: (p.origin as Product["origin"]) || "purchased",
+  cycle: p.cycle ?? undefined,
+  isBasket: p.is_basket || false,
+  packagingCost: Number(p.packaging_cost) || 0,
+  isActive: p.is_active ?? true,
+  deletedAt: p.deleted_at || undefined,
+  productType: (p.product_type as ProductType) || "item",
+  packagingProductId: p.packaging_product_id || undefined,
+  packagingQty: p.packaging_qty || 1,
+  giftType: (p.gift_type as GiftType) || undefined,
+  packagingDiscount: Number(p.packaging_discount) || 0,
+  imageUrl: p.image_url || undefined,
+});
+
+// Fetch products function
+const fetchProducts = async (): Promise<Product[]> => {
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map(mapDbProductToProduct);
+};
+
 export function useProducts() {
   const { user } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchProducts = async () => {
-    if (!user) {
-      setProducts([]);
-      setLoading(false);
-      return;
-    }
+  // Query for fetching products
+  const { data: products = [], isLoading: loading, refetch } = useQuery({
+    queryKey: PRODUCTS_QUERY_KEY,
+    queryFn: fetchProducts,
+    enabled: !!user,
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
+  });
 
-    try {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const mapped: Product[] = (data || []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        category: p.category as Product["category"],
-        brand: p.brand || "",
-        costPrice: Number(p.cost_price),
-        salePrice: Number(p.sale_price),
-        pricePix: Number(p.price_pix) || Number(p.sale_price),
-        priceCard: Number(p.price_card) || Number(p.sale_price),
-        stock: p.stock,
-        proveQty: p.prove_qty || 0,
-        expiryDate: p.expiry_date || undefined,
-        origin: (p.origin as Product["origin"]) || "purchased",
-        cycle: p.cycle ?? undefined,
-        isBasket: p.is_basket || false,
-        packagingCost: Number(p.packaging_cost) || 0,
-        isActive: p.is_active ?? true,
-        deletedAt: p.deleted_at || undefined,
-        productType: (p.product_type as ProductType) || "item",
-        packagingProductId: p.packaging_product_id || undefined,
-        packagingQty: p.packaging_qty || 1,
-        giftType: (p.gift_type as GiftType) || undefined,
-        packagingDiscount: Number(p.packaging_discount) || 0,
-        imageUrl: p.image_url || undefined,
-      }));
-
-      setProducts(mapped);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      toast({
-        title: "Erro ao carregar produtos",
-        description: "Tente novamente mais tarde.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts();
-  }, [user]);
-
-  const addProduct = async (data: ProductFormData): Promise<string | null> => {
-    if (!user) return null;
-    
-    try {
+  // Mutation for adding a product
+  const addProductMutation = useMutation({
+    mutationFn: async (data: ProductFormData): Promise<string | null> => {
+      if (!user) return null;
+      
       const { data: insertedData, error } = await supabase.from("products").insert({
         name: data.name,
         category: data.category,
@@ -165,26 +158,28 @@ export function useProducts() {
       }).select('id').single();
 
       if (error) throw error;
-
-      await fetchProducts();
+      return insertedData?.id || null;
+    },
+    onSuccess: (_, data) => {
+      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
       toast({
         title: "Produto adicionado",
         description: `${data.name} foi adicionado ao catálogo.`,
       });
-      return insertedData?.id || null;
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error("Error adding product:", error);
       toast({
         title: "Erro ao adicionar produto",
         description: "Tente novamente.",
         variant: "destructive",
       });
-      return null;
-    }
-  };
+    },
+  });
 
-  const updateProduct = async (id: string, data: ProductFormData): Promise<boolean> => {
-    try {
+  // Mutation for updating a product
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: ProductFormData }): Promise<boolean> => {
       const { error } = await supabase
         .from("products")
         .update({
@@ -212,23 +207,145 @@ export function useProducts() {
         .eq("id", id);
 
       if (error) throw error;
-
-      await fetchProducts();
+      return true;
+    },
+    onSuccess: (_, { data }) => {
+      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
       toast({
         title: "Produto atualizado",
         description: `${data.name} foi atualizado.`,
       });
-      return true;
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error("Error updating product:", error);
       toast({
         title: "Erro ao atualizar produto",
         description: "Tente novamente.",
         variant: "destructive",
       });
-      return false;
-    }
-  };
+    },
+  });
+
+  // Mutation for archiving a product
+  const archiveProductMutation = useMutation({
+    mutationFn: async ({ id }: { id: string; name: string }): Promise<boolean> => {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_active: false, deleted_at: new Date().toISOString() })
+        .eq("id", id);
+
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: (_, { name }) => {
+      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+      toast({
+        title: "Produto arquivado",
+        description: `${name} foi arquivado e não aparecerá mais na lista.`,
+      });
+    },
+    onError: (error) => {
+      console.error("Error archiving product:", error);
+      toast({
+        title: "Erro ao arquivar produto",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for reactivating a product
+  const reactivateProductMutation = useMutation({
+    mutationFn: async ({ id }: { id: string; name: string }): Promise<boolean> => {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_active: true, deleted_at: null })
+        .eq("id", id);
+
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: (_, { name }) => {
+      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+      toast({
+        title: "Produto reativado",
+        description: `${name} está ativo novamente.`,
+      });
+    },
+    onError: (error) => {
+      console.error("Error reactivating product:", error);
+      toast({
+        title: "Erro ao reativar produto",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for updating stock (decrementing)
+  const updateStockMutation = useMutation({
+    mutationFn: async ({ id, quantity }: { id: string; quantity: number }): Promise<boolean> => {
+      const product = products.find((p) => p.id === id);
+      if (!product) return false;
+
+      const newStock = product.stock - quantity;
+      if (newStock < 0) {
+        throw new Error("Estoque insuficiente");
+      }
+
+      const { error } = await supabase
+        .from("products")
+        .update({ stock: newStock })
+        .eq("id", id);
+
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      // Invalidate to ensure all components get updated data
+      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+    },
+    onError: (error) => {
+      console.error("Error updating stock:", error);
+      if (error.message === "Estoque insuficiente") {
+        toast({
+          title: "Estoque insuficiente",
+          description: `Não há estoque suficiente.`,
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  // Mutation for restoring stock (incrementing)
+  const restoreStockMutation = useMutation({
+    mutationFn: async ({ id, quantity, cycle }: { id: string; quantity: number; cycle?: number }): Promise<boolean> => {
+      const product = products.find((p) => p.id === id);
+      if (!product) return false;
+
+      const newStock = product.stock + quantity;
+      
+      const updateData: { stock: number; cycle?: number } = { stock: newStock };
+      if (cycle !== undefined) {
+        updateData.cycle = cycle;
+      }
+
+      const { error } = await supabase
+        .from("products")
+        .update(updateData)
+        .eq("id", id);
+
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      // Invalidate to ensure all components get updated data
+      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+    },
+    onError: (error) => {
+      console.error("Error restoring stock:", error);
+    },
+  });
 
   const checkProductDependencies = async (id: string): Promise<{ hasSales: boolean; hasBasketUsage: boolean }> => {
     // Check if product is used in any sales
@@ -259,58 +376,6 @@ export function useProducts() {
     };
   };
 
-  const archiveProduct = async (id: string, name: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from("products")
-        .update({ is_active: false, deleted_at: new Date().toISOString() })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      await fetchProducts();
-      toast({
-        title: "Produto arquivado",
-        description: `${name} foi arquivado e não aparecerá mais na lista.`,
-      });
-      return true;
-    } catch (error) {
-      console.error("Error archiving product:", error);
-      toast({
-        title: "Erro ao arquivar produto",
-        description: "Tente novamente.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
-  const reactivateProduct = async (id: string, name: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from("products")
-        .update({ is_active: true, deleted_at: null })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      await fetchProducts();
-      toast({
-        title: "Produto reativado",
-        description: `${name} está ativo novamente.`,
-      });
-      return true;
-    } catch (error) {
-      console.error("Error reactivating product:", error);
-      toast({
-        title: "Erro ao reativar produto",
-        description: "Tente novamente.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
   const deleteProduct = async (id: string, name: string, isBasket: boolean): Promise<{ success: boolean; archived: boolean; message: string }> => {
     try {
       // Check dependencies
@@ -318,7 +383,7 @@ export function useProducts() {
 
       // If product has sales, archive instead of delete
       if (deps.hasSales) {
-        await archiveProduct(id, name);
+        await archiveProductMutation.mutateAsync({ id, name });
         return {
           success: true,
           archived: true,
@@ -357,7 +422,7 @@ export function useProducts() {
 
       if (error) throw error;
 
-      await fetchProducts();
+      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
       toast({
         title: isBasket ? "Cesta excluída" : "Produto excluído",
         description: `${name} foi removido definitivamente.`,
@@ -382,63 +447,51 @@ export function useProducts() {
     }
   };
 
+  // Wrapper functions to maintain the same API
+  const addProduct = async (data: ProductFormData): Promise<string | null> => {
+    try {
+      return await addProductMutation.mutateAsync(data);
+    } catch {
+      return null;
+    }
+  };
+
+  const updateProduct = async (id: string, data: ProductFormData): Promise<boolean> => {
+    try {
+      return await updateProductMutation.mutateAsync({ id, data });
+    } catch {
+      return false;
+    }
+  };
+
+  const archiveProduct = async (id: string, name: string): Promise<boolean> => {
+    try {
+      return await archiveProductMutation.mutateAsync({ id, name });
+    } catch {
+      return false;
+    }
+  };
+
+  const reactivateProduct = async (id: string, name: string): Promise<boolean> => {
+    try {
+      return await reactivateProductMutation.mutateAsync({ id, name });
+    } catch {
+      return false;
+    }
+  };
+
   const updateStock = async (id: string, quantity: number): Promise<boolean> => {
     try {
-      const product = products.find((p) => p.id === id);
-      if (!product) return false;
-
-      const newStock = product.stock - quantity;
-      if (newStock < 0) {
-        toast({
-          title: "Estoque insuficiente",
-          description: `Não há estoque suficiente.`,
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      const { error } = await supabase
-        .from("products")
-        .update({ stock: newStock })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      setProducts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, stock: newStock } : p))
-      );
-      return true;
-    } catch (error) {
-      console.error("Error updating stock:", error);
+      return await updateStockMutation.mutateAsync({ id, quantity });
+    } catch {
       return false;
     }
   };
 
   const restoreStock = async (id: string, quantity: number, cycle?: number): Promise<boolean> => {
     try {
-      const product = products.find((p) => p.id === id);
-      if (!product) return false;
-
-      const newStock = product.stock + quantity;
-      
-      const updateData: { stock: number; cycle?: number } = { stock: newStock };
-      if (cycle !== undefined) {
-        updateData.cycle = cycle;
-      }
-
-      const { error } = await supabase
-        .from("products")
-        .update(updateData)
-        .eq("id", id);
-
-      if (error) throw error;
-
-      setProducts((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, stock: newStock, cycle: cycle ?? p.cycle } : p))
-      );
-      return true;
-    } catch (error) {
-      console.error("Error restoring stock:", error);
+      return await restoreStockMutation.mutateAsync({ id, quantity, cycle });
+    } catch {
       return false;
     }
   };
@@ -454,6 +507,6 @@ export function useProducts() {
     checkProductDependencies,
     updateStock,
     restoreStock,
-    refetch: fetchProducts,
+    refetch,
   };
 }
