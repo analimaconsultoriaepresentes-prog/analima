@@ -150,12 +150,17 @@ export default function Produtos() {
     return result;
   }, [products, searchTerm, filters]);
 
-  // Inventory summary for header
+  // Inventory summary for header - uses available stock (total - prove)
   const inventorySummary = useMemo(() => {
     const activeProducts = products.filter(p => p.isActive);
     return {
       totalProducts: activeProducts.length,
-      totalValue: activeProducts.reduce((sum, p) => sum + (p.stock * p.costPrice), 0),
+      // Valor em estoque = (estoque disponível × custo unitário)
+      // Estoque disponível = stock - proveQty (unidades reservadas como PROVE)
+      totalValue: activeProducts.reduce((sum, p) => {
+        const availableStock = Math.max(0, p.stock - p.proveQty);
+        return sum + (availableStock * p.costPrice);
+      }, 0),
     };
   }, [products]);
 
