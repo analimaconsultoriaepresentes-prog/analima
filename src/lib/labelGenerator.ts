@@ -1,9 +1,10 @@
 import jsPDF from "jspdf";
 import { Product } from "@/hooks/useProducts";
 
-interface LabelItem {
+export interface LabelItem {
   product: Product;
   quantity: number;
+  isPromotion: boolean;
 }
 
 interface LabelOptions {
@@ -125,11 +126,11 @@ function drawLabel(
   y: number,
   product: Product,
   primaryColor: [number, number, number],
-  accentColor: [number, number, number]
+  accentColor: [number, number, number],
+  isPromo: boolean
 ) {
   const volume = extractVolume(product.name);
   const productName = formatProductName(product.name);
-  const isPromo = isOnPromotion(product);
   
   // Use promotion colors if product is on sale
   const labelPrimaryColor = isPromo ? PROMOTION_PRIMARY_COLOR : primaryColor;
@@ -264,11 +265,15 @@ export async function generateLabelsPDF(
     format: "a4",
   });
 
-  // Expand items by quantity
-  const allLabels: Product[] = [];
-  items.forEach(({ product, quantity }) => {
+  // Expand items by quantity, keeping promotion status
+  interface LabelData {
+    product: Product;
+    isPromotion: boolean;
+  }
+  const allLabels: LabelData[] = [];
+  items.forEach(({ product, quantity, isPromotion }) => {
     for (let i = 0; i < quantity; i++) {
-      allLabels.push(product);
+      allLabels.push({ product, isPromotion });
     }
   });
 
@@ -291,7 +296,8 @@ export async function generateLabelsPDF(
       const x = MARGIN_LEFT + col * LABEL_WIDTH;
       const y = MARGIN_TOP + row * LABEL_HEIGHT;
 
-      drawLabel(doc, x, y, allLabels[i], primaryColor, accentColor);
+      const { product, isPromotion } = allLabels[i];
+      drawLabel(doc, x, y, product, primaryColor, accentColor, isPromotion);
     }
   }
 
