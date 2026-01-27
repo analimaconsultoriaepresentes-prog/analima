@@ -69,9 +69,8 @@ export default function Etiquetas() {
     if (newSelected.has(product.id)) {
       newSelected.delete(product.id);
     } else {
-      // Auto-detect promotion on selection (PIX < Card)
-      const autoPromotion = product.pricePix < product.priceCard;
-      newSelected.set(product.id, { product, quantity: 1, isPromotion: autoPromotion });
+      // Start with promotion OFF - user must manually enable
+      newSelected.set(product.id, { product, quantity: 1, isPromotion: false });
     }
     setSelectedProducts(newSelected);
   };
@@ -202,7 +201,9 @@ export default function Etiquetas() {
                 ) : (
                   filteredProducts.map((product) => {
                     const isSelected = selectedProducts.has(product.id);
-                    const isPromotion = product.pricePix < product.priceCard;
+                    // Show badge only if product is selected AND marked as promotion
+                    const selectedItem = selectedProducts.get(product.id);
+                    const showPromoBadge = isSelected && selectedItem?.isPromotion;
                     return (
                       <div
                         key={product.id}
@@ -217,7 +218,7 @@ export default function Etiquetas() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-sm truncate">{product.name}</p>
-                            {isPromotion && (
+                            {showPromoBadge && (
                               <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] px-1.5 py-0 h-4">
                                 Oferta
                               </Badge>
