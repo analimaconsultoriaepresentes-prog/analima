@@ -32,6 +32,8 @@ const MARGIN_TOP = (A4_HEIGHT - TOTAL_LABELS_HEIGHT) / 2; // ~10.5mm
 // Default colors
 const DEFAULT_PRIMARY_COLOR: [number, number, number] = [147, 51, 234]; // Purple #9333EA
 const SUCCESS_COLOR: [number, number, number] = [34, 139, 34]; // Green for PIX
+const PROMOTION_PRIMARY_COLOR: [number, number, number] = [249, 115, 22]; // Orange #F97316
+const PROMOTION_ACCENT_COLOR: [number, number, number] = [239, 68, 68]; // Red #EF4444
 
 // Helper to convert hex to RGB
 function hexToRgb(hex: string): [number, number, number] {
@@ -53,6 +55,11 @@ function createAccentColor(rgb: [number, number, number]): [number, number, numb
     Math.min(255, rgb[1] + 20),
     Math.min(255, rgb[2] + 30)
   ];
+}
+
+// Helper to check if product is on promotion (PIX < Card)
+function isOnPromotion(product: Product): boolean {
+  return product.pricePix < product.priceCard;
 }
 
 // Helper to extract volume from product name (e.g., "Perfume XYZ 75ml" -> "75ML")
@@ -122,29 +129,51 @@ function drawLabel(
 ) {
   const volume = extractVolume(product.name);
   const productName = formatProductName(product.name);
+  const isPromo = isOnPromotion(product);
+  
+  // Use promotion colors if product is on sale
+  const labelPrimaryColor = isPromo ? PROMOTION_PRIMARY_COLOR : primaryColor;
+  const labelAccentColor = isPromo ? PROMOTION_ACCENT_COLOR : accentColor;
   
   // Top colored band (approximately 60% of height)
   const topHeight = LABEL_HEIGHT * 0.58;
   const bottomHeight = LABEL_HEIGHT - topHeight;
 
   // Draw gradient-like top band (solid color in PDF)
-  doc.setFillColor(...primaryColor);
+  doc.setFillColor(...labelPrimaryColor);
   doc.rect(x, y, LABEL_WIDTH, topHeight, "F");
 
   // Add slight gradient effect with overlay
-  doc.setFillColor(...accentColor);
+  doc.setFillColor(...labelAccentColor);
   doc.setGState(doc.GState({ opacity: 0.3 }));
   doc.rect(x + LABEL_WIDTH * 0.5, y, LABEL_WIDTH * 0.5, topHeight, "F");
   doc.setGState(doc.GState({ opacity: 1 }));
+
+  // Draw "OFERTA" badge for promotion products
+  if (isPromo) {
+    // White badge background
+    doc.setFillColor(255, 255, 255);
+    const badgeWidth = 14;
+    const badgeHeight = 4;
+    const badgeX = x + LABEL_WIDTH - badgeWidth - 1.5;
+    const badgeY = y + 1;
+    doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 0.5, 0.5, "F");
+    
+    // "OFERTA" text
+    doc.setTextColor(...PROMOTION_PRIMARY_COLOR);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(3.5);
+    doc.text("OFERTA", badgeX + badgeWidth / 2, badgeY + 2.8, { align: "center" });
+  }
 
   // Product name (white, bold, up to 2 lines)
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   
-  // Calculate available width for text (with padding and space for volume if present)
+  // Calculate available width for text (with padding and space for badge/volume)
   const textPadding = 2;
-  const volumeSpace = volume ? 12 : 0;
-  const availableWidth = LABEL_WIDTH - (textPadding * 2) - volumeSpace;
+  const rightSpace = isPromo ? 16 : (volume ? 12 : 0);
+  const availableWidth = LABEL_WIDTH - (textPadding * 2) - rightSpace;
   
   // Split text into max 2 lines
   const fontSize = 6.5;
@@ -162,8 +191,8 @@ function drawLabel(
     doc.text(line, x + textPadding, lineY);
   });
   
-  // Volume badge on the right (if present)
-  if (volume) {
+  // Volume badge on the right (if present and not promotion)
+  if (volume && !isPromo) {
     doc.setFontSize(5);
     doc.setFont("helvetica", "normal");
     const volumeY = y + topHeight / 2 + 1;
@@ -196,14 +225,17 @@ function drawLabel(
   doc.setFontSize(8);
   doc.text(formatPrice(product.priceCard), leftCenterX, bottomCenterY + 2.5, { align: "center" });
 
-  // PIX price (right side) - with more emphasis
+  // PIX/OFERTA price (right side) - with more emphasis
   const rightCenterX = x + (LABEL_WIDTH * 3) / 4;
 
-  // Label "PIX" - increased size
-  doc.setTextColor(...SUCCESS_COLOR);
+  // Label - use "OFERTA" for promotions, "PIX" for regular
+  const priceLabel = isPromo ? "OFERTA" : "PIX";
+  const priceLabelColor: [number, number, number] = isPromo ? PROMOTION_PRIMARY_COLOR : SUCCESS_COLOR;
+  
+  doc.setTextColor(...priceLabelColor);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(5.5);
-  doc.text("PIX", rightCenterX, bottomCenterY - 2.5, { align: "center" });
+  doc.text(priceLabel, rightCenterX, bottomCenterY - 2.5, { align: "center" });
 
   // PIX price value - significantly increased, most prominent
   doc.setFont("helvetica", "bold");
@@ -211,7 +243,7 @@ function drawLabel(
   doc.text(formatPrice(product.pricePix), rightCenterX, bottomCenterY + 2.5, { align: "center" });
 
   // Optional: thin border around label (helps with cutting)
-  doc.setDrawColor(200, 200, 200);
+  doc.setDrawColor(isPromo ? 249 : 200, isPromo ? 115 : 200, isPromo ? 22 : 200);
   doc.setLineWidth(0.1);
   doc.rect(x, y, LABEL_WIDTH, LABEL_HEIGHT);
 }
