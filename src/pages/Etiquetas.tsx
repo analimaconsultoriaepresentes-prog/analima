@@ -188,6 +188,7 @@ export default function Etiquetas() {
                 ) : (
                   filteredProducts.map((product) => {
                     const isSelected = selectedProducts.has(product.id);
+                    const isPromotion = product.pricePix < product.priceCard;
                     return (
                       <div
                         key={product.id}
@@ -200,7 +201,14 @@ export default function Etiquetas() {
                       >
                         <Checkbox checked={isSelected} />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{product.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm truncate">{product.name}</p>
+                            {isPromotion && (
+                              <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] px-1.5 py-0 h-4">
+                                Oferta
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {product.brand} • {product.category}
                           </p>
@@ -255,48 +263,62 @@ export default function Etiquetas() {
                       Selecione produtos para gerar etiquetas
                     </p>
                   ) : (
-                    Array.from(selectedProducts.values()).map(({ product, quantity }) => (
-                      <div
-                        key={product.id}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{product.name}</p>
-                          <p className="text-xs text-muted-foreground">{product.brand}</p>
+                    Array.from(selectedProducts.values()).map(({ product, quantity }) => {
+                      const isPromotion = product.pricePix < product.priceCard;
+                      return (
+                        <div
+                          key={product.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg border ${
+                            isPromotion 
+                              ? "bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800/30" 
+                              : "bg-muted/30 border-border/50"
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm truncate">{product.name}</p>
+                              {isPromotion && (
+                                <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] px-1.5 py-0 h-4">
+                                  Oferta
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">{product.brand}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateQuantity(product.id, -1);
+                              }}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={quantity}
+                              onChange={(e) => setQuantity(product.id, parseInt(e.target.value) || 1)}
+                              className="w-14 h-7 text-center text-sm px-1"
+                            />
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateQuantity(product.id, 1);
+                              }}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateQuantity(product.id, -1);
-                            }}
-                          >
-                            <Minus className="w-3 h-3" />
-                          </Button>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={quantity}
-                            onChange={(e) => setQuantity(product.id, parseInt(e.target.value) || 1)}
-                            className="w-14 h-7 text-center text-sm px-1"
-                          />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateQuantity(product.id, 1);
-                            }}
-                          >
-                            <Plus className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </ScrollArea>
@@ -388,35 +410,51 @@ function formatProductName(name: string): string {
   return name.replace(/\s*\d+\s*(ml|ML|g|G|kg|KG)/i, "").trim().toUpperCase();
 }
 
+// Check if product is on promotion (PIX price < Card price)
+function isProductOnPromotion(product?: Product): boolean {
+  if (!product) return false;
+  return product.pricePix < product.priceCard;
+}
+
 // Label preview component showing the exact layout
 function LabelPreview({ product, labelColor }: { product?: Product; labelColor?: string | null }) {
   const displayName = product ? formatProductName(product.name) : "NOME DO PRODUTO";
   const volume = product ? extractVolume(product.name) : "75ML";
   const pricePix = product ? product.pricePix : 89.90;
   const priceCard = product ? product.priceCard : 99.90;
+  const isPromotion = isProductOnPromotion(product);
   
-  // Default purple gradient or custom color
-  const bgStyle = labelColor 
-    ? { background: labelColor }
-    : { background: "linear-gradient(135deg, hsl(280, 85%, 50%) 0%, hsl(320, 80%, 55%) 100%)" };
+  // Promotion uses orange/red, otherwise use custom or default purple
+  const bgStyle = isPromotion
+    ? { background: "linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(0, 84%, 60%) 100%)" }
+    : labelColor 
+      ? { background: labelColor }
+      : { background: "linear-gradient(135deg, hsl(280, 85%, 50%) 0%, hsl(320, 80%, 55%) 100%)" };
 
   return (
     <div
-      className="border-2 border-dashed border-primary/30 rounded overflow-hidden transition-all duration-300"
+      className={`border-2 border-dashed rounded overflow-hidden transition-all duration-300 ${
+        isPromotion ? "border-orange-400" : "border-primary/30"
+      }`}
       style={{ width: "188px", height: "92px" }} // 4x scale for preview (47mm x 23mm)
     >
       {/* Top colored band */}
       <div
-        className="w-full flex items-center justify-between px-2"
+        className="w-full flex items-center justify-between px-2 relative"
         style={{
           height: "52px",
           ...bgStyle,
         }}
       >
-        <span className="text-white font-bold text-xs leading-tight flex-1 line-clamp-2">
+        {isPromotion && (
+          <span className="absolute top-1 right-1 bg-white text-orange-600 text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+            OFERTA
+          </span>
+        )}
+        <span className="text-white font-bold text-xs leading-tight flex-1 line-clamp-2 pr-10">
           {displayName}
         </span>
-        {volume && (
+        {volume && !isPromotion && (
           <span className="text-white/90 text-[10px] font-medium ml-1 whitespace-nowrap">
             {volume}
           </span>
@@ -436,8 +474,10 @@ function LabelPreview({ product, labelColor }: { product?: Product; labelColor?:
         </div>
         <div className="w-px h-5 bg-border" />
         <div className="text-center">
-          <p className="text-[8px] text-success leading-none">PIX</p>
-          <p className="text-xs font-bold text-success leading-tight">
+          <p className={`text-[8px] leading-none ${isPromotion ? "text-orange-600 font-bold" : "text-success"}`}>
+            {isPromotion ? "OFERTA" : "PIX"}
+          </p>
+          <p className={`text-xs font-bold leading-tight ${isPromotion ? "text-orange-600" : "text-success"}`}>
             R$ {pricePix.toFixed(2).replace(".", ",")}
           </p>
         </div>
