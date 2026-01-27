@@ -350,21 +350,40 @@ export default function Etiquetas() {
           {/* Label Preview */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">
-                Prévia da Etiqueta
+              <CardTitle className="text-sm text-muted-foreground flex items-center justify-between">
+                <span>Prévia das Etiquetas</span>
+                {selectedProducts.size > 0 && (
+                  <Badge variant="outline" className="text-xs">
+                    {totalLabels} {totalLabels === 1 ? "etiqueta" : "etiquetas"}
+                  </Badge>
+                )}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex justify-center">
-                <LabelPreview 
-                  product={Array.from(selectedProducts.values()).pop()?.product} 
-                  labelColor={store?.labelColor}
-                />
-              </div>
-              {selectedProducts.size > 0 && (
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  Mostrando: {Array.from(selectedProducts.values()).pop()?.product.name}
-                </p>
+            <CardContent className="p-3">
+              {selectedProducts.size === 0 ? (
+                <div className="flex justify-center py-4">
+                  <LabelPreviewMini labelColor={store?.labelColor} />
+                </div>
+              ) : (
+                <ScrollArea className="h-[180px]">
+                  <div className="grid grid-cols-2 gap-2 p-1">
+                    {Array.from(selectedProducts.values()).map(({ product, quantity }) => (
+                      <div key={product.id} className="relative">
+                        <LabelPreviewMini 
+                          product={product} 
+                          labelColor={store?.labelColor}
+                        />
+                        {quantity > 1 && (
+                          <Badge 
+                            className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center text-[10px] px-1"
+                          >
+                            ×{quantity}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               )}
             </CardContent>
           </Card>
@@ -388,36 +407,35 @@ function formatProductName(name: string): string {
   return name.replace(/\s*\d+\s*(ml|ML|g|G|kg|KG)/i, "").trim().toUpperCase();
 }
 
-// Label preview component showing the exact layout
-function LabelPreview({ product, labelColor }: { product?: Product; labelColor?: string | null }) {
+// Mini label preview component (smaller for grid display)
+function LabelPreviewMini({ product, labelColor }: { product?: Product; labelColor?: string | null }) {
   const displayName = product ? formatProductName(product.name) : "NOME DO PRODUTO";
   const volume = product ? extractVolume(product.name) : "75ML";
   const pricePix = product ? product.pricePix : 89.90;
   const priceCard = product ? product.priceCard : 99.90;
   
-  // Default purple gradient or custom color
   const bgStyle = labelColor 
     ? { background: labelColor }
     : { background: "linear-gradient(135deg, hsl(280, 85%, 50%) 0%, hsl(320, 80%, 55%) 100%)" };
 
   return (
     <div
-      className="border-2 border-dashed border-primary/30 rounded overflow-hidden transition-all duration-300"
-      style={{ width: "188px", height: "92px" }} // 4x scale for preview (47mm x 23mm)
+      className="border border-border/50 rounded overflow-hidden shadow-sm transition-all duration-200 hover:shadow-md"
+      style={{ width: "100%", maxWidth: "140px", height: "68px" }}
     >
       {/* Top colored band */}
       <div
-        className="w-full flex items-center justify-between px-2"
+        className="w-full flex items-center justify-between px-1.5"
         style={{
-          height: "52px",
+          height: "38px",
           ...bgStyle,
         }}
       >
-        <span className="text-white font-bold text-xs leading-tight flex-1 line-clamp-2">
+        <span className="text-white font-bold text-[8px] leading-tight flex-1 line-clamp-2">
           {displayName}
         </span>
         {volume && (
-          <span className="text-white/90 text-[10px] font-medium ml-1 whitespace-nowrap">
+          <span className="text-white/90 text-[7px] font-medium ml-0.5 whitespace-nowrap">
             {volume}
           </span>
         )}
@@ -425,19 +443,19 @@ function LabelPreview({ product, labelColor }: { product?: Product; labelColor?:
 
       {/* Bottom white area with prices */}
       <div
-        className="w-full bg-white flex items-center justify-around px-2"
-        style={{ height: "40px" }}
+        className="w-full bg-white flex items-center justify-around px-1"
+        style={{ height: "30px" }}
       >
         <div className="text-center">
-          <p className="text-[8px] text-muted-foreground leading-none">CARTÃO</p>
-          <p className="text-xs font-bold text-foreground leading-tight">
+          <p className="text-[6px] text-muted-foreground leading-none">CARTÃO</p>
+          <p className="text-[8px] font-bold text-foreground leading-tight">
             R$ {priceCard.toFixed(2).replace(".", ",")}
           </p>
         </div>
-        <div className="w-px h-5 bg-border" />
+        <div className="w-px h-3 bg-border" />
         <div className="text-center">
-          <p className="text-[8px] text-success leading-none">PIX</p>
-          <p className="text-xs font-bold text-success leading-tight">
+          <p className="text-[6px] text-success leading-none">PIX</p>
+          <p className="text-[8px] font-bold text-success leading-tight">
             R$ {pricePix.toFixed(2).replace(".", ",")}
           </p>
         </div>
