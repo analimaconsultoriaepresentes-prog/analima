@@ -18,13 +18,16 @@ import {
   Minus,
   Loader2,
   Package,
+  Percent,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { generateLabelsPDF } from "@/lib/labelGenerator";
 
 interface SelectedProduct {
   product: Product;
   quantity: number;
+  isPromotion: boolean;
 }
 
 export default function Etiquetas() {
@@ -66,9 +69,20 @@ export default function Etiquetas() {
     if (newSelected.has(product.id)) {
       newSelected.delete(product.id);
     } else {
-      newSelected.set(product.id, { product, quantity: 1 });
+      // Auto-detect promotion on selection (PIX < Card)
+      const autoPromotion = product.pricePix < product.priceCard;
+      newSelected.set(product.id, { product, quantity: 1, isPromotion: autoPromotion });
     }
     setSelectedProducts(newSelected);
+  };
+
+  const togglePromotion = (productId: string) => {
+    const newSelected = new Map(selectedProducts);
+    const item = newSelected.get(productId);
+    if (item) {
+      newSelected.set(productId, { ...item, isPromotion: !item.isPromotion });
+      setSelectedProducts(newSelected);
+    }
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -263,58 +277,71 @@ export default function Etiquetas() {
                       Selecione produtos para gerar etiquetas
                     </p>
                   ) : (
-                    Array.from(selectedProducts.values()).map(({ product, quantity }) => {
-                      const isPromotion = product.pricePix < product.priceCard;
+                    Array.from(selectedProducts.values()).map(({ product, quantity, isPromotion }) => {
                       return (
                         <div
                           key={product.id}
-                          className={`flex items-center gap-3 p-3 rounded-lg border ${
+                          className={`flex flex-col gap-2 p-3 rounded-lg border ${
                             isPromotion 
                               ? "bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800/30" 
                               : "bg-muted/30 border-border/50"
                           }`}
                         >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm truncate">{product.name}</p>
-                              {isPromotion && (
-                                <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] px-1.5 py-0 h-4">
-                                  Oferta
-                                </Badge>
-                              )}
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-sm truncate">{product.name}</p>
+                                {isPromotion && (
+                                  <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-[10px] px-1.5 py-0 h-4">
+                                    Oferta
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{product.brand}</p>
                             </div>
-                            <p className="text-xs text-muted-foreground">{product.brand}</p>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateQuantity(product.id, -1);
+                                }}
+                              >
+                                <Minus className="w-3 h-3" />
+                              </Button>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={quantity}
+                                onChange={(e) => setQuantity(product.id, parseInt(e.target.value) || 1)}
+                                className="w-14 h-7 text-center text-sm px-1"
+                              />
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateQuantity(product.id, 1);
+                                }}
+                              >
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                updateQuantity(product.id, -1);
-                              }}
-                            >
-                              <Minus className="w-3 h-3" />
-                            </Button>
-                            <Input
-                              type="number"
-                              min={1}
-                              value={quantity}
-                              onChange={(e) => setQuantity(product.id, parseInt(e.target.value) || 1)}
-                              className="w-14 h-7 text-center text-sm px-1"
+                          {/* Promotion toggle */}
+                          <div className="flex items-center justify-between pt-1 border-t border-border/30">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Percent className="w-3 h-3" />
+                              <span>Marcar como oferta</span>
+                            </div>
+                            <Switch
+                              checked={isPromotion}
+                              onCheckedChange={() => togglePromotion(product.id)}
+                              className="data-[state=checked]:bg-orange-500"
                             />
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                updateQuantity(product.id, 1);
-                              }}
-                            >
-                              <Plus className="w-3 h-3" />
-                            </Button>
                           </div>
                         </div>
                       );
@@ -381,6 +408,7 @@ export default function Etiquetas() {
                 <LabelPreview 
                   product={Array.from(selectedProducts.values()).pop()?.product} 
                   labelColor={store?.labelColor}
+                  forcePromotion={Array.from(selectedProducts.values()).pop()?.isPromotion}
                 />
               </div>
               {selectedProducts.size > 0 && (
@@ -417,12 +445,21 @@ function isProductOnPromotion(product?: Product): boolean {
 }
 
 // Label preview component showing the exact layout
-function LabelPreview({ product, labelColor }: { product?: Product; labelColor?: string | null }) {
+function LabelPreview({ 
+  product, 
+  labelColor, 
+  forcePromotion 
+}: { 
+  product?: Product; 
+  labelColor?: string | null;
+  forcePromotion?: boolean;
+}) {
   const displayName = product ? formatProductName(product.name) : "NOME DO PRODUTO";
   const volume = product ? extractVolume(product.name) : "75ML";
   const pricePix = product ? product.pricePix : 89.90;
   const priceCard = product ? product.priceCard : 99.90;
-  const isPromotion = isProductOnPromotion(product);
+  // Use forcePromotion if provided, otherwise fall back to auto-detection
+  const isPromotion = forcePromotion !== undefined ? forcePromotion : isProductOnPromotion(product);
   
   // Promotion uses orange/red, otherwise use custom or default purple
   const bgStyle = isPromotion
