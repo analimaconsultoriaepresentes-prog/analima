@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { HelpCircle, X, ChevronRight } from "lucide-react";
+import { X, ChevronRight, Move } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useHelp, helpTopics, complexPages } from "./HelpContext";
 import { useSound } from "@/hooks/useSound";
+import { useDraggable } from "@/hooks/useDraggable";
 import mascotImage from "@/assets/mascot-ana.png";
 
 const INACTIVITY_TIMEOUT = 8000; // 8 seconds of inactivity before showing bubble
 const BUBBLE_TRIGGER_DELAY = 1500; // Delay before showing bubble on page change
+const MASCOT_SIZE = { width: 96, height: 96 };
 
 export function HelpMascot() {
   const { 
@@ -28,6 +31,22 @@ export function HelpMascot() {
   const [hasAnimated, setHasAnimated] = useState(false);
   const [showWave, setShowWave] = useState(false);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Draggable functionality
+  const {
+    position,
+    isDragging,
+    wasDragged,
+    handleMouseDown,
+  } = useDraggable({
+    storageKey: "mascot-position",
+    perRoute: true,
+    currentRoute: currentPage,
+    elementSize: MASCOT_SIZE,
+    margin: 12,
+    dragThreshold: 8,
+    snapToEdge: true,
+  });
 
   // Only show page-specific topics - no generic topics mixed in
   const pageTopics = helpTopics[currentPage] || [];
@@ -125,6 +144,9 @@ export function HelpMascot() {
   }, [isOpen, stopPulse, hideBubble]);
 
   const handleMascotClick = () => {
+    // Only open help if not dragging
+    if (wasDragged) return;
+    
     stopPulse();
     hideBubble();
     setShowWave(false);
@@ -134,21 +156,44 @@ export function HelpMascot() {
     setIsOpen(!isOpen);
   };
 
+  // Calculate bubble position relative to mascot
+  const bubbleStyle = {
+    left: position.x < window.innerWidth / 2 
+      ? `${position.x + MASCOT_SIZE.width + 8}px` 
+      : "auto",
+    right: position.x >= window.innerWidth / 2 
+      ? `${window.innerWidth - position.x + 8}px` 
+      : "auto",
+    bottom: `${window.innerHeight - position.y + 8}px`,
+  };
+
+  // Calculate panel position relative to mascot
+  const panelStyle = {
+    left: position.x < window.innerWidth / 2 
+      ? `${position.x}px` 
+      : "auto",
+    right: position.x >= window.innerWidth / 2 
+      ? `${window.innerWidth - position.x - MASCOT_SIZE.width}px` 
+      : "auto",
+    bottom: `${window.innerHeight - position.y + MASCOT_SIZE.height + 8}px`,
+  };
+
   return (
     <>
       {/* Speech Bubble with Wave Icon */}
       <div
         className={cn(
-          "fixed bottom-[100px] right-6 z-50",
+          "fixed z-50",
           "max-w-[220px] px-4 py-3",
           "bg-[#ECFDF5] border-2 border-[#22C55E]/60 rounded-2xl",
           "shadow-lg shadow-[#22C55E]/10",
           "transition-all duration-500 ease-out",
           "origin-bottom-right",
-          bubbleMessage && !isOpen
+          bubbleMessage && !isOpen && !isDragging
             ? "opacity-100 scale-100 translate-y-0"
             : "opacity-0 scale-90 translate-y-2 pointer-events-none"
         )}
+        style={bubbleStyle}
       >
         <div className="flex items-start gap-2">
           {/* Animated wave icon */}
@@ -163,50 +208,74 @@ export function HelpMascot() {
           <p className="text-sm text-[#065F46] font-medium leading-snug flex-1">{bubbleMessage}</p>
         </div>
         {/* Bubble tail */}
-        <div className="absolute -bottom-2 right-8 w-4 h-4 bg-[#ECFDF5] border-r-2 border-b-2 border-[#22C55E]/60 rotate-45 transform" />
+        <div className={cn(
+          "absolute -bottom-2 w-4 h-4 bg-[#ECFDF5] border-r-2 border-b-2 border-[#22C55E]/60 rotate-45 transform",
+          position.x < window.innerWidth / 2 ? "left-4" : "right-8"
+        )} />
       </div>
 
-      {/* Mascot Button with Character Image */}
-      {/* Mascot Button - Clean style without borders */}
-      <button
-        onClick={handleMascotClick}
-        className={cn(
-          "fixed bottom-4 right-4 z-50",
-          "w-24 h-24",
-          "transition-all duration-300 ease-out",
-          "hover:scale-105",
-          "active:scale-95",
-          "focus:outline-none",
-          hasAnimated ? "animate-mascot-entry" : "opacity-0 translate-y-8"
-        )}
-        aria-label={isOpen ? "Fechar ajuda" : "Abrir ajuda"}
-        style={{ animationFillMode: 'forwards' }}
-      >
-        {isOpen ? (
-          <div className="w-16 h-16 mx-auto rounded-full bg-muted/80 backdrop-blur-sm flex items-center justify-center shadow-lg">
-            <X className="w-6 h-6 text-foreground" />
+      {/* Mascot Button - Draggable */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleMouseDown}
+            onClick={handleMascotClick}
+            className={cn(
+              "fixed z-50",
+              "w-24 h-24",
+              "transition-opacity duration-200",
+              isDragging ? "opacity-70 cursor-grabbing" : "cursor-grab hover:scale-105",
+              "active:cursor-grabbing",
+              "focus:outline-none select-none touch-none",
+              hasAnimated ? "animate-mascot-entry" : "opacity-0 translate-y-8"
+            )}
+            style={{ 
+              left: `${position.x}px`, 
+              top: `${position.y}px`,
+              animationFillMode: 'forwards',
+              transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label={isOpen ? "Fechar ajuda" : "Abrir ajuda (arraste para mover)"}
+          >
+            {isOpen ? (
+              <div className="w-16 h-16 mx-auto rounded-full bg-muted/80 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                <X className="w-6 h-6 text-foreground" />
+              </div>
+            ) : (
+              <img 
+                src={mascotImage} 
+                alt="Ana - Assistente de Ajuda"
+                className={cn(
+                  "w-full h-full object-contain drop-shadow-lg pointer-events-none",
+                  isDragging && "scale-95"
+                )}
+              />
+            )}
           </div>
-        ) : (
-          <img 
-            src={mascotImage} 
-            alt="Ana - Assistente de Ajuda"
-            className="w-full h-full object-contain drop-shadow-lg"
-          />
+        </TooltipTrigger>
+        {!isOpen && !isDragging && (
+          <TooltipContent side="left" className="flex items-center gap-1.5">
+            <Move className="w-3 h-3" />
+            <span>Arraste para mover</span>
+          </TooltipContent>
         )}
-      </button>
+      </Tooltip>
 
       {/* Help Panel */}
       <div
         className={cn(
-          "fixed bottom-28 right-6 z-40",
+          "fixed z-40",
           "w-80 max-h-[70vh]",
           "bg-card border border-border rounded-2xl shadow-2xl",
           "transition-all duration-300 ease-out",
-          "origin-bottom-right",
           isOpen
             ? "opacity-100 scale-100 translate-y-0"
             : "opacity-0 scale-95 translate-y-4 pointer-events-none"
         )}
+        style={panelStyle}
       >
         {/* Header with mascot image - clean style */}
         <div className="p-4 border-b border-border bg-muted/30 rounded-t-2xl">
