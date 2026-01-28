@@ -525,6 +525,40 @@ export default function Configuracoes() {
             </div>
           )}
 
+          {/* Reset Mascot Position */}
+          <div className="bg-card rounded-xl border border-border/50 p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <MessageCircle className="w-5 h-5 text-primary" />
+              Posição do Mascote de Ajuda
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              A Ana (mascote de ajuda) pode ser arrastada para qualquer posição da tela. Use o botão abaixo para redefinir a posição padrão (canto inferior direito).
+            </p>
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={() => {
+                // Clear all mascot position data from localStorage
+                const keysToRemove: string[] = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                  const key = localStorage.key(i);
+                  if (key && key.startsWith("mascot-position")) {
+                    keysToRemove.push(key);
+                  }
+                }
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+                
+                toast({
+                  title: "Posição redefinida",
+                  description: "O mascote voltará ao canto inferior direito ao trocar de página.",
+                });
+              }}
+            >
+              <MessageCircle className="w-4 h-4" />
+              Redefinir Posição do Mascote
+            </Button>
+          </div>
+
           {/* Maintenance Mode - Admin only */}
           <div className="bg-card rounded-xl border border-amber-500/30 p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
