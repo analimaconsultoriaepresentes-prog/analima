@@ -366,10 +366,40 @@ function ProductFormContent({
     setDesiredMargin(value);
   };
 
+  // Handle product type change - normalize data based on new type
+  const handleProductTypeChange = (newType: ProductType) => {
+    if (newType === "packaging" || newType === "extra") {
+      // Changing to internal type: clear sale prices and prove qty
+      form.setValue("salePrice", 0, { shouldValidate: false });
+      form.setValue("pricePix", 0, { shouldValidate: false });
+      form.setValue("priceCard", 0, { shouldValidate: false });
+      form.setValue("proveQty", 0, { shouldValidate: false });
+      form.setValue("origin", "purchased", { shouldValidate: false });
+      setDesiredMargin("");
+    } else if (newType === "item") {
+      // Changing to sellable item: need to fill in prices
+      // Just trigger validation - user needs to fill prices
+      form.trigger(["pricePix", "priceCard"]);
+    }
+  };
+
   function handleSubmit(data: ProductFormData) {
-    // Include imageUrl in the data
-    const dataWithImage = { ...data, imageUrl: imageUrl || undefined };
-    onSubmit(dataWithImage, isBasket ? basketItems : undefined, isBasket ? basketExtras : undefined);
+    // Normalize data based on product type before submitting
+    let normalizedData = { ...data, imageUrl: imageUrl || undefined };
+    
+    // If packaging/extra, ensure sale fields are cleared
+    if (data.productType === "packaging" || data.productType === "extra") {
+      normalizedData = {
+        ...normalizedData,
+        salePrice: 0,
+        pricePix: 0,
+        priceCard: 0,
+        proveQty: 0,
+        origin: "purchased" as const,
+      };
+    }
+    
+    onSubmit(normalizedData, isBasket ? basketItems : undefined, isBasket ? basketExtras : undefined);
     form.reset();
     setImageUrl(null);
   }
@@ -465,9 +495,12 @@ function ProductFormContent({
                   Tipo do Produto
                 </FormLabel>
                 <Select 
-                  onValueChange={field.onChange} 
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    // Trigger normalization when type changes
+                    handleProductTypeChange(value as ProductType);
+                  }} 
                   value={field.value}
-                  disabled={!!editProduct}
                 >
                   <FormControl>
                     <SelectTrigger className="input-styled min-h-[44px]">
@@ -500,6 +533,16 @@ function ProductFormContent({
                   {productType === "extra" && "Extras são itens opcionais que podem ser adicionados às cestas."}
                   {productType === "item" && "Itens padrão que podem ser vendidos ou usados em cestas."}
                 </FormDescription>
+                {editProduct && productType !== editProduct.productType && (
+                  <div className="flex items-start gap-2 p-2 rounded-md bg-warning/10 border border-warning/30 text-xs text-warning-foreground mt-2">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>
+                      {(productType === "packaging" || productType === "extra") 
+                        ? "Ao salvar, preços de venda serão zerados (embalagens/extras são apenas para custo)."
+                        : "Ao salvar como item vendável, preencha os preços de venda obrigatórios."}
+                    </span>
+                  </div>
+                )}
                 <FormMessage />
               </FormItem>
             )}
