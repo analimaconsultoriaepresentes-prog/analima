@@ -210,9 +210,9 @@ function drawLabel(
   const rightSpace = isPromo ? 16 : (volume ? 12 : 0);
   const availableWidth = LABEL_WIDTH - (textPadding * 2) - rightSpace;
   
-  // Split text into max 2 lines
+  // Split text into max 3 lines
   const fontSize = 7.5;
-  const lines = splitTextIntoLines(doc, productName, availableWidth, fontSize, 2);
+  const lines = splitTextIntoLines(doc, productName, availableWidth, fontSize, 3);
   
   // Calculate vertical positioning to center text in the colored band
   const lineHeight = fontSize * 0.4; // Approximate line height in mm
