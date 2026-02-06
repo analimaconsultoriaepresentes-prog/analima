@@ -79,6 +79,23 @@ function formatProductName(name: string): string {
   return cleanName.toUpperCase();
 }
 
+// Helper to truncate a single line with ellipsis if too long
+function truncateWithEllipsis(
+  doc: jsPDF,
+  text: string,
+  maxWidth: number
+): string {
+  if (doc.getTextWidth(text) <= maxWidth) {
+    return text;
+  }
+  
+  let truncated = text;
+  while (truncated.length > 0 && doc.getTextWidth(truncated + "...") > maxWidth) {
+    truncated = truncated.slice(0, -1);
+  }
+  return truncated + "...";
+}
+
 // Helper to split text into lines that fit within a given width
 function splitTextIntoLines(
   doc: jsPDF,
@@ -91,8 +108,10 @@ function splitTextIntoLines(
   const words = text.split(" ");
   const lines: string[] = [];
   let currentLine = "";
+  let remainingWords: string[] = [];
 
-  for (const word of words) {
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
     const testLine = currentLine ? `${currentLine} ${word}` : word;
     const testWidth = doc.getTextWidth(testLine);
 
@@ -101,7 +120,10 @@ function splitTextIntoLines(
     } else {
       if (currentLine) {
         lines.push(currentLine);
-        if (lines.length >= maxLines) break;
+        if (lines.length >= maxLines) {
+          remainingWords = words.slice(i);
+          break;
+        }
       }
       currentLine = word;
     }
@@ -109,6 +131,18 @@ function splitTextIntoLines(
 
   if (currentLine && lines.length < maxLines) {
     lines.push(currentLine);
+  }
+
+  // If we hit max lines and there's more content, truncate the last line
+  if (lines.length === maxLines && remainingWords.length > 0) {
+    const lastLineWithRemaining = lines[maxLines - 1] + " " + remainingWords.join(" ");
+    lines[maxLines - 1] = truncateWithEllipsis(doc, lastLineWithRemaining, maxWidth);
+  } else if (lines.length > 0) {
+    // Also check if the last line itself is too long (single long word)
+    const lastIdx = lines.length - 1;
+    if (doc.getTextWidth(lines[lastIdx]) > maxWidth) {
+      lines[lastIdx] = truncateWithEllipsis(doc, lines[lastIdx], maxWidth);
+    }
   }
 
   return lines;
