@@ -38,7 +38,7 @@ function adjustColor(hex: string, amount: number): string {
 export default function Configuracoes() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo, updateMaintenanceMode, updateShowPhotosInSales, updateSoundEnabled, updateLabelColor } = useStore();
+  const { store, loading, updateStore, updateAlertSettings, updatePackagingCosts, uploadLogo, updateMaintenanceMode, updateShowPhotosInSales, updateSoundEnabled, updateLabelColor, updateBirthdayMessage } = useStore();
   const { isHidden, showGuide, allCompleted } = useGettingStarted();
   const { goalSettings, updateGoals, loading: loadingGoals } = useGoals();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +58,7 @@ export default function Configuracoes() {
   const [saving, setSaving] = useState(false);
   const [savingAlerts, setSavingAlerts] = useState(false);
   const [savingPackaging, setSavingPackaging] = useState(false);
+  const [savingBirthdayMessage, setSavingBirthdayMessage] = useState(false);
   const [savingGoals, setSavingGoals] = useState(false);
 
   // Goal settings state
@@ -175,6 +176,19 @@ export default function Configuracoes() {
     if (!success) {
       if (store) {
         setPackagingCosts(store.packagingCosts);
+      }
+    }
+  };
+
+  const handleSaveBirthdayMessage = async () => {
+    setSavingBirthdayMessage(true);
+    const success = await updateBirthdayMessage(birthdayMessage);
+    setSavingBirthdayMessage(false);
+    
+    if (!success) {
+      // If save failed, reload from store to reset local state
+      if (store) {
+        setBirthdayMessage(store.birthdayMessage);
       }
     }
   };
@@ -692,6 +706,18 @@ export default function Configuracoes() {
                   Use <code className="bg-muted px-1 py-0.5 rounded text-xs">{"{NOME}"}</code> para incluir o primeiro nome do cliente automaticamente.
                 </p>
               </div>
+              <Button 
+                className="btn-primary gap-2" 
+                onClick={handleSaveBirthdayMessage}
+                disabled={savingBirthdayMessage}
+              >
+                {savingBirthdayMessage ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                Salvar Mensagem
+              </Button>
             </div>
           </div>
 
