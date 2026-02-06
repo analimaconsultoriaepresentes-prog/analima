@@ -372,6 +372,34 @@ export function useStore() {
     }
   };
 
+  const updateBirthdayMessage = async (message: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from("stores")
+        .update({ birthday_message: message })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setStore(prev => prev ? { ...prev, birthdayMessage: message } : null);
+      toast({
+        title: "Mensagem de aniversário salva",
+        description: "A nova mensagem será usada nos próximos envios.",
+      });
+      return true;
+    } catch (error) {
+      console.error("Error updating birthday message:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     store,
     loading,
@@ -383,6 +411,7 @@ export function useStore() {
     updateShowPhotosInSales,
     updateSoundEnabled,
     updateLabelColor,
+    updateBirthdayMessage,
     refetch: fetchStore,
   };
 }
