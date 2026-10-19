@@ -1,3 +1,4 @@
+import { getCartItemPrice, getCartSubtotal, hasValidCartPrices, roundMoney } from "@/lib/salePricing";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -38,7 +39,18 @@ export interface Sale {
   costTotal?: number;
 }
 
+export interface SalePricingData {
+  subtotal?: number;
+  discountType?: string | null;
+  discountValue?: number;
+  discountReason?: string;
+  amountReceived?: number;
+  changeAmount?: number;
+  estimatedProfit?: number;
+}
+
 export interface CartItem {
+  unitPrice?: number | null;
   product: Product;
   quantity: number;
 }
@@ -138,9 +150,14 @@ export function useSales() {
     customerId?: string,
     channel: SaleChannel = "store",
     recordType: RecordType = "sale",
-    donationData?: DonationData
+    donationData?: DonationData,
+    pricingData?: SalePricingData
   ): Promise<boolean> => {
     if (!user) return false;
+    if (!hasValidCartPrices(cartItems)) {
+      toast({ title: "Preço inválido", description: "Confira o preço unitário dos produtos.", variant: "destructive" });
+      return false;
+    }
 
     // Check basket stock before proceeding
     for (const item of cartItems) {
@@ -184,6 +201,13 @@ export function useSales() {
           recipient: donationData?.recipient || null,
           reference_value: donationData?.referenceValue || null,
           cost_total: costTotal,
+          subtotal: getCartSubtotal(cartItems, paymentMethod),
+          discount_type: recordType === "sale" ? pricingData?.discountType ?? null : null,
+          discount_value: recordType === "sale" ? pricingData?.discountValue ?? 0 : 0,
+          discount_reason: recordType === "sale" ? pricingData?.discountReason || null : null,
+          amount_received: recordType === "sale" ? pricingData?.amountReceived ?? null : null,
+          change_amount: recordType === "sale" ? pricingData?.changeAmount ?? null : null,
+          estimated_profit: recordType === "sale" ? pricingData?.estimatedProfit ?? null : -costTotal,
         })
         .select()
         .single();
@@ -196,8 +220,8 @@ export function useSales() {
         product_id: item.product.id,
         product_name: item.product.name,
         quantity: item.quantity,
-        unit_price: item.product.salePrice,
-        subtotal: item.product.salePrice * item.quantity,
+        unit_price: getCartItemPrice(item, paymentMethod),
+        subtotal: roundMoney(getCartItemPrice(item, paymentMethod) * item.quantity),
       }));
 
       const { data: insertedItems, error: itemsError } = await supabase

@@ -131,7 +131,7 @@ export default function Vendas() {
   }, [showBubble, triggerConfetti, playSaleSuccess, playCelebration]);
 
   const handleNewSale = async (
-    cartItems: { product: typeof products[0]; quantity: number }[],
+    cartItems: { product: typeof products[0]; quantity: number; unitPrice?: number | null }[],
     paymentMethod: string,
     total: number,
     customerId?: string,
@@ -140,7 +140,7 @@ export default function Vendas() {
     recordType?: RecordType,
     donationData?: DonationData
   ) => {
-    await addSale(
+    return await addSale(
       cartItems, 
       paymentMethod, 
       total, 
@@ -149,7 +149,8 @@ export default function Vendas() {
       customerId, 
       channel || "store",
       recordType || "sale",
-      donationData
+      donationData,
+      saleData
     );
   };
 
@@ -456,6 +457,9 @@ export default function Vendas() {
                                   <Gift className="w-3.5 h-3.5 text-primary mx-0.5 flex-shrink-0" />
                                 )}
                                 ({item.quantity}x)
+                                <span className="ml-1 text-xs text-muted-foreground">
+                                  R$ {item.unitPrice.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} cada · R$ {item.subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                </span>
                                 {item.cycle && (
                                   <span className="ml-1 text-xs text-muted-foreground">
                                     C{item.cycle}

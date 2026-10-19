@@ -1,3 +1,4 @@
+import { getCartSubtotal, hasValidCartPrices, snapshotCartItems, roundMoney } from "@/lib/salePricing";
 import { useState, useMemo } from "react";
 import { ShoppingCart, User, UserPlus, Phone, Loader2, Store, Globe, X, Search, Heart } from "lucide-react";
 import { ProductGrid } from "./ProductGrid";
@@ -65,7 +66,7 @@ interface POSViewProps {
     saleData?: Partial<SaleFormData>,
     recordType?: RecordType,
     donationData?: DonationData
-  ) => void;
+  ) => Promise<boolean>;
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
   packagingCosts: PackagingCosts;
   showPhotos?: boolean;
@@ -106,30 +107,25 @@ export function POSView({
       (c.phone && c.phone.includes(customerSearch))
   );
 
-  // Get the correct price based on payment method
-  const getProductPrice = (product: Product) => {
-    if (paymentMethod === "credito" || paymentMethod === "debito") {
-      return product.priceCard || product.salePrice;
-    }
-    return product.pricePix || product.salePrice;
-  };
+  const subtotal = useMemo(() => getCartSubtotal(cart, paymentMethod), [cart, paymentMethod]);
+  const validPrices = hasValidCartPrices(cart);
+  const [saving, setSaving] = useState(false);
 
-  // Calculate subtotal
-  const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + getProductPrice(item.product) * item.quantity, 0);
-  }, [cart, paymentMethod]);
+  const updateUnitPrice = (productId: string, unitPrice: number | null) => {
+    setCart((items) => items.map((item) => item.product.id === productId ? { ...item, unitPrice } : item));
+  };
 
   // Calculate discount amount
   const discountAmount = useMemo(() => {
     if (discount.value <= 0) return 0;
     if (discount.type === "percentage") {
-      return subtotal * (discount.value / 100);
+      return roundMoney(subtotal * (discount.value / 100));
     }
     return Math.min(discount.value, subtotal);
   }, [discount, subtotal]);
 
   // Calculate total
-  const total = Math.max(0, subtotal - discountAmount);
+  const total = roundMoney(Math.max(0, subtotal - discountAmount));
 
   // Calculate profit
   const profitData = useMemo(() => {
@@ -236,7 +232,8 @@ export function POSView({
     setDonationReferenceValue("");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (saving || !validPrices) return;
     if (cart.length === 0) {
       playErrorToc();
       toast({
@@ -304,8 +301,11 @@ export function POSView({
       referenceValue: donationReferenceValue ? parseFloat(donationReferenceValue) : undefined,
     } : undefined;
 
-    onSubmit(
-      cart, 
+    setSaving(true);
+    let success = false;
+    try {
+      success = await onSubmit(
+      snapshotCartItems(cart, paymentMethod), 
       mappedPaymentMethod, 
       total, 
       selectedCustomerId || undefined, 
@@ -313,7 +313,11 @@ export function POSView({
       saleData,
       recordType,
       donationData
-    );
+      );
+    } finally {
+      setSaving(false);
+    }
+    if (!success) return;
     
     // Play success sound
     playSaleSuccess();
@@ -436,6 +440,7 @@ export function POSView({
               paymentMethod={paymentMethod}
               onUpdateQuantity={updateQuantity}
               onRemoveItem={removeFromCart}
+                onUpdateUnitPrice={updateUnitPrice}
               showPhotos={showPhotos}
             />
           </div>
@@ -496,7 +501,7 @@ export function POSView({
               : "btn-primary"
           )}
           onClick={handleSubmit}
-          disabled={cart.length === 0 || (recordType === "sale" && !paymentMethod)}
+          disabled={saving || !validPrices || cart.length === 0 || (recordType === "sale" && !paymentMethod)}
         >
           {recordType === "donation" ? (
             <>
@@ -622,6 +627,7 @@ export function POSView({
                 paymentMethod={paymentMethod}
                 onUpdateQuantity={updateQuantity}
                 onRemoveItem={removeFromCart}
+                onUpdateUnitPrice={updateUnitPrice}
                 showPhotos={showPhotos}
               />
             </div>
@@ -685,7 +691,7 @@ export function POSView({
                 : "btn-primary"
             )}
             onClick={handleSubmit}
-            disabled={cart.length === 0 || (recordType === "sale" && !paymentMethod)}
+            disabled={saving || !validPrices || cart.length === 0 || (recordType === "sale" && !paymentMethod)}
           >
             {recordType === "donation" ? (
               <>
@@ -708,21 +714,21 @@ export function POSView({
 // Customer Selection Component
 interface CustomerSelectionProps {
   selectedCustomer: Customer | undefined;
-  onClear: () => void;
+  onClear: () => Promise<boolean>;
   showNewCustomerForm: boolean;
-  onToggleForm: (show: boolean) => void;
+  onToggleForm: (show: boolean) => Promise<boolean>;
   customerSearch: string;
-  onSearchChange: (value: string) => void;
+  onSearchChange: (value: string) => Promise<boolean>;
   filteredCustomers: Customer[];
-  onSelectCustomer: (id: string) => void;
+  onSelectCustomer: (id: string) => Promise<boolean>;
   newCustomerName: string;
-  onNameChange: (value: string) => void;
+  onNameChange: (value: string) => Promise<boolean>;
   newCustomerPhone: string;
-  onPhoneChange: (value: string) => void;
+  onPhoneChange: (value: string) => Promise<boolean>;
   newCustomerBirthday: string;
-  onBirthdayChange: (value: string) => void;
+  onBirthdayChange: (value: string) => Promise<boolean>;
   savingCustomer: boolean;
-  onSaveCustomer: () => void;
+  onSaveCustomer: () => Promise<boolean>;
   compact?: boolean;
 }
 

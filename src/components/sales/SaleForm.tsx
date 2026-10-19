@@ -1,3 +1,4 @@
+import { getCartSubtotal, hasValidCartPrices, snapshotCartItems, roundMoney } from "@/lib/salePricing";
 import { useState, useEffect, useMemo } from "react";
 import { ShoppingCart, User, UserPlus, Phone, Loader2, Store, Globe, X } from "lucide-react";
 import { ProductGrid } from "./ProductGrid";
@@ -66,7 +67,7 @@ export interface SaleFormData {
 
 interface SaleFormProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean) => Promise<boolean>;
   products: Product[];
   customers: Customer[];
   onSubmit: (
@@ -76,7 +77,7 @@ interface SaleFormProps {
     customerId?: string, 
     channel?: SaleChannel,
     saleData?: Partial<SaleFormData>
-  ) => void;
+  ) => Promise<boolean>;
   onAddCustomer: (data: CustomerFormData) => Promise<string | null>;
   defaultChannel?: SaleChannel;
   packagingCosts: PackagingCosts;
@@ -117,30 +118,25 @@ function SaleFormContent({
       (c.phone && c.phone.includes(customerSearch))
   );
 
-  // Get the correct price based on payment method
-  const getProductPrice = (product: Product) => {
-    if (paymentMethod === "credito" || paymentMethod === "debito") {
-      return product.priceCard || product.salePrice;
-    }
-    return product.pricePix || product.salePrice;
-  };
+  const subtotal = useMemo(() => getCartSubtotal(cart, paymentMethod), [cart, paymentMethod]);
+  const validPrices = hasValidCartPrices(cart);
+  const [saving, setSaving] = useState(false);
 
-  // Calculate subtotal
-  const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + getProductPrice(item.product) * item.quantity, 0);
-  }, [cart, paymentMethod]);
+  const updateUnitPrice = (productId: string, unitPrice: number | null) => {
+    setCart((items) => items.map((item) => item.product.id === productId ? { ...item, unitPrice } : item));
+  };
 
   // Calculate discount amount
   const discountAmount = useMemo(() => {
     if (discount.value <= 0) return 0;
     if (discount.type === "percentage") {
-      return subtotal * (discount.value / 100);
+      return roundMoney(subtotal * (discount.value / 100));
     }
     return Math.min(discount.value, subtotal);
   }, [discount, subtotal]);
 
   // Calculate total
-  const total = Math.max(0, subtotal - discountAmount);
+  const total = roundMoney(Math.max(0, subtotal - discountAmount));
 
   // Calculate profit
   const profitData = useMemo(() => {
@@ -230,7 +226,8 @@ function SaleFormContent({
     setCart(cart.filter((item) => item.product.id !== productId));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (saving || !validPrices) return;
     if (cart.length === 0) {
       toast({
         title: "Carrinho vazio",
@@ -275,7 +272,14 @@ function SaleFormContent({
       mappedPaymentMethod = "cartao";
     }
 
-    onSubmit(cart, mappedPaymentMethod, total, selectedCustomerId || undefined, channel, saleData);
+    setSaving(true);
+    let success = false;
+    try {
+      success = await onSubmit(snapshotCartItems(cart, paymentMethod), mappedPaymentMethod, total, selectedCustomerId || undefined, channel, saleData);
+    } finally {
+      setSaving(false);
+    }
+    if (!success) return;
     
     // Reset form
     setCart([]);
@@ -496,6 +500,7 @@ function SaleFormContent({
               paymentMethod={paymentMethod}
               onUpdateQuantity={updateQuantity}
               onRemoveItem={removeFromCart}
+                onUpdateUnitPrice={updateUnitPrice}
               showPhotos={showPhotos}
             />
           </div>
@@ -541,7 +546,7 @@ function SaleFormContent({
             type="button"
             className="flex-1 btn-primary"
             onClick={handleSubmit}
-            disabled={cart.length === 0 || !paymentMethod}
+            disabled={saving || !validPrices || cart.length === 0 || !paymentMethod}
           >
             Registrar Venda
           </Button>
@@ -709,6 +714,7 @@ function SaleFormContent({
                 paymentMethod={paymentMethod}
                 onUpdateQuantity={updateQuantity}
                 onRemoveItem={removeFromCart}
+                onUpdateUnitPrice={updateUnitPrice}
                 showPhotos={showPhotos}
               />
             </div>
@@ -755,7 +761,7 @@ function SaleFormContent({
             type="button"
             className="flex-1 btn-primary"
             onClick={handleSubmit}
-            disabled={cart.length === 0 || !paymentMethod}
+            disabled={saving || !validPrices || cart.length === 0 || !paymentMethod}
           >
             Registrar Venda
           </Button>

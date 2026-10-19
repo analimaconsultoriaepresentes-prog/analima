@@ -30,7 +30,7 @@ export function HelpMascot() {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [hasAnimated, setHasAnimated] = useState(false);
   const [showWave, setShowWave] = useState(false);
-  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Draggable functionality
   const {
