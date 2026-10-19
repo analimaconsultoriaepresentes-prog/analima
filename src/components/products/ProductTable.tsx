@@ -143,7 +143,7 @@ export function ProductTable({
                 {product.cycle || "—"}
               </TableCell>
               <TableCell className="py-1.5 px-2 text-center text-xs text-muted-foreground">
-                {lastMovements?.get(product.id) ? formatDateInBrazil(lastMovements.get(product.id)!) : "—"}
+                {lastMovements?.get(product.id) ? formatDateInBrazil(new Date(lastMovements.get(product.id)!)) : "—"}
               </TableCell>
               <TableCell className="py-1.5 px-2 text-center">
                 {product.isActive ? (

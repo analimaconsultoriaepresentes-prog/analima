@@ -17,6 +17,11 @@ interface ProductHistoryModalProps {
   onClose: () => void;
 }
 
+const formatMovementDate = (iso: string) => {
+  const { date, time } = formatDateTimeInBrazil(new Date(iso));
+  return `${date} ${time}`;
+};
+
 export function ProductHistoryModal({ product, onClose }: ProductHistoryModalProps) {
   const { movements, loading } = useStockMovements(product?.id);
 
@@ -78,7 +83,7 @@ export function ProductHistoryModal({ product, onClose }: ProductHistoryModalPro
                   <p className="text-xs text-muted-foreground">{movement.reason}</p>
                 )}
                 <p className="text-[11px] text-muted-foreground/70">
-                  {formatDateTimeInBrazil(movement.createdAt)}
+                  {formatMovementDate(movement.createdAt)}
                 </p>
               </div>
             ))}
