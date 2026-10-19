@@ -1,4 +1,4 @@
-import { Gift, AlertTriangle, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw, Pencil } from "lucide-react";
+import { Gift, AlertTriangle, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw, Pencil, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { type Product, GIFT_TYPE_LABELS } from "@/hooks/useProducts";
 import { ProductThumbnail } from "./ProductThumbnail";
+import { formatDateInBrazil } from "@/lib/timezone";
 
 interface ProductTableProps {
   products: Product[];
@@ -26,6 +27,8 @@ interface ProductTableProps {
   onArchive: (product: Product) => void;
   onDelete: (product: Product) => void;
   onReactivate: (product: Product) => void;
+  onShowHistory: (product: Product) => void;
+  lastMovements?: Map<string, string>;
 }
 
 const categoryColors: Record<string, string> = {
@@ -49,13 +52,16 @@ export function ProductTable({
   onArchive,
   onDelete,
   onReactivate,
+  onShowHistory,
+  lastMovements,
 }: ProductTableProps) {
   return (
     <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
       <Table className="table-fixed w-full">
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
-            <TableHead className="w-[180px] py-2 px-2 text-xs">Produto</TableHead>
+            <TableHead className="w-[160px] py-2 px-2 text-xs">Produto</TableHead>
+            <TableHead className="w-[65px] py-2 px-2 text-xs">Cód.</TableHead>
             <TableHead className="w-[80px] py-2 px-2 text-xs">Marca</TableHead>
             <TableHead className="w-[90px] py-2 px-2 text-xs">Categoria</TableHead>
             <TableHead className="w-[75px] py-2 px-2 text-xs text-right">Custo</TableHead>
@@ -63,6 +69,7 @@ export function ProductTable({
             <TableHead className="w-[75px] py-2 px-2 text-xs text-right">Cartão</TableHead>
             <TableHead className="w-[55px] py-2 px-2 text-xs text-center">Estoque</TableHead>
             <TableHead className="w-[50px] py-2 px-2 text-xs text-center">Ciclo</TableHead>
+            <TableHead className="w-[80px] py-2 px-2 text-xs text-center">Últ. mov.</TableHead>
             <TableHead className="w-[70px] py-2 px-2 text-xs text-center">Status</TableHead>
             <TableHead className="w-[50px] py-2 px-2 text-xs text-center">Ações</TableHead>
           </TableRow>
@@ -103,6 +110,9 @@ export function ProductTable({
                 </div>
               </TableCell>
               <TableCell className="py-1.5 px-2 text-xs text-muted-foreground truncate">
+                {product.code || "—"}
+              </TableCell>
+              <TableCell className="py-1.5 px-2 text-xs text-muted-foreground truncate">
                 {product.brand || "—"}
               </TableCell>
               <TableCell className="py-1.5 px-2">
@@ -131,6 +141,9 @@ export function ProductTable({
               </TableCell>
               <TableCell className="py-1.5 px-2 text-center text-xs text-muted-foreground">
                 {product.cycle || "—"}
+              </TableCell>
+              <TableCell className="py-1.5 px-2 text-center text-xs text-muted-foreground">
+                {lastMovements?.get(product.id) ? formatDateInBrazil(new Date(lastMovements.get(product.id)!)) : "—"}
               </TableCell>
               <TableCell className="py-1.5 px-2 text-center">
                 {product.isActive ? (
@@ -164,6 +177,10 @@ export function ProductTable({
                           Editar
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem onClick={() => onShowHistory(product)}>
+                        <History className="w-4 h-4 mr-2" />
+                        Histórico de estoque
+                      </DropdownMenuItem>
                       {product.isActive ? (
                         <>
                           <DropdownMenuItem

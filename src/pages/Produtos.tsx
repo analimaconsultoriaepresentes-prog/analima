@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Plus, Search, Filter, Package, Loader2, Calculator } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Plus, Search, Filter, Package, Loader2, Calculator, ClipboardCheck, GitCompareArrows } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ProductForm, type BasketItemInput, type BasketExtraInput } from "@/components/products/ProductForm";
@@ -11,8 +11,12 @@ import { ProductMobileList } from "@/components/products/ProductMobileList";
 import { ProductCardGrid } from "@/components/products/ProductCardGrid";
 import { ViewModeToggle } from "@/components/products/ViewModeToggle";
 import { KitCalculator } from "@/components/products/KitCalculator";
+import { ProductHistoryModal } from "@/components/products/ProductHistoryModal";
+import { DuplicatesReviewModal } from "@/components/products/DuplicatesReviewModal";
 import { useProducts, type Product, type ProductFormData } from "@/hooks/useProducts";
 import { useBaskets } from "@/hooks/useBaskets";
+import { useLastMovementDates } from "@/hooks/useStockMovements";
+import { findDuplicateGroups } from "@/lib/duplicates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useViewMode } from "@/hooks/useViewMode";
 import { useSound } from "@/hooks/useSound";
@@ -37,6 +41,8 @@ export default function Produtos() {
   const [deleteProductState, setDeleteProductState] = useState<Product | null>(null);
   const [archiveConfirmState, setArchiveConfirmState] = useState<Product | null>(null);
   const [stockEntryProduct, setStockEntryProduct] = useState<Product | null>(null);
+  const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
+  const [isDuplicatesOpen, setIsDuplicatesOpen] = useState(false);
   const [editBasketItems, setEditBasketItems] = useState<BasketItemInput[]>([]);
   const [editBasketExtras, setEditBasketExtras] = useState<BasketExtraInput[]>([]);
   const [openAsGift, setOpenAsGift] = useState(false);
@@ -52,12 +58,24 @@ export default function Produtos() {
     statusFilter: "active",
     sortField: "name",
     sortDirection: "asc",
+    extraFilter: "all",
   });
 
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useViewMode("list");
   const { products, loading, addProduct, updateProduct, deleteProduct, archiveProduct, reactivateProduct, checkProductDependencies, restoreStock } = useProducts();
   const { saveBasketItems, saveBasketExtras, fetchBasketItems, fetchBasketExtras } = useBaskets();
+  const { lastMovement, lastSale } = useLastMovementDates();
+
+  // IDs dos produtos que têm possíveis duplicados (para o filtro "Possíveis duplicados")
+  const duplicateIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const group of findDuplicateGroups(products.filter((p) => p.isActive))) {
+      group.forEach((p) => ids.add(p.id));
+    }
+    return ids;
+  }, [products]);
 
   // Handle openGift query param from Getting Started guide
   useEffect(() => {
@@ -84,10 +102,13 @@ export default function Produtos() {
       if (filters.statusFilter === "active" && !product.isActive) return false;
       if (filters.statusFilter === "archived" && product.isActive) return false;
 
-      // Text search
+      // Text search (nome, marca, código ou código de barras)
+      const term = searchTerm.toLowerCase();
       const matchesSearch =
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.brand.toLowerCase().includes(searchTerm.toLowerCase());
+        product.name.toLowerCase().includes(term) ||
+        product.brand.toLowerCase().includes(term) ||
+        (product.code || "").toLowerCase().includes(term) ||
+        (product.barcode || "").toLowerCase().includes(term);
       if (!matchesSearch) return false;
 
       // Category filter
@@ -124,6 +145,19 @@ export default function Produtos() {
         if (!isNaN(cycleNum) && product.cycle !== cycleNum) return false;
       }
 
+      // Situação: duplicados, parados ou vendidos recentemente
+      if (filters.extraFilter === "duplicates" && !duplicateIds.has(product.id)) return false;
+      if (filters.extraFilter === "noMovement") {
+        const last = lastMovement.get(product.id);
+        const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        if (last && new Date(last).getTime() > thirtyDaysAgo) return false;
+      }
+      if (filters.extraFilter === "soldRecently") {
+        const lastSold = lastSale.get(product.id);
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        if (!lastSold || new Date(lastSold).getTime() < sevenDaysAgo) return false;
+      }
+
       return true;
     });
 
@@ -134,6 +168,9 @@ export default function Produtos() {
         case "name":
           comparison = a.name.localeCompare(b.name);
           break;
+        case "brand":
+          comparison = (a.brand || "").localeCompare(b.brand || "");
+          break;
         case "stock":
           comparison = a.stock - b.stock;
           break;
@@ -143,12 +180,18 @@ export default function Produtos() {
         case "cycle":
           comparison = (a.cycle || 0) - (b.cycle || 0);
           break;
+        case "lastMovement": {
+          const dateA = lastMovement.get(a.id) || "";
+          const dateB = lastMovement.get(b.id) || "";
+          comparison = dateA.localeCompare(dateB);
+          break;
+        }
       }
       return filters.sortDirection === "asc" ? comparison : -comparison;
     });
 
     return result;
-  }, [products, searchTerm, filters]);
+  }, [products, searchTerm, filters, duplicateIds, lastMovement, lastSale]);
 
   // Inventory summary for header - uses available stock (total - prove)
   const inventorySummary = useMemo(() => {
@@ -177,6 +220,7 @@ export default function Produtos() {
     if (filters.stockFilter !== "all") count++;
     if (filters.cycle !== "") count++;
     if (filters.statusFilter !== "active") count++;
+    if (filters.extraFilter !== "all") count++;
     return count;
   }, [filters]);
 
@@ -344,6 +388,16 @@ export default function Produtos() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate("/conferir-estoque")}>
+            <ClipboardCheck className="w-4 h-4" />
+            <span className="hidden sm:inline">Conferir estoque</span>
+            <span className="sm:hidden">Conferir</span>
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => setIsDuplicatesOpen(true)}>
+            <GitCompareArrows className="w-4 h-4" />
+            <span className="hidden sm:inline">Revisar duplicados</span>
+            <span className="sm:hidden">Duplicados</span>
+          </Button>
           <Button variant="outline" className="gap-2" onClick={() => setIsKitCalculatorOpen(true)}>
             <Calculator className="w-4 h-4" />
             <span className="hidden sm:inline">Calculadora de Kit</span>
@@ -362,7 +416,7 @@ export default function Produtos() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome ou marca..."
+              placeholder="Buscar por nome, marca ou código..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 input-styled"
@@ -433,6 +487,7 @@ export default function Produtos() {
                 onArchive={(product) => handleProductAction(product, "archive")}
                 onDelete={(product) => handleProductAction(product, "delete")}
                 onReactivate={handleReactivateProduct}
+                onShowHistory={setHistoryProduct}
               />
             ) : (
               <ProductCardGrid
@@ -442,6 +497,7 @@ export default function Produtos() {
                 onArchive={(product) => handleProductAction(product, "archive")}
                 onDelete={(product) => handleProductAction(product, "delete")}
                 onReactivate={handleReactivateProduct}
+                onShowHistory={setHistoryProduct}
               />
             )
           ) : viewMode === "list" ? (
@@ -452,6 +508,8 @@ export default function Produtos() {
               onArchive={(product) => handleProductAction(product, "archive")}
               onDelete={(product) => handleProductAction(product, "delete")}
               onReactivate={handleReactivateProduct}
+              onShowHistory={setHistoryProduct}
+              lastMovements={lastMovement}
             />
           ) : (
             <ProductCardGrid
@@ -461,6 +519,7 @@ export default function Produtos() {
               onArchive={(product) => handleProductAction(product, "archive")}
               onDelete={(product) => handleProductAction(product, "delete")}
               onReactivate={handleReactivateProduct}
+              onShowHistory={setHistoryProduct}
             />
           )}
         </>
@@ -476,6 +535,25 @@ export default function Produtos() {
         initialBasketItems={editBasketItems}
         initialBasketExtras={editBasketExtras}
         defaultAsGift={openAsGift}
+        allProducts={products}
+        onEditExisting={(product) => openEditModal(product)}
+      />
+
+      {/* Histórico de estoque do produto */}
+      <ProductHistoryModal
+        product={historyProduct}
+        onClose={() => setHistoryProduct(null)}
+      />
+
+      {/* Revisão de possíveis duplicados */}
+      <DuplicatesReviewModal
+        open={isDuplicatesOpen}
+        onOpenChange={setIsDuplicatesOpen}
+        products={products}
+        onEditProduct={(product) => {
+          setIsDuplicatesOpen(false);
+          openEditModal(product);
+        }}
       />
 
       {/* Delete Confirmation Dialog */}
@@ -531,7 +609,10 @@ export default function Produtos() {
         currentCycle={stockEntryProduct?.cycle ?? null}
         onConfirm={async (quantity, cycle) => {
           if (!stockEntryProduct) return false;
-          return await restoreStock(stockEntryProduct.id, quantity, cycle);
+          return await restoreStock(stockEntryProduct.id, quantity, cycle, {
+            type: "entrada",
+            reason: "Entrada de mercadoria",
+          });
         }}
       />
 

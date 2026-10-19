@@ -1,4 +1,4 @@
-import { Gift, ShoppingBasket, AlertTriangle, Pencil, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw } from "lucide-react";
+import { Gift, ShoppingBasket, AlertTriangle, Pencil, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,6 +18,7 @@ interface ProductMobileListProps {
   onArchive: (product: Product) => void;
   onDelete: (product: Product) => void;
   onReactivate: (product: Product) => void;
+  onShowHistory: (product: Product) => void;
 }
 
 const categoryColors: Record<string, string> = {
@@ -34,6 +35,7 @@ export function ProductMobileList({
   onArchive,
   onDelete,
   onReactivate,
+  onShowHistory,
 }: ProductMobileListProps) {
   return (
     <div className="space-y-2">
@@ -105,6 +107,10 @@ export function ProductMobileList({
                       Editar
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem onClick={() => onShowHistory(product)}>
+                    <History className="w-4 h-4 mr-2" />
+                    Histórico de estoque
+                  </DropdownMenuItem>
                   {product.isActive ? (
                     <>
                       <DropdownMenuItem

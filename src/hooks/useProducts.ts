@@ -2,6 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
+import type { MovementType } from "@/lib/stockMovements";
+
+// Metadados da movimentação de estoque associada a uma operação
+export interface StockMovementMeta {
+  type: MovementType;
+  reason?: string;
+  saleId?: string;
+}
 
 export type ProductType = "item" | "packaging" | "extra" | "basket";
 
@@ -43,6 +51,8 @@ export interface Product {
   giftType?: GiftType;
   packagingDiscount: number;
   imageUrl?: string;
+  code?: string;
+  barcode?: string;
 }
 
 // Helper to calculate available stock (total - prove)
@@ -71,6 +81,7 @@ export interface ProductFormData {
   giftType?: GiftType;
   packagingDiscount: number;
   imageUrl?: string;
+  barcode?: string;
 }
 
 // Mapper function to convert DB data to Product interface
@@ -98,11 +109,42 @@ const mapDbProductToProduct = (p: any): Product => ({
   giftType: (p.gift_type as GiftType) || undefined,
   packagingDiscount: Number(p.packaging_discount) || 0,
   imageUrl: p.image_url || undefined,
+  code: p.code || undefined,
+  barcode: p.barcode || undefined,
 });
 
 export function useProducts() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Registra uma movimentação no histórico de estoque.
+  // Nunca bloqueia a operação principal: se falhar, apenas registra no console.
+  const logMovement = async (
+    productId: string,
+    type: MovementType,
+    quantity: number,
+    previousStock: number,
+    newStock: number,
+    reason?: string,
+    saleId?: string
+  ) => {
+    if (!user) return;
+    const { error } = await supabase.from("stock_movements").insert({
+      user_id: user.id,
+      product_id: productId,
+      movement_type: type,
+      quantity,
+      previous_stock: previousStock,
+      new_stock: newStock,
+      reason: reason || null,
+      sale_id: saleId || null,
+    });
+    if (error) {
+      console.error("Error logging stock movement:", error);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["stock_movements", user.id] });
+    }
+  };
 
   // Query for fetching products - follows same pattern as useExpenses
   const { data: products = [], isLoading: loading, refetch } = useQuery({
@@ -149,9 +191,20 @@ export function useProducts() {
         gift_type: data.giftType || null,
         packaging_discount: data.packagingDiscount || 0,
         image_url: data.imageUrl || null,
+        barcode: data.barcode || null,
       }).select('id').single();
 
       if (error) throw error;
+      if (insertedData?.id) {
+        await logMovement(
+          insertedData.id,
+          "cadastro",
+          data.stock,
+          0,
+          data.stock,
+          "Cadastro inicial do produto"
+        );
+      }
       return insertedData?.id || null;
     },
     onSuccess: (_, data) => {
@@ -174,6 +227,8 @@ export function useProducts() {
   // Mutation for updating a product
   const updateProductMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ProductFormData }): Promise<boolean> => {
+      const previous = products.find((p) => p.id === id);
+
       const { error } = await supabase
         .from("products")
         .update({
@@ -197,10 +252,23 @@ export function useProducts() {
           gift_type: data.giftType || null,
           packaging_discount: data.packagingDiscount || 0,
           image_url: data.imageUrl || null,
+          barcode: data.barcode || null,
         })
         .eq("id", id);
 
       if (error) throw error;
+
+      // Se o estoque foi alterado manualmente no cadastro, registra como ajuste
+      if (previous && previous.stock !== data.stock) {
+        await logMovement(
+          id,
+          "ajuste",
+          data.stock - previous.stock,
+          previous.stock,
+          data.stock,
+          "Ajuste manual no cadastro do produto"
+        );
+      }
       return true;
     },
     onSuccess: (_, { data }) => {
@@ -278,7 +346,7 @@ export function useProducts() {
 
   // Mutation for updating stock (decrementing)
   const updateStockMutation = useMutation({
-    mutationFn: async ({ id, quantity }: { id: string; quantity: number }): Promise<boolean> => {
+    mutationFn: async ({ id, quantity, movement }: { id: string; quantity: number; movement?: StockMovementMeta }): Promise<boolean> => {
       const product = products.find((p) => p.id === id);
       if (!product) return false;
 
@@ -293,6 +361,10 @@ export function useProducts() {
         .eq("id", id);
 
       if (error) throw error;
+
+      if (movement) {
+        await logMovement(id, movement.type, -quantity, product.stock, newStock, movement.reason, movement.saleId);
+      }
       return true;
     },
     onSuccess: () => {
@@ -313,7 +385,7 @@ export function useProducts() {
 
   // Mutation for restoring stock (incrementing)
   const restoreStockMutation = useMutation({
-    mutationFn: async ({ id, quantity, cycle }: { id: string; quantity: number; cycle?: number }): Promise<boolean> => {
+    mutationFn: async ({ id, quantity, cycle, movement }: { id: string; quantity: number; cycle?: number; movement?: StockMovementMeta }): Promise<boolean> => {
       const product = products.find((p) => p.id === id);
       if (!product) return false;
 
@@ -330,6 +402,10 @@ export function useProducts() {
         .eq("id", id);
 
       if (error) throw error;
+
+      if (movement) {
+        await logMovement(id, movement.type, quantity, product.stock, newStock, movement.reason, movement.saleId);
+      }
       return true;
     },
     onSuccess: () => {
@@ -474,17 +550,17 @@ export function useProducts() {
     }
   };
 
-  const updateStock = async (id: string, quantity: number): Promise<boolean> => {
+  const updateStock = async (id: string, quantity: number, movement?: StockMovementMeta): Promise<boolean> => {
     try {
-      return await updateStockMutation.mutateAsync({ id, quantity });
+      return await updateStockMutation.mutateAsync({ id, quantity, movement });
     } catch {
       return false;
     }
   };
 
-  const restoreStock = async (id: string, quantity: number, cycle?: number): Promise<boolean> => {
+  const restoreStock = async (id: string, quantity: number, cycle?: number, movement?: StockMovementMeta): Promise<boolean> => {
     try {
-      return await restoreStockMutation.mutateAsync({ id, quantity, cycle });
+      return await restoreStockMutation.mutateAsync({ id, quantity, cycle, movement });
     } catch {
       return false;
     }
