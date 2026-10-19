@@ -191,9 +191,20 @@ export function useProducts() {
         gift_type: data.giftType || null,
         packaging_discount: data.packagingDiscount || 0,
         image_url: data.imageUrl || null,
+        barcode: data.barcode || null,
       }).select('id').single();
 
       if (error) throw error;
+      if (insertedData?.id) {
+        await logMovement(
+          insertedData.id,
+          "cadastro",
+          data.stock,
+          0,
+          data.stock,
+          "Cadastro inicial do produto"
+        );
+      }
       return insertedData?.id || null;
     },
     onSuccess: (_, data) => {
@@ -216,6 +227,8 @@ export function useProducts() {
   // Mutation for updating a product
   const updateProductMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ProductFormData }): Promise<boolean> => {
+      const previous = products.find((p) => p.id === id);
+
       const { error } = await supabase
         .from("products")
         .update({
@@ -239,10 +252,23 @@ export function useProducts() {
           gift_type: data.giftType || null,
           packaging_discount: data.packagingDiscount || 0,
           image_url: data.imageUrl || null,
+          barcode: data.barcode || null,
         })
         .eq("id", id);
 
       if (error) throw error;
+
+      // Se o estoque foi alterado manualmente no cadastro, registra como ajuste
+      if (previous && previous.stock !== data.stock) {
+        await logMovement(
+          id,
+          "ajuste",
+          data.stock - previous.stock,
+          previous.stock,
+          data.stock,
+          "Ajuste manual no cadastro do produto"
+        );
+      }
       return true;
     },
     onSuccess: (_, { data }) => {
@@ -320,7 +346,7 @@ export function useProducts() {
 
   // Mutation for updating stock (decrementing)
   const updateStockMutation = useMutation({
-    mutationFn: async ({ id, quantity }: { id: string; quantity: number }): Promise<boolean> => {
+    mutationFn: async ({ id, quantity, movement }: { id: string; quantity: number; movement?: StockMovementMeta }): Promise<boolean> => {
       const product = products.find((p) => p.id === id);
       if (!product) return false;
 
@@ -335,6 +361,10 @@ export function useProducts() {
         .eq("id", id);
 
       if (error) throw error;
+
+      if (movement) {
+        await logMovement(id, movement.type, -quantity, product.stock, newStock, movement.reason, movement.saleId);
+      }
       return true;
     },
     onSuccess: () => {
@@ -355,7 +385,7 @@ export function useProducts() {
 
   // Mutation for restoring stock (incrementing)
   const restoreStockMutation = useMutation({
-    mutationFn: async ({ id, quantity, cycle }: { id: string; quantity: number; cycle?: number }): Promise<boolean> => {
+    mutationFn: async ({ id, quantity, cycle, movement }: { id: string; quantity: number; cycle?: number; movement?: StockMovementMeta }): Promise<boolean> => {
       const product = products.find((p) => p.id === id);
       if (!product) return false;
 
@@ -372,6 +402,10 @@ export function useProducts() {
         .eq("id", id);
 
       if (error) throw error;
+
+      if (movement) {
+        await logMovement(id, movement.type, quantity, product.stock, newStock, movement.reason, movement.saleId);
+      }
       return true;
     },
     onSuccess: () => {
@@ -516,17 +550,17 @@ export function useProducts() {
     }
   };
 
-  const updateStock = async (id: string, quantity: number): Promise<boolean> => {
+  const updateStock = async (id: string, quantity: number, movement?: StockMovementMeta): Promise<boolean> => {
     try {
-      return await updateStockMutation.mutateAsync({ id, quantity });
+      return await updateStockMutation.mutateAsync({ id, quantity, movement });
     } catch {
       return false;
     }
   };
 
-  const restoreStock = async (id: string, quantity: number, cycle?: number): Promise<boolean> => {
+  const restoreStock = async (id: string, quantity: number, cycle?: number, movement?: StockMovementMeta): Promise<boolean> => {
     try {
-      return await restoreStockMutation.mutateAsync({ id, quantity, cycle });
+      return await restoreStockMutation.mutateAsync({ id, quantity, cycle, movement });
     } catch {
       return false;
     }
