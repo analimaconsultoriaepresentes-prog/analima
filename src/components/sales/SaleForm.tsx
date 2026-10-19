@@ -67,7 +67,7 @@ export interface SaleFormData {
 
 interface SaleFormProps {
   open: boolean;
-  onOpenChange: (open: boolean) => Promise<boolean>;
+  onOpenChange: (open: boolean) => void;
   products: Product[];
   customers: Customer[];
   onSubmit: (

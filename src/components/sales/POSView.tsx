@@ -714,21 +714,21 @@ export function POSView({
 // Customer Selection Component
 interface CustomerSelectionProps {
   selectedCustomer: Customer | undefined;
-  onClear: () => Promise<boolean>;
+  onClear: () => void;
   showNewCustomerForm: boolean;
-  onToggleForm: (show: boolean) => Promise<boolean>;
+  onToggleForm: (show: boolean) => void;
   customerSearch: string;
-  onSearchChange: (value: string) => Promise<boolean>;
+  onSearchChange: (value: string) => void;
   filteredCustomers: Customer[];
-  onSelectCustomer: (id: string) => Promise<boolean>;
+  onSelectCustomer: (id: string) => void;
   newCustomerName: string;
-  onNameChange: (value: string) => Promise<boolean>;
+  onNameChange: (value: string) => void;
   newCustomerPhone: string;
-  onPhoneChange: (value: string) => Promise<boolean>;
+  onPhoneChange: (value: string) => void;
   newCustomerBirthday: string;
-  onBirthdayChange: (value: string) => Promise<boolean>;
+  onBirthdayChange: (value: string) => void;
   savingCustomer: boolean;
-  onSaveCustomer: () => Promise<boolean>;
+  onSaveCustomer: () => void;
   compact?: boolean;
 }
 
