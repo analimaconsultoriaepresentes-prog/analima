@@ -1358,6 +1358,7 @@ export function ProductForm({
         packagingQty: 1,
         giftType: undefined,
         packagingDiscount: 0,
+        barcode: "",
       });
     }
   }, [editProduct, form, defaultAsGift, open]);
@@ -1368,9 +1369,48 @@ export function ProductForm({
   };
 
   const handleSubmit = (data: ProductFormData, basketItems?: BasketItemInput[], basketExtras?: BasketExtraInput[]) => {
+    // Antes de cadastrar um produto NOVO, avisa se já existe algo parecido.
+    // Nunca bloqueia: o usuário decide se é um produto diferente.
+    if (!editProduct && allProducts.length > 0) {
+      const candidates = findDuplicateCandidates(allProducts, {
+        name: data.name,
+        brand: data.brand,
+        category: data.category,
+      });
+      if (candidates.length > 0) {
+        setDuplicateWarning({ data, basketItems, basketExtras, candidates });
+        return;
+      }
+    }
     onSubmit(data, basketItems, basketExtras);
     form.reset();
   };
+
+  const handleConfirmDuplicate = () => {
+    if (!duplicateWarning) return;
+    onSubmit(duplicateWarning.data, duplicateWarning.basketItems, duplicateWarning.basketExtras);
+    setDuplicateWarning(null);
+    form.reset();
+  };
+
+  const handleEditExisting = (product: Product) => {
+    setDuplicateWarning(null);
+    form.reset();
+    onOpenChange(false);
+    onEditExisting?.(product);
+  };
+
+  const duplicateDialog = (
+    <DuplicateWarningDialog
+      open={!!duplicateWarning}
+      onOpenChange={(isOpen) => !isOpen && setDuplicateWarning(null)}
+      newProductName={duplicateWarning?.data.name || ""}
+      candidates={duplicateWarning?.candidates || []}
+      onEditExisting={handleEditExisting}
+      onConfirmNew={handleConfirmDuplicate}
+      onCancel={() => setDuplicateWarning(null)}
+    />
+  );
 
   const header = (
     <div className="flex items-center gap-2">
