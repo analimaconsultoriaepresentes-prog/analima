@@ -20,8 +20,9 @@ import {
 
 export type StatusFilter = "active" | "archived" | "all";
 export type ProductTypeFilter = "all" | "item" | "basket" | "packaging" | "extra";
-export type SortField = "name" | "stock" | "pricePix" | "cycle";
+export type SortField = "name" | "stock" | "pricePix" | "cycle" | "brand" | "lastMovement";
 export type SortDirection = "asc" | "desc";
+export type ExtraFilter = "all" | "duplicates" | "noMovement" | "soldRecently";
 
 export interface ProductFiltersState {
   categories: string[];
@@ -33,6 +34,7 @@ export interface ProductFiltersState {
   statusFilter: StatusFilter;
   sortField: SortField;
   sortDirection: SortDirection;
+  extraFilter: ExtraFilter;
 }
 
 interface ProductFiltersProps {
@@ -68,9 +70,17 @@ const TYPE_OPTIONS = [
 ];
 const SORT_OPTIONS = [
   { value: "name", label: "Nome" },
+  { value: "brand", label: "Marca" },
   { value: "stock", label: "Estoque" },
   { value: "pricePix", label: "Preço Pix" },
   { value: "cycle", label: "Ciclo" },
+  { value: "lastMovement", label: "Última movimentação" },
+];
+const EXTRA_OPTIONS = [
+  { value: "all", label: "Todos" },
+  { value: "duplicates", label: "Possíveis duplicados" },
+  { value: "noMovement", label: "Parados há +30 dias" },
+  { value: "soldRecently", label: "Vendidos nos últimos 7 dias" },
 ];
 
 export function ProductFilters({
@@ -93,6 +103,7 @@ export function ProductFilters({
   const sortFieldSafe = (filtersProp?.sortField ?? "name") as SortField;
   const sortDirectionSafe =
     (filtersProp?.sortDirection ?? "asc") as SortDirection;
+  const extraFilterSafe = (filtersProp?.extraFilter ?? "all") as ExtraFilter;
 
   const filters: ProductFiltersState = {
     categories: categoriesSafe,
@@ -104,6 +115,7 @@ export function ProductFilters({
     statusFilter: statusFilterSafe,
     sortField: sortFieldSafe,
     sortDirection: sortDirectionSafe,
+    extraFilter: extraFilterSafe,
   };
 
   const availableBrandsSafe = availableBrandsProp ?? [];
@@ -156,6 +168,10 @@ export function ProductFilters({
     });
   };
 
+  const handleExtraFilterChange = (value: string) => {
+    onFiltersChange({ ...filters, extraFilter: value as ExtraFilter });
+  };
+
   const handleClearFilters = () => {
     onFiltersChange({
       categories: [],
@@ -167,6 +183,7 @@ export function ProductFilters({
       statusFilter: "active",
       sortField: "name",
       sortDirection: "asc",
+      extraFilter: "all",
     });
   };
 
@@ -177,7 +194,8 @@ export function ProductFilters({
     productTypeSafe !== "all" ||
     stockFilterSafe !== "all" ||
     cycleSafe !== "" ||
-    statusFilterSafe !== "active";
+    statusFilterSafe !== "active" ||
+    extraFilterSafe !== "all";
 
   // Get unique brands from available brands
   const uniqueBrandsSafe = availableBrandsSafe
@@ -310,6 +328,23 @@ export function ProductFilters({
               </SelectTrigger>
               <SelectContent>
                 {STOCK_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Situação (duplicados, parados, vendidos) */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Situação</Label>
+            <Select value={filters.extraFilter} onValueChange={handleExtraFilterChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {EXTRA_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
