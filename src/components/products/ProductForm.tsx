@@ -1442,46 +1442,52 @@ export function ProductForm({
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[95vh]">
-          <DrawerHeader className="text-left">
-            <DrawerTitle>{header}</DrawerTitle>
-            <DrawerDescription>{description}</DrawerDescription>
-          </DrawerHeader>
-          <div className="px-4 pb-6 overflow-y-auto">
-            <ProductFormContent 
-              form={form} 
-              onSubmit={handleSubmit} 
-              onCancel={handleClose}
-              editProduct={editProduct}
-              availableProducts={availableProducts}
-              initialBasketItems={initialBasketItems}
-              initialBasketExtras={initialBasketExtras}
-            />
-          </div>
-        </DrawerContent>
-      </Drawer>
+      <>
+        <Drawer open={open} onOpenChange={onOpenChange}>
+          <DrawerContent className="max-h-[95vh]">
+            <DrawerHeader className="text-left">
+              <DrawerTitle>{header}</DrawerTitle>
+              <DrawerDescription>{description}</DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-6 overflow-y-auto">
+              <ProductFormContent 
+                form={form} 
+                onSubmit={handleSubmit} 
+                onCancel={handleClose}
+                editProduct={editProduct}
+                availableProducts={availableProducts}
+                initialBasketItems={initialBasketItems}
+                initialBasketExtras={initialBasketExtras}
+              />
+            </div>
+          </DrawerContent>
+        </Drawer>
+        {duplicateDialog}
+      </>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{header}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <ProductFormContent 
-          form={form} 
-          onSubmit={handleSubmit} 
-          onCancel={handleClose}
-          editProduct={editProduct}
-          availableProducts={availableProducts}
-          initialBasketItems={initialBasketItems}
-          initialBasketExtras={initialBasketExtras}
-        />
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{header}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+          <ProductFormContent 
+            form={form} 
+            onSubmit={handleSubmit} 
+            onCancel={handleClose}
+            editProduct={editProduct}
+            availableProducts={availableProducts}
+            initialBasketItems={initialBasketItems}
+            initialBasketExtras={initialBasketExtras}
+          />
+        </DialogContent>
+      </Dialog>
+      {duplicateDialog}
+    </>
   );
 }
 
