@@ -52,6 +52,8 @@ import { BasketCompositionForm, calculateItemsPrice, calculateBaseGiftPrice, typ
 import { ProductImageUpload } from "./ProductImageUpload";
 import type { Product, ProductFormData, ProductType, GiftType } from "@/hooks/useProducts";
 import { GIFT_TYPE_LABELS } from "@/hooks/useProducts";
+import { findDuplicateCandidates, type DuplicateMatch } from "@/lib/duplicates";
+import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
 
 const productSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
@@ -76,6 +78,7 @@ const productSchema = z.object({
   giftType: z.enum(["presente", "cesta", "kit", "mini_presente", "lembrancinha"]).optional(),
   packagingDiscount: z.coerce.number().min(0, "Desconto não pode ser negativo"),
   imageUrl: z.string().optional(),
+  barcode: z.string().max(50, "Código muito longo").optional(),
 }).refine((data) => {
   // Validate proveQty doesn't exceed stock
   if (data.proveQty > data.stock) {
@@ -114,6 +117,10 @@ interface ProductFormProps {
   initialBasketItems?: BasketItemInput[];
   initialBasketExtras?: BasketExtraInput[];
   defaultAsGift?: boolean;
+  // Lista completa de produtos (inclui inativos) para detecção de duplicados
+  allProducts?: Product[];
+  // Chamado quando o usuário escolhe editar um produto existente no aviso de duplicado
+  onEditExisting?: (product: Product) => void;
 }
 
 // Discount mode removed - now only packaging discount in R$
@@ -412,6 +419,14 @@ function ProductFormContent({
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border border-border/50 text-sm text-muted-foreground">
             <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>Alterações de preço valem apenas para novas vendas.</span>
+          </div>
+        )}
+
+        {/* Código único do produto (somente leitura) */}
+        {editProduct?.code && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Tag className="w-3.5 h-3.5" />
+            Código do produto: <strong className="text-foreground">{editProduct.code}</strong>
           </div>
         )}
 
@@ -1070,6 +1085,32 @@ function ProductFormContent({
             </div>
           </div>
         )}
+
+        {/* Código de barras (opcional) */}
+        <FormField
+          control={form.control}
+          name="barcode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Tag className="w-4 h-4" />
+                Código de barras (opcional)
+              </FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Ex: 7891234567890"
+                  className="input-styled min-h-[44px]"
+                  {...field}
+                  value={field.value || ""}
+                />
+              </FormControl>
+              <FormDescription className="text-xs">
+                Facilita a busca rápida do produto na lista e nas vendas.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* Estoque e Validade */}
         <div className="grid grid-cols-2 gap-4">
