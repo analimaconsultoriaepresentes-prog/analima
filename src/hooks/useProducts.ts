@@ -2,6 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
+import type { MovementType } from "@/lib/stockMovements";
+
+// Metadados da movimentação de estoque associada a uma operação
+export interface StockMovementMeta {
+  type: MovementType;
+  reason?: string;
+  saleId?: string;
+}
 
 export type ProductType = "item" | "packaging" | "extra" | "basket";
 
@@ -71,6 +79,7 @@ export interface ProductFormData {
   giftType?: GiftType;
   packagingDiscount: number;
   imageUrl?: string;
+  barcode?: string;
 }
 
 // Mapper function to convert DB data to Product interface
@@ -98,11 +107,42 @@ const mapDbProductToProduct = (p: any): Product => ({
   giftType: (p.gift_type as GiftType) || undefined,
   packagingDiscount: Number(p.packaging_discount) || 0,
   imageUrl: p.image_url || undefined,
+  code: p.code || undefined,
+  barcode: p.barcode || undefined,
 });
 
 export function useProducts() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Registra uma movimentação no histórico de estoque.
+  // Nunca bloqueia a operação principal: se falhar, apenas registra no console.
+  const logMovement = async (
+    productId: string,
+    type: MovementType,
+    quantity: number,
+    previousStock: number,
+    newStock: number,
+    reason?: string,
+    saleId?: string
+  ) => {
+    if (!user) return;
+    const { error } = await supabase.from("stock_movements").insert({
+      user_id: user.id,
+      product_id: productId,
+      movement_type: type,
+      quantity,
+      previous_stock: previousStock,
+      new_stock: newStock,
+      reason: reason || null,
+      sale_id: saleId || null,
+    });
+    if (error) {
+      console.error("Error logging stock movement:", error);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["stock_movements", user.id] });
+    }
+  };
 
   // Query for fetching products - follows same pattern as useExpenses
   const { data: products = [], isLoading: loading, refetch } = useQuery({
