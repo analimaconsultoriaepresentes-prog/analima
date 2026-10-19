@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
-import type { Product } from "./useProducts";
+import type { Product, StockMovementMeta } from "./useProducts";
 import { useBaskets } from "./useBaskets";
 import { formatDateTimeInBrazil, getTodayInBrazil, formatDateInBrazil } from "@/lib/timezone";
 
@@ -145,7 +145,7 @@ export function useSales() {
     cartItems: CartItem[],
     paymentMethod: string,
     total: number,
-    updateStock: (id: string, quantity: number) => Promise<boolean>,
+    updateStock: (id: string, quantity: number, movement?: StockMovementMeta) => Promise<boolean>,
     products: Product[] = [],
     customerId?: string,
     channel: SaleChannel = "store",
@@ -238,6 +238,11 @@ export function useSales() {
       });
 
       // Update stock for each product
+      const movementType = recordType === "donation" ? "doacao" : "venda";
+      const movementReason = recordType === "donation"
+        ? `Doação${donationData?.recipient ? ` para ${donationData.recipient}` : ""}`
+        : `Venda ${channel === "online" ? "online" : "presencial"}`;
+
       for (const item of cartItems) {
         const saleItemId = saleItemIdMap.get(item.product.id);
         
@@ -248,11 +253,12 @@ export function useSales() {
             item.quantity,
             updateStock,
             saleData.id,
-            saleItemId
+            saleItemId,
+            { type: movementType, reason: `Componente da cesta "${item.product.name}"`, saleId: saleData.id }
           );
         }
         // Always deduct the basket/product itself
-        await updateStock(item.product.id, item.quantity);
+        await updateStock(item.product.id, item.quantity, { type: movementType, reason: movementReason, saleId: saleData.id });
       }
 
       await fetchSales();
@@ -282,7 +288,7 @@ export function useSales() {
 
   const cancelSale = async (
     saleId: string,
-    restoreStock: (id: string, quantity: number, cycle?: number) => Promise<boolean>
+    restoreStock: (id: string, quantity: number, cycle?: number, movement?: StockMovementMeta) => Promise<boolean>
   ): Promise<boolean> => {
     try {
       const sale = sales.find((s) => s.id === saleId);
@@ -296,12 +302,14 @@ export function useSales() {
 
       if (error) throw error;
 
+      const cancelReason = sale.recordType === "donation" ? "Cancelamento de doação" : "Cancelamento de venda";
+
       // First, restore basket component stock if there are any
-      await restoreBasketStock(saleId, restoreStock);
+      await restoreBasketStock(saleId, restoreStock, { type: "devolucao", reason: `${cancelReason} (componente de cesta)`, saleId });
 
       // Then restore stock for each sold item (baskets and regular products)
       for (const item of sale.items) {
-        await restoreStock(item.productId, item.quantity);
+        await restoreStock(item.productId, item.quantity, undefined, { type: "devolucao", reason: cancelReason, saleId });
       }
 
       await fetchSales();
