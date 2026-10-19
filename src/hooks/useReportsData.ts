@@ -237,6 +237,7 @@ export function useReportsData(period: PeriodOption = "6months") {
         .from("sales")
         .select("id, total")
         .eq("status", "completed")
+        .eq("record_type", "sale")
         .gte("created_at", periodStart.toISOString());
 
       const saleIds = (salesData || []).map((s) => s.id);
