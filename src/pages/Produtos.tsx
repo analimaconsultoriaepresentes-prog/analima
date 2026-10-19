@@ -388,6 +388,16 @@ export default function Produtos() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate("/conferir-estoque")}>
+            <ClipboardCheck className="w-4 h-4" />
+            <span className="hidden sm:inline">Conferir estoque</span>
+            <span className="sm:hidden">Conferir</span>
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => setIsDuplicatesOpen(true)}>
+            <GitCompareArrows className="w-4 h-4" />
+            <span className="hidden sm:inline">Revisar duplicados</span>
+            <span className="sm:hidden">Duplicados</span>
+          </Button>
           <Button variant="outline" className="gap-2" onClick={() => setIsKitCalculatorOpen(true)}>
             <Calculator className="w-4 h-4" />
             <span className="hidden sm:inline">Calculadora de Kit</span>
@@ -406,7 +416,7 @@ export default function Produtos() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome ou marca..."
+              placeholder="Buscar por nome, marca ou código..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 input-styled"
@@ -477,6 +487,7 @@ export default function Produtos() {
                 onArchive={(product) => handleProductAction(product, "archive")}
                 onDelete={(product) => handleProductAction(product, "delete")}
                 onReactivate={handleReactivateProduct}
+                onShowHistory={setHistoryProduct}
               />
             ) : (
               <ProductCardGrid
@@ -486,6 +497,7 @@ export default function Produtos() {
                 onArchive={(product) => handleProductAction(product, "archive")}
                 onDelete={(product) => handleProductAction(product, "delete")}
                 onReactivate={handleReactivateProduct}
+                onShowHistory={setHistoryProduct}
               />
             )
           ) : viewMode === "list" ? (
@@ -496,6 +508,8 @@ export default function Produtos() {
               onArchive={(product) => handleProductAction(product, "archive")}
               onDelete={(product) => handleProductAction(product, "delete")}
               onReactivate={handleReactivateProduct}
+              onShowHistory={setHistoryProduct}
+              lastMovements={lastMovement}
             />
           ) : (
             <ProductCardGrid
@@ -505,6 +519,7 @@ export default function Produtos() {
               onArchive={(product) => handleProductAction(product, "archive")}
               onDelete={(product) => handleProductAction(product, "delete")}
               onReactivate={handleReactivateProduct}
+              onShowHistory={setHistoryProduct}
             />
           )}
         </>
@@ -520,6 +535,25 @@ export default function Produtos() {
         initialBasketItems={editBasketItems}
         initialBasketExtras={editBasketExtras}
         defaultAsGift={openAsGift}
+        allProducts={products}
+        onEditExisting={(product) => openEditModal(product)}
+      />
+
+      {/* Histórico de estoque do produto */}
+      <ProductHistoryModal
+        product={historyProduct}
+        onClose={() => setHistoryProduct(null)}
+      />
+
+      {/* Revisão de possíveis duplicados */}
+      <DuplicatesReviewModal
+        open={isDuplicatesOpen}
+        onOpenChange={setIsDuplicatesOpen}
+        products={products}
+        onEditProduct={(product) => {
+          setIsDuplicatesOpen(false);
+          openEditModal(product);
+        }}
       />
 
       {/* Delete Confirmation Dialog */}
@@ -575,7 +609,10 @@ export default function Produtos() {
         currentCycle={stockEntryProduct?.cycle ?? null}
         onConfirm={async (quantity, cycle) => {
           if (!stockEntryProduct) return false;
-          return await restoreStock(stockEntryProduct.id, quantity, cycle);
+          return await restoreStock(stockEntryProduct.id, quantity, cycle, {
+            type: "entrada",
+            reason: "Entrada de mercadoria",
+          });
         }}
       />
 
