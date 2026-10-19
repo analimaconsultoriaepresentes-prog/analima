@@ -51,6 +51,8 @@ export interface Product {
   giftType?: GiftType;
   packagingDiscount: number;
   imageUrl?: string;
+  code?: string;
+  barcode?: string;
 }
 
 // Helper to calculate available stock (total - prove)
