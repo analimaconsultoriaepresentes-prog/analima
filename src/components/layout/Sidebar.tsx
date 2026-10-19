@@ -16,6 +16,7 @@ import {
   Users,
   Sparkles,
   Tag,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { useStore } from "@/hooks/useStore";
 const mainMenuItems = [
   { icon: LayoutDashboard, label: "Painel", path: "/" },
   { icon: Package, label: "Produtos", path: "/produtos" },
+  { icon: ClipboardCheck, label: "Conferir estoque", path: "/conferir-estoque" },
   { icon: ShoppingCart, label: "Vendas", path: "/vendas" },
   { icon: Users, label: "Clientes", path: "/clientes" },
   { icon: Receipt, label: "Despesas", path: "/despesas" },

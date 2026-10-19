@@ -13,6 +13,7 @@ import { HelpProvider, HelpMascot, useHelp } from "@/components/help";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Produtos from "./pages/Produtos";
+import ConferirEstoque from "./pages/ConferirEstoque";
 import Vendas from "./pages/Vendas";
 import Clientes from "./pages/Clientes";
 import Despesas from "./pages/Despesas";
@@ -127,6 +128,7 @@ const AppRoutes = () => {
       />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/produtos" element={<ProtectedRoute><Produtos /></ProtectedRoute>} />
+      <Route path="/conferir-estoque" element={<ProtectedRoute><ConferirEstoque /></ProtectedRoute>} />
       <Route path="/vendas" element={<ProtectedRoute><Vendas /></ProtectedRoute>} />
       <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
       <Route path="/despesas" element={<ProtectedRoute><Despesas /></ProtectedRoute>} />
