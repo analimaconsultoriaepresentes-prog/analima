@@ -282,8 +282,10 @@ export type Database = {
       }
       products: {
         Row: {
+          barcode: string | null
           brand: string | null
           category: string
+          code: string | null
           cost_price: number
           created_at: string
           cycle: number | null
@@ -310,8 +312,10 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          barcode?: string | null
           brand?: string | null
           category: string
+          code?: string | null
           cost_price?: number
           created_at?: string
           cycle?: number | null
@@ -338,8 +342,10 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          barcode?: string | null
           brand?: string | null
           category?: string
+          code?: string | null
           cost_price?: number
           created_at?: string
           cycle?: number | null
@@ -569,6 +575,60 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          movement_type: string
+          new_stock: number
+          previous_stock: number
+          product_id: string
+          quantity: number
+          reason: string | null
+          sale_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          movement_type: string
+          new_stock: number
+          previous_stock: number
+          product_id: string
+          quantity: number
+          reason?: string | null
+          sale_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          movement_type?: string
+          new_stock?: number
+          previous_stock?: number
+          product_id?: string
+          quantity?: number
+          reason?: string | null
+          sale_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
         ]
