@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "./useAuth";
-import type { Product } from "./useProducts";
+import type { Product, StockMovementMeta } from "./useProducts";
 
 export interface BasketItem {
   id: string;
@@ -253,16 +253,17 @@ export function useBaskets() {
   const deductBasketStock = async (
     basketId: string,
     quantity: number,
-    updateStock: (id: string, quantity: number) => Promise<boolean>,
+    updateStock: (id: string, quantity: number, movement?: StockMovementMeta) => Promise<boolean>,
     saleId: string,
-    saleItemId: string
+    saleItemId: string,
+    movement?: StockMovementMeta
   ): Promise<boolean> => {
     const items = await fetchBasketItems(basketId);
     
     // Deduct stock for each component item (multiplied by basket quantity)
     for (const item of items) {
       const totalQuantity = item.quantity * quantity;
-      const success = await updateStock(item.productId, totalQuantity);
+      const success = await updateStock(item.productId, totalQuantity, movement);
       if (!success) {
         return false;
       }
@@ -293,7 +294,8 @@ export function useBaskets() {
 
   const restoreBasketStock = async (
     saleId: string,
-    restoreStock: (id: string, quantity: number, cycle?: number) => Promise<boolean>
+    restoreStock: (id: string, quantity: number, cycle?: number, movement?: StockMovementMeta) => Promise<boolean>,
+    movement?: StockMovementMeta
   ): Promise<boolean> => {
     try {
       // Fetch the recorded basket components for this sale
@@ -310,7 +312,7 @@ export function useBaskets() {
 
       // Restore stock for each component
       for (const component of components) {
-        await restoreStock(component.component_product_id, component.quantity_deducted);
+        await restoreStock(component.component_product_id, component.quantity_deducted, undefined, movement);
       }
 
       return true;
