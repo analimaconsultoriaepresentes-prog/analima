@@ -1,4 +1,4 @@
-import { Gift, AlertTriangle, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw, Pencil } from "lucide-react";
+import { Gift, AlertTriangle, MoreVertical, PackagePlus, Archive, Trash2, RotateCcw, Pencil, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,7 @@ interface ProductCardGridProps {
   onArchive: (product: Product) => void;
   onDelete: (product: Product) => void;
   onReactivate: (product: Product) => void;
+  onShowHistory: (product: Product) => void;
 }
 
 const categoryColors: Record<string, string> = {
@@ -35,6 +36,7 @@ export function ProductCardGrid({
   onArchive,
   onDelete,
   onReactivate,
+  onShowHistory,
 }: ProductCardGridProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -95,6 +97,10 @@ export function ProductCardGrid({
                       Editar
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem onClick={() => onShowHistory(product)}>
+                    <History className="w-4 h-4 mr-2" />
+                    Histórico de estoque
+                  </DropdownMenuItem>
                   {product.isActive ? (
                     <>
                       <DropdownMenuItem
