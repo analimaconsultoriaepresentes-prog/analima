@@ -1256,8 +1256,18 @@ export function ProductForm({
   initialBasketItems = [],
   initialBasketExtras = [],
   defaultAsGift = false,
+  allProducts = [],
+  onEditExisting,
 }: ProductFormProps) {
   const isMobile = useIsMobile();
+
+  // Aviso de possível duplicado antes de concluir um novo cadastro
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+    data: ProductFormData;
+    basketItems?: BasketItemInput[];
+    basketExtras?: BasketExtraInput[];
+    candidates: DuplicateMatch<Product>[];
+  } | null>(null);
   
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -1277,6 +1287,7 @@ export function ProductForm({
       packagingProductId: undefined,
       packagingQty: 1,
       packagingDiscount: 0,
+      barcode: "",
     },
   });
 
@@ -1303,6 +1314,7 @@ export function ProductForm({
         packagingQty: editProduct.packagingQty || 1,
         giftType: editProduct.giftType,
         packagingDiscount: editProduct.packagingDiscount || 0,
+        barcode: editProduct.barcode || "",
       });
     } else if (defaultAsGift && open) {
       // Open as gift/basket from Getting Started
@@ -1325,6 +1337,7 @@ export function ProductForm({
         packagingQty: 1,
         giftType: "presente",
         packagingDiscount: 0,
+        barcode: "",
       });
     } else {
       form.reset({
