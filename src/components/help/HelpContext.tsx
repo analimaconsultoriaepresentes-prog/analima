@@ -308,7 +308,7 @@ export function HelpProvider({ children }: { children: ReactNode }) {
   const [visitedPages, setVisitedPages] = useState<Set<string>>(new Set());
   const [bubbleMessage, setBubbleMessage] = useState<string | null>(null);
   const lastBubbleTimeRef = useRef<number>(0);
-  const bubbleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const bubbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerPulse = useCallback(() => {
     setShouldPulse(true);

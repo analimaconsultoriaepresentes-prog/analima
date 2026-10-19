@@ -1,5 +1,6 @@
 import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { getCartItemPrice } from "@/lib/salePricing";
+import { UnitPriceInput } from "./UnitPriceInput";
 import { Button } from "@/components/ui/button";
 import { ProductThumbnail } from "@/components/products/ProductThumbnail";
 import type { ProductType, GiftType } from "@/hooks/useProducts";
@@ -24,6 +25,7 @@ interface Product {
 export interface CartItem {
   product: Product;
   quantity: number;
+  unitPrice?: number | null;
 }
 
 interface CartItemsProps {
@@ -31,6 +33,7 @@ interface CartItemsProps {
   paymentMethod: string;
   onUpdateQuantity: (productId: string, delta: number) => void;
   onRemoveItem: (productId: string) => void;
+  onUpdateUnitPrice: (productId: string, price: number | null) => void;
   showPhotos?: boolean;
 }
 
@@ -39,15 +42,9 @@ export function CartItems({
   paymentMethod,
   onUpdateQuantity,
   onRemoveItem,
+  onUpdateUnitPrice,
   showPhotos = true,
 }: CartItemsProps) {
-  const getPrice = (product: Product) => {
-    if (paymentMethod === "credito" || paymentMethod === "debito") {
-      return product.priceCard || product.salePrice;
-    }
-    return product.pricePix || product.salePrice;
-  };
-
   const isGiftProduct = (product: Product) => {
     return product.giftType || product.isBasket || product.productType === "basket";
   };
@@ -67,14 +64,14 @@ export function CartItems({
   return (
     <div className="space-y-2">
       {items.map((item) => {
-        const price = getPrice(item.product);
+        const price = getCartItemPrice(item, paymentMethod);
         const isGift = isGiftProduct(item.product);
         const subtotal = price * item.quantity;
 
         return (
           <div
             key={item.product.id}
-            className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/50 group hover:border-border transition-colors"
+            className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-muted/30 border border-border/50 group hover:border-border transition-colors"
           >
             {/* Thumbnail */}
             {showPhotos && (
@@ -87,12 +84,9 @@ export function CartItems({
             )}
 
             {/* Info */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 basis-20">
               <p className="font-medium text-foreground text-sm truncate">
                 {item.product.name}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                R$ {price.toFixed(2)} cada
               </p>
             </div>
 
@@ -104,6 +98,7 @@ export function CartItems({
                 variant="ghost"
                 className="h-8 w-8"
                 onClick={() => onUpdateQuantity(item.product.id, -1)}
+                aria-label={`Diminuir quantidade de ${item.product.name}`}
               >
                 <Minus className="w-3 h-3" />
               </Button>
@@ -116,13 +111,14 @@ export function CartItems({
                 variant="ghost"
                 className="h-8 w-8"
                 onClick={() => onUpdateQuantity(item.product.id, 1)}
+                aria-label={`Aumentar quantidade de ${item.product.name}`}
               >
                 <Plus className="w-3 h-3" />
               </Button>
             </div>
 
             {/* Subtotal */}
-            <div className="w-20 text-right">
+            <div className="min-w-16 text-right">
               <p className="font-bold text-sm text-foreground">
                 R$ {subtotal.toFixed(2)}
               </p>
@@ -135,9 +131,18 @@ export function CartItems({
               variant="ghost"
               className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               onClick={() => onRemoveItem(item.product.id)}
+              aria-label={`Remover ${item.product.name}`}
             >
               <Trash2 className="w-4 h-4" />
             </Button>
+            <div className="w-full">
+              <UnitPriceInput
+                productId={item.product.id}
+                productName={item.product.name}
+                price={price}
+                onChange={(value) => onUpdateUnitPrice(item.product.id, value)}
+              />
+            </div>
           </div>
         );
       })}

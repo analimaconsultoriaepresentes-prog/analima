@@ -109,7 +109,7 @@ export function useStore() {
     if (!user) return false;
 
     try {
-      const updateData: Record<string, string> = { name, primary_color: primaryColor };
+      const updateData: { name: string; primary_color: string; birthday_message?: string } = { name, primary_color: primaryColor };
       if (birthdayMessage !== undefined) {
         updateData.birthday_message = birthdayMessage;
       }

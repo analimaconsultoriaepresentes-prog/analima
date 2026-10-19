@@ -1,10 +1,12 @@
 import { useMemo } from "react";
 import type { Product } from "./useProducts";
 import type { PackagingCosts } from "./useStore";
+import { getCartItemPrice } from "@/lib/salePricing";
 
 export interface CartItem {
   product: Product;
   quantity: number;
+  unitPrice?: number | null;
 }
 
 export interface SaleCostBreakdown {
@@ -60,7 +62,7 @@ export function usePackagingCalculation(
       const qty = item.quantity;
       
       // Customer pays only sale_price
-      totalCliente += item.product.salePrice * qty;
+       totalCliente += getCartItemPrice(item, "pix") * qty;
       
       // Internal cost calculation
       custoItens += item.product.costPrice * qty;

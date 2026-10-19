@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export function useMaintenanceMode() {
+  const subscriptionId = useId();
   const [isMaintenanceMode, setIsMaintenanceMode] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +34,7 @@ export function useMaintenanceMode() {
 
     // Subscribe to realtime changes
     const channel = supabase
-      .channel("maintenance-mode")
+      .channel(`maintenance-mode-${subscriptionId}-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
@@ -52,7 +53,7 @@ export function useMaintenanceMode() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [subscriptionId]);
 
   return { isMaintenanceMode, loading };
 }
