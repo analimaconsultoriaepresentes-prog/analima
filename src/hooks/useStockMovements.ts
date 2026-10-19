@@ -80,35 +80,51 @@ export function useStockMovements(productId?: string) {
   return { movements, loading, recordMovement };
 }
 
+export interface LastMovementInfo {
+  // Data da última movimentação de qualquer tipo (Map productId -> data ISO)
+  lastMovement: Map<string, string>;
+  // Data da última venda/doação (Map productId -> data ISO)
+  lastSale: Map<string, string>;
+}
+
 /**
- * Retorna a data da última movimentação de cada produto (Map productId -> data ISO).
- * Usado na tela de Produtos para exibir "última movimentação" e filtrar parados.
+ * Retorna a data da última movimentação e da última venda de cada produto.
+ * Usado na tela de Produtos para exibir "última movimentação" e filtrar
+ * produtos parados ou vendidos recentemente.
  */
-export function useLastMovementDates() {
+export function useLastMovementDates(): LastMovementInfo {
   const { user } = useAuth();
 
-  const { data: lastMovementByProduct = new Map<string, string>() } = useQuery({
+  const { data = { lastMovement: new Map<string, string>(), lastSale: new Map<string, string>() } } = useQuery({
     queryKey: ["stock_movements", user?.id, "last_dates"],
-    queryFn: async () => {
-      if (!user?.id) return new Map<string, string>();
+    queryFn: async (): Promise<LastMovementInfo> => {
+      const empty = { lastMovement: new Map<string, string>(), lastSale: new Map<string, string>() };
+      if (!user?.id) return empty;
 
       const { data, error } = await supabase
         .from("stock_movements")
-        .select("product_id, created_at")
+        .select("product_id, movement_type, created_at")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      const map = new Map<string, string>();
+      const lastMovement = new Map<string, string>();
+      const lastSale = new Map<string, string>();
       for (const row of data || []) {
-        if (!map.has(row.product_id)) {
-          map.set(row.product_id, row.created_at);
+        if (!lastMovement.has(row.product_id)) {
+          lastMovement.set(row.product_id, row.created_at);
+        }
+        if (
+          (row.movement_type === "venda" || row.movement_type === "doacao") &&
+          !lastSale.has(row.product_id)
+        ) {
+          lastSale.set(row.product_id, row.created_at);
         }
       }
-      return map;
+      return { lastMovement, lastSale };
     },
     enabled: !!user?.id,
   });
 
-  return lastMovementByProduct;
+  return data;
 }
