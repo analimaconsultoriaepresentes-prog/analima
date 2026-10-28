@@ -52,9 +52,10 @@ export interface ProductPriceValidation extends LabelPrices {
   origin: string;
 }
 
-export function hasValidProductPrices(data: ProductPriceValidation): boolean {
+export function hasValidProductPrices(data: Partial<ProductPriceValidation>): boolean {
   if (data.productType === "packaging" || data.productType === "extra") return true;
   if (isPositivePrice(data.singlePrice)) return true;
   if (data.isBasket || data.origin === "gift") return isPositivePrice(data.pricePix) && isPositivePrice(data.priceCard);
-  return data.pricePix > data.costPrice && data.priceCard > data.costPrice;
+  return typeof data.costPrice === "number" && isPositivePrice(data.pricePix) && isPositivePrice(data.priceCard)
+    && data.pricePix > data.costPrice && data.priceCard > data.costPrice;
 }
