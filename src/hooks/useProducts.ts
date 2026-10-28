@@ -37,6 +37,8 @@ export interface Product {
   pricePix: number;
   priceCard: number;
   singlePrice?: number | null;
+  labelPricePix?: number;
+  labelPriceCard?: number;
   stock: number;
   proveQty: number; // Quantity reserved for samples/demos
   expiryDate?: string;
