@@ -54,6 +54,7 @@ import type { Product, ProductFormData, ProductType, GiftType } from "@/hooks/us
 import { GIFT_TYPE_LABELS } from "@/hooks/useProducts";
 import { findDuplicateCandidates, type DuplicateMatch } from "@/lib/duplicates";
 import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
+import { hasValidProductPrices } from "@/lib/labelPricing";
 
 const productSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
@@ -65,6 +66,7 @@ const productSchema = z.object({
   salePrice: z.coerce.number().min(0, "Preço de venda deve ser maior que zero"),
   pricePix: z.coerce.number().min(0, "Preço Pix não pode ser negativo"),
   priceCard: z.coerce.number().min(0, "Preço Cartão não pode ser negativo"),
+  singlePrice: z.number().finite().positive("Valor único deve ser maior que zero").nullable().optional(),
   stock: z.coerce.number().int().min(0, "Estoque não pode ser negativo"),
   proveQty: z.coerce.number().int().min(0, "Quantidade PROVE não pode ser negativa"),
   expiryDate: z.date().optional(),
@@ -89,22 +91,9 @@ const productSchema = z.object({
   message: "Quantidade em PROVE não pode ser maior que o estoque total",
   path: ["proveQty"],
 }).refine((data) => {
-  // Packaging/extra products don't need sale prices - they are internal cost only
-  if (data.productType === "packaging" || data.productType === "extra") {
-    return true;
-  }
-  // For baskets, prices just need to be > 0 (no cost validation - allow negative profit)
-  if (data.isBasket) {
-    return data.pricePix > 0 && data.priceCard > 0;
-  }
-  // For gifts (cost = 0), only require prices > 0
-  if (data.origin === "gift") {
-    return data.pricePix > 0 && data.priceCard > 0;
-  }
-  // For purchased products, require prices > cost price
-  return data.pricePix > data.costPrice && data.priceCard > data.costPrice;
+  return hasValidProductPrices(data);
 }, {
-  message: "Preços de venda devem ser maiores que zero",
+  message: "Informe um Valor único válido ou preencha os preços PIX e Cartão conforme o custo.",
   path: ["pricePix"],
 });
 
@@ -748,6 +737,21 @@ function ProductFormContent({
           </div>
         )}
 
+        {!isPackagingOrExtra && (
+          <FormField control={form.control} name="singlePrice" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Valor único (R$)</FormLabel>
+              <FormControl>
+                <Input type="number" step="0.01" min="0.01" inputMode="decimal"
+                  placeholder="0,00" className="input-styled min-h-[44px]" {...field}
+                  value={field.value ?? ""}
+                  onChange={e => field.onChange(e.target.value === "" ? null : Number(e.target.value))} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        )}
+
         {/* Preços de Venda por Forma de Pagamento - for non-baskets, non-packaging/extra */}
         {!isBasket && !isPackagingOrExtra && (
           <>
@@ -1278,6 +1282,7 @@ export function ProductForm({
       salePrice: 0,
       pricePix: 0,
       priceCard: 0,
+      singlePrice: null,
       stock: 0,
       origin: "purchased",
       cycle: undefined,
@@ -1300,8 +1305,9 @@ export function ProductForm({
         brand: editProduct.brand,
         costPrice: editProduct.costPrice,
         salePrice: editProduct.salePrice,
-        pricePix: editProduct.pricePix || editProduct.salePrice,
-        priceCard: editProduct.priceCard || editProduct.salePrice,
+        pricePix: editProduct.labelPricePix ?? editProduct.pricePix,
+        priceCard: editProduct.labelPriceCard ?? editProduct.priceCard,
+        singlePrice: editProduct.singlePrice ?? null,
         stock: editProduct.stock,
         proveQty: editProduct.proveQty || 0,
         expiryDate: editProduct.expiryDate ? new Date(editProduct.expiryDate) : undefined,
@@ -1322,6 +1328,7 @@ export function ProductForm({
         name: "",
         brand: "",
         category: "Presente",
+        singlePrice: null,
         costPrice: 0,
         salePrice: 0,
         pricePix: 0,
@@ -1342,6 +1349,7 @@ export function ProductForm({
     } else {
       form.reset({
         name: "",
+        singlePrice: null,
         brand: "",
         costPrice: 0,
         salePrice: 0,

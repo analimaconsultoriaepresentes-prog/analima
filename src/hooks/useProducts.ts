@@ -36,6 +36,7 @@ export interface Product {
   salePrice: number;
   pricePix: number;
   priceCard: number;
+  singlePrice?: number | null;
   stock: number;
   proveQty: number; // Quantity reserved for samples/demos
   expiryDate?: string;
@@ -68,6 +69,7 @@ export interface ProductFormData {
   salePrice: number;
   pricePix: number;
   priceCard: number;
+  singlePrice?: number | null;
   stock: number;
   proveQty: number; // Quantity reserved for samples/demos
   expiryDate?: Date;
@@ -94,6 +96,9 @@ const mapDbProductToProduct = (p: any): Product => ({
   salePrice: Number(p.sale_price),
   pricePix: Number(p.price_pix) || Number(p.sale_price),
   priceCard: Number(p.price_card) || Number(p.sale_price),
+  singlePrice: p.single_price == null ? null : Number(p.single_price),
+  labelPricePix: Number(p.price_pix),
+  labelPriceCard: Number(p.price_card),
   stock: p.stock,
   proveQty: p.prove_qty || 0,
   expiryDate: p.expiry_date || undefined,
@@ -177,6 +182,7 @@ export function useProducts() {
         sale_price: data.salePrice,
         price_pix: data.pricePix,
         price_card: data.priceCard,
+        single_price: data.singlePrice ?? null,
         stock: data.stock,
         prove_qty: data.proveQty || 0,
         expiry_date: data.expiryDate?.toISOString().split("T")[0] || null,
@@ -239,6 +245,7 @@ export function useProducts() {
           sale_price: data.salePrice,
           price_pix: data.pricePix,
           price_card: data.priceCard,
+          single_price: data.singlePrice ?? null,
           stock: data.stock,
           prove_qty: data.proveQty || 0,
           expiry_date: data.expiryDate?.toISOString().split("T")[0] || null,

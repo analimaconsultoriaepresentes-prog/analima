@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
-import { Product } from "@/hooks/useProducts";
+import type { Product } from "@/hooks/useProducts";
+import { getProductLabelModels, resolveLabelPrice, LABEL_LAYOUT, type LabelModel, type LabelPrices } from "./labelPricing";
 
 export interface LabelItem {
   product: Product;
@@ -7,8 +8,15 @@ export interface LabelItem {
   isPromotion: boolean;
 }
 
-interface LabelOptions {
-  labelColor?: string;
+export interface LabelOptions {
+  labelColor?: string | null;
+  model?: LabelModel;
+}
+
+// Preserve legacy sale-price fallbacks elsewhere, but labels only use stored prices.
+export function getLabelPrices(product: Product): LabelPrices {
+  return { singlePrice: product.singlePrice, pricePix: product.labelPricePix ?? product.pricePix,
+    priceCard: product.labelPriceCard ?? product.priceCard };
 }
 
 // A4 dimensions in mm
@@ -16,8 +24,8 @@ const A4_WIDTH = 210;
 const A4_HEIGHT = 297;
 
 // Label dimensions in mm
-const LABEL_WIDTH = 47;
-const LABEL_HEIGHT = 23;
+const LABEL_WIDTH = LABEL_LAYOUT.width;
+const LABEL_HEIGHT = LABEL_LAYOUT.height;
 
 // Grid: 4 columns x 12 rows = 48 labels per page
 const COLS = 4;
@@ -161,10 +169,12 @@ function drawLabel(
   product: Product,
   primaryColor: [number, number, number],
   accentColor: [number, number, number],
-  isPromo: boolean
+  isPromo: boolean,
+  model: LabelModel
 ) {
   const volume = extractVolume(product.name);
   const productName = formatProductName(product.name);
+  const prices = getLabelPrices(product);
   
   // Use promotion colors if product is on sale
   const labelPrimaryColor = isPromo ? PROMOTION_PRIMARY_COLOR : primaryColor;
@@ -234,10 +244,34 @@ function drawLabel(
     doc.text(volume, x + LABEL_WIDTH - textPadding, volumeY, { align: "right" });
   }
 
+  if (product.brand) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(4);
+    doc.text(truncateWithEllipsis(doc, product.brand.toUpperCase(), LABEL_WIDTH - 4), x + 2, y + topHeight - 0.7);
+  }
+
   // Bottom white area
   doc.setFillColor(255, 255, 255);
   doc.rect(x, y + topHeight, LABEL_WIDTH, bottomHeight, "F");
 
+  if (model !== "dual") {
+    const price = resolveLabelPrice(prices, model);
+    doc.setTextColor(...labelPrimaryColor);
+    doc.setFont("helvetica", "bold");
+    const formatted = formatPrice(price);
+    doc.setFontSize(13);
+    if (doc.getTextWidth(formatted) > LABEL_WIDTH - 4) {
+      doc.setFontSize(13 * (LABEL_WIDTH - 4) / doc.getTextWidth(formatted));
+    }
+    const paymentTitle = model === "pix" ? "PIX / DINHEIRO" : model === "card" ? "CARTÃO" : null;
+    if (paymentTitle) {
+      doc.text(formatted, x + LABEL_WIDTH / 2, y + topHeight + 5, { align: "center" });
+      doc.setFontSize(5);
+      doc.text(paymentTitle, x + LABEL_WIDTH / 2, y + LABEL_HEIGHT - 1.5, { align: "center" });
+    } else {
+      doc.text(formatted, x + LABEL_WIDTH / 2, y + topHeight + bottomHeight / 2 + 1.5, { align: "center" });
+    }
+  } else {
   // Divider line
   const dividerX = x + LABEL_WIDTH / 2;
   doc.setDrawColor(220, 220, 220);
@@ -258,7 +292,7 @@ function drawLabel(
   doc.setTextColor(40, 40, 40);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text(formatPrice(product.priceCard), leftCenterX, bottomCenterY + 2.5, { align: "center" });
+  doc.text(formatPrice(prices.priceCard), leftCenterX, bottomCenterY + 2.5, { align: "center" });
 
   // PIX/OFERTA price (right side) - with more emphasis
   const rightCenterX = x + (LABEL_WIDTH * 3) / 4;
@@ -275,7 +309,8 @@ function drawLabel(
   // PIX price value - significantly increased, most prominent
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.text(formatPrice(product.pricePix), rightCenterX, bottomCenterY + 2.5, { align: "center" });
+  doc.text(formatPrice(prices.pricePix), rightCenterX, bottomCenterY + 2.5, { align: "center" });
+  }
 
   // Optional: thin border around label (helps with cutting)
   doc.setDrawColor(isPromo ? 249 : 200, isPromo ? 115 : 200, isPromo ? 22 : 200);
@@ -283,11 +318,15 @@ function drawLabel(
   doc.rect(x, y, LABEL_WIDTH, LABEL_HEIGHT);
 }
 
-export async function generateLabelsPDF(
+export function createLabelsDocument(
   items: LabelItem[],
-  action: "download" | "print",
   options?: LabelOptions
-): Promise<void> {
+): jsPDF {
+  const model = options?.model ?? "dual";
+  if (!items.length || items.some(item => !getProductLabelModels(getLabelPrices(item.product)).includes(model)
+    || !Number.isSafeInteger(item.quantity) || item.quantity < 1)) {
+    throw new Error("Seleção incompatível: confira os preços e as quantidades antes de gerar etiquetas.");
+  }
   // Get colors
   const primaryColor = options?.labelColor ? hexToRgb(options.labelColor) : DEFAULT_PRIMARY_COLOR;
   const accentColor = createAccentColor(primaryColor);
@@ -331,10 +370,15 @@ export async function generateLabelsPDF(
       const y = MARGIN_TOP + row * LABEL_HEIGHT;
 
       const { product, isPromotion } = allLabels[i];
-      drawLabel(doc, x, y, product, primaryColor, accentColor, isPromotion);
+      drawLabel(doc, x, y, product, primaryColor, accentColor, isPromotion, model);
     }
   }
 
+  return doc;
+}
+
+export async function generateLabelsPDF(items: LabelItem[], action: "download" | "print", options?: LabelOptions): Promise<void> {
+  const doc = createLabelsDocument(items, options);
   // Output
   if (action === "download") {
     const fileName = `etiquetas-${new Date().toISOString().split("T")[0]}.pdf`;
