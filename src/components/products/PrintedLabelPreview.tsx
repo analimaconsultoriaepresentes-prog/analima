@@ -35,7 +35,7 @@ export function PrintedLabelPreview({ product, model, labelColor, isPromotion }:
       target.getContext("2d")?.drawImage(full, 11 * 72 / 25.4 * scale, 10.5 * 72 / 25.4 * scale,
         target.width, target.height, 0, 0, target.width, target.height);
     }
-    render().catch(() => { if (!disposed) setError(true); });
+    render().catch(reason => { if (!disposed) { console.error("Label preview:", reason); setError(true); } });
     return () => { disposed = true; void task.destroy(); };
   }, [product, model, labelColor, isPromotion]);
   if (!product || !model) return <p className="text-sm text-muted-foreground">Selecione produtos com preços compatíveis.</p>;
