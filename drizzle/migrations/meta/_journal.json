@@ -8,6 +8,13 @@
       "when": 1792447685121,
       "tag": "0000_product_codes_and_stock_movements",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793221054684,
+      "tag": "0001_product_single_price",
+      "breakpoints": true
     }
   ]
 }

@@ -22,7 +22,10 @@ import {
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { generateLabelsPDF } from "@/lib/labelGenerator";
+import { generateLabelsPDF, getLabelPrices } from "@/lib/labelGenerator";
+import { getCommonLabelModels, getProductLabelModels, isPositivePrice, LABEL_MODELS, type LabelModel } from "@/lib/labelPricing";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PrintedLabelPreview } from "@/components/products/PrintedLabelPreview";
 
 interface SelectedProduct {
   product: Product;
@@ -37,6 +40,13 @@ export default function Etiquetas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<Map<string, SelectedProduct>>(new Map());
   const [generating, setGenerating] = useState(false);
+  const [preferredModel, setPreferredModel] = useState<LabelModel>("dual");
+  const selectedItems = useMemo(() => Array.from(selectedProducts.values()).map(item => ({
+    ...item, product: products.find(p => p.id === item.product.id) ?? item.product,
+  })), [selectedProducts, products]);
+  const compatibleModels = getCommonLabelModels(selectedItems.map(item => getLabelPrices(item.product)));
+  const model = compatibleModels.includes(preferredModel) ? preferredModel : compatibleModels[0] ?? null;
+  const previewItem = selectedItems[selectedItems.length - 1];
 
   // Set help context for this page
   useEffect(() => {
@@ -127,10 +137,13 @@ export default function Etiquetas() {
       return;
     }
 
+    if (!model) {
+      toast({ title: "Preços incompatíveis", description: "Ajuste a seleção ou complete os preços dos produtos.", variant: "destructive" });
+      return;
+    }
     setGenerating(true);
     try {
-      const items = Array.from(selectedProducts.values());
-      await generateLabelsPDF(items, action, { labelColor: store?.labelColor });
+      await generateLabelsPDF(selectedItems, action, { labelColor: store?.labelColor, model });
       
       toast({
         title: action === "download" ? "PDF gerado com sucesso" : "Enviando para impressão",
@@ -229,12 +242,16 @@ export default function Etiquetas() {
                           </p>
                         </div>
                         <div className="text-right text-xs">
-                          <p className="text-success font-medium">
-                            R$ {product.pricePix.toFixed(2).replace(".", ",")}
-                          </p>
-                          <p className="text-muted-foreground">
-                            R$ {product.priceCard.toFixed(2).replace(".", ",")}
-                          </p>
+                          {[
+                            { title: "Único", value: product.singlePrice },
+                            { title: "PIX", value: getLabelPrices(product).pricePix },
+                            { title: "Cartão", value: getLabelPrices(product).priceCard },
+                          ].filter(price => isPositivePrice(price.value)).map(price => (
+                            <p key={price.title} className="text-muted-foreground">
+                              {price.title}: R$ {price.value?.toFixed(2).replace(".", ",")}
+                            </p>
+                          ))}
+                          {getProductLabelModels(getLabelPrices(product)).length === 0 && <p className="text-destructive">Sem preço válido</p>}
                         </div>
                       </div>
                     );
@@ -278,7 +295,7 @@ export default function Etiquetas() {
                       Selecione produtos para gerar etiquetas
                     </p>
                   ) : (
-                    Array.from(selectedProducts.values()).map(({ product, quantity, isPromotion }) => {
+                    selectedItems.map(({ product, quantity, isPromotion }) => {
                       return (
                         <div
                           key={product.id}
@@ -371,11 +388,33 @@ export default function Etiquetas() {
                 48 etiquetas por folha A4 (47mm x 23mm)
               </p>
 
+              {selectedItems.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <p id="label-model-title" className="text-sm font-medium">Modelo da etiqueta</p>
+                  {model ? (
+                    <Select value={model} onValueChange={value => setPreferredModel(value as LabelModel)}>
+                      <SelectTrigger aria-labelledby="label-model-title"><SelectValue /></SelectTrigger>
+                      <SelectContent>{LABEL_MODELS.filter(option => compatibleModels.includes(option.value)).map(option => (
+                        <SelectItem key={option.value} value={option.value}>{option.title}</SelectItem>
+                      ))}</SelectContent>
+                    </Select>
+                  ) : (
+                    <div role="alert" className="text-sm text-destructive space-y-2">
+                      <p>Nenhum modelo é compatível com todos os produtos. Ajuste a seleção ou complete os preços:</p>
+                      <ul className="list-disc pl-4">{selectedItems.map(({ product }) => (
+                        <li key={product.id}>{product.name}: {LABEL_MODELS.filter(option =>
+                          !getProductLabelModels(getLabelPrices(product)).includes(option.value)
+                        ).map(option => option.title).join(", ")} indisponível.</li>
+                      ))}</ul>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   className="flex-1"
                   onClick={() => handleGeneratePDF("download")}
-                  disabled={generating || selectedProducts.size === 0}
+                  disabled={generating || !model}
                 >
                   {generating ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -388,7 +427,7 @@ export default function Etiquetas() {
                   variant="outline"
                   className="flex-1"
                   onClick={() => handleGeneratePDF("print")}
-                  disabled={generating || selectedProducts.size === 0}
+                  disabled={generating || !model}
                 >
                   <Printer className="w-4 h-4 mr-2" />
                   Imprimir
@@ -406,15 +445,12 @@ export default function Etiquetas() {
             </CardHeader>
             <CardContent>
               <div className="flex justify-center">
-                <LabelPreview 
-                  product={Array.from(selectedProducts.values()).pop()?.product} 
-                  labelColor={store?.labelColor}
-                  forcePromotion={Array.from(selectedProducts.values()).pop()?.isPromotion}
-                />
+                <PrintedLabelPreview product={previewItem?.product} model={model}
+                  labelColor={store?.labelColor} isPromotion={previewItem?.isPromotion} />
               </div>
               {selectedProducts.size > 0 && (
                 <p className="text-xs text-muted-foreground text-center mt-2">
-                  Mostrando: {Array.from(selectedProducts.values()).pop()?.product.name}
+                  Mostrando: {previewItem?.product.name}
                 </p>
               )}
             </CardContent>
@@ -425,101 +461,3 @@ export default function Etiquetas() {
   );
 }
 
-// Helper to extract volume from product name
-function extractVolume(name: string): string | null {
-  const match = name.match(/(\d+)\s*(ml|ML|g|G|kg|KG)/i);
-  if (match) {
-    return `${match[1]}${match[2].toUpperCase()}`;
-  }
-  return null;
-}
-
-// Helper to format product name (remove volume)
-function formatProductName(name: string): string {
-  return name.replace(/\s*\d+\s*(ml|ML|g|G|kg|KG)/i, "").trim().toUpperCase();
-}
-
-// Check if product is on promotion (PIX price < Card price)
-function isProductOnPromotion(product?: Product): boolean {
-  if (!product) return false;
-  return product.pricePix < product.priceCard;
-}
-
-// Label preview component showing the exact layout
-function LabelPreview({ 
-  product, 
-  labelColor, 
-  forcePromotion 
-}: { 
-  product?: Product; 
-  labelColor?: string | null;
-  forcePromotion?: boolean;
-}) {
-  const displayName = product ? formatProductName(product.name) : "NOME DO PRODUTO";
-  const volume = product ? extractVolume(product.name) : "75ML";
-  const pricePix = product ? product.pricePix : 89.90;
-  const priceCard = product ? product.priceCard : 99.90;
-  // Use forcePromotion if provided, otherwise fall back to auto-detection
-  const isPromotion = forcePromotion !== undefined ? forcePromotion : isProductOnPromotion(product);
-  
-  // Promotion uses orange/red, otherwise use custom or default purple
-  const bgStyle = isPromotion
-    ? { background: "linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(0, 84%, 60%) 100%)" }
-    : labelColor 
-      ? { background: labelColor }
-      : { background: "linear-gradient(135deg, hsl(280, 85%, 50%) 0%, hsl(320, 80%, 55%) 100%)" };
-
-  return (
-    <div
-      className={`border-2 border-dashed rounded overflow-hidden transition-all duration-300 ${
-        isPromotion ? "border-orange-400" : "border-primary/30"
-      }`}
-      style={{ width: "188px", height: "92px" }} // 4x scale for preview (47mm x 23mm)
-    >
-      {/* Top colored band */}
-      <div
-        className="w-full flex items-center justify-between px-2 relative"
-        style={{
-          height: "52px",
-          ...bgStyle,
-        }}
-      >
-        {isPromotion && (
-          <span className="absolute top-1 right-1 bg-white text-orange-600 text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm">
-            OFERTA
-          </span>
-        )}
-        <span className="text-white font-bold text-xs leading-tight flex-1 line-clamp-2 pr-10">
-          {displayName}
-        </span>
-        {volume && !isPromotion && (
-          <span className="text-white/90 text-[10px] font-medium ml-1 whitespace-nowrap">
-            {volume}
-          </span>
-        )}
-      </div>
-
-      {/* Bottom white area with prices */}
-      <div
-        className="w-full bg-white flex items-center justify-around px-2"
-        style={{ height: "40px" }}
-      >
-        <div className="text-center">
-          <p className="text-[8px] text-muted-foreground leading-none">CARTÃO</p>
-          <p className="text-xs font-bold text-foreground leading-tight">
-            R$ {priceCard.toFixed(2).replace(".", ",")}
-          </p>
-        </div>
-        <div className="w-px h-5 bg-border" />
-        <div className="text-center">
-          <p className={`text-[8px] leading-none ${isPromotion ? "text-orange-600 font-bold" : "text-success"}`}>
-            {isPromotion ? "OFERTA" : "PIX"}
-          </p>
-          <p className={`text-xs font-bold leading-tight ${isPromotion ? "text-orange-600" : "text-success"}`}>
-            R$ {pricePix.toFixed(2).replace(".", ",")}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}

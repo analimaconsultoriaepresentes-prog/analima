@@ -307,6 +307,7 @@ export type Database = {
           product_type: string
           prove_qty: number
           sale_price: number
+          single_price: number | null
           stock: number
           updated_at: string
           user_id: string | null
@@ -337,6 +338,7 @@ export type Database = {
           product_type?: string
           prove_qty?: number
           sale_price?: number
+          single_price?: number | null
           stock?: number
           updated_at?: string
           user_id?: string | null
@@ -367,6 +369,7 @@ export type Database = {
           product_type?: string
           prove_qty?: number
           sale_price?: number
+          single_price?: number | null
           stock?: number
           updated_at?: string
           user_id?: string | null
