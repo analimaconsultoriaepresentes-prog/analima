@@ -58,3 +58,17 @@ describe("Independent product and label prices", () => {
     }
   });
 });
+import { resolveProductLabelModel } from "./labelPricing";
+describe("seleção mista por produto", () => {
+  test("PIX+Cartão e Valor único juntos: cada um usa seu modelo", () => {
+    expect(resolveProductLabelModel({ singlePrice: null, pricePix: 20, priceCard: 22 }, "dual")).toBe("dual");
+    expect(resolveProductLabelModel({ singlePrice: 25, pricePix: 0, priceCard: 0 }, "dual")).toBe("single");
+  });
+  test("só PIX e só Cartão não copiam preço", () => {
+    expect(resolveProductLabelModel({ pricePix: 20, priceCard: 0 }, "dual")).toBe("pix");
+    expect(resolveProductLabelModel({ pricePix: 0, priceCard: 22 }, "single")).toBe("card");
+  });
+  test("sem preço válido não gera modelo", () => {
+    expect(resolveProductLabelModel({ singlePrice: null, pricePix: 0, priceCard: 0 }, "dual")).toBeNull();
+  });
+});

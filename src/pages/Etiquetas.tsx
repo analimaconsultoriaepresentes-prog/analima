@@ -49,7 +49,7 @@ export default function Etiquetas() {
   const invalidItems = selectedItems.filter(item => !resolveProductLabelModel(getLabelPrices(item.product)));
   const model: LabelModel | null = selectedItems.length && !invalidItems.length
     ? (availableModels.includes(preferredModel) ? preferredModel : availableModels[0] ?? null) : null;
-  const previewItem = selectedItems[selectedItems.length - 1];
+  
 
   // Set help context for this page
   useEffect(() => {
