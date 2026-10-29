@@ -36,8 +36,13 @@ describe("Independent product and label prices", () => {
     expect(getCommonLabelModels([prices(null, 20, 22), prices(25, 18, 24)])).toEqual(["dual"]);
     expect(getCommonLabelModels([prices(25), prices(null, 20, 22)])).toEqual([]);
   });
-  test("generation rejects incompatible products rather than replacing prices", () => {
-    expect(() => createLabelsDocument([{ product: product(prices(25)), quantity: 1, isPromotion: false }], { model: "dual" })).toThrow();
+  test("mixed PIX+Cartão and Valor único print in one PDF; products without prices are rejected", () => {
+    const doc = createLabelsDocument([
+      { product: product(prices(null, 20, 22)), quantity: 30, isPromotion: false },
+      { product: product(prices(25)), quantity: 30, isPromotion: false },
+    ], { model: "dual" });
+    expect(doc.getNumberOfPages()).toBe(2);
+    expect(() => createLabelsDocument([{ product: product(prices(null, 0, 0)), quantity: 1, isPromotion: false }], { model: "dual" })).toThrow();
     expect(() => resolveLabelPrice(prices(null, 20, 22), "single")).toThrow();
   });
   test("label compatibility ignores legacy sale fallback", () => {
