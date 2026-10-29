@@ -1,5 +1,11 @@
 # Gestão de produtos e estoque — melhorias
 
+## ANA IA
+- [ ] Substituir perguntas frequentes mantendo o avatar existente.
+- [ ] Conectar IA real, autenticada e somente orientadora, com base nas telas reais.
+- [ ] Chat temporário, contexto da página e mensagens de falha.
+- [ ] Testar conversa real, continuidade, páginas, reabertura e falhas.
+
 ## Valor único e etiquetas
 - [x] Preço independente persistido e cadastro/edição com validação compatível.
 - [x] Modelos por preços válidos e seleção múltipla com aviso de incompatibilidade.
