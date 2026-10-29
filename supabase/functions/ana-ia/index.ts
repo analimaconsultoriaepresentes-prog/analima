@@ -47,7 +47,13 @@ Deno.serve(async (request: Request) => {
       },
     });
     const { withLovableAiGatewayRunIdHeader } = await import("../_shared/run-id.ts");
-    return await withLovableAiGatewayRunIdHeader(response, call.gateway, cors);
+    const streamed = await withLovableAiGatewayRunIdHeader(response, call.gateway, cors);
+    const failure = call.getFailure();
+    if (failure) {
+      await streamed.body?.cancel();
+      return jsonError(failure.status, failure.message);
+    }
+    return streamed;
   } catch (error) {
     if (request.signal.aborted) return jsonError(499, "Resposta interrompida.");
     return jsonError(500, error instanceof Error ? error.message : "Não foi possível conectar à ANA IA.");
