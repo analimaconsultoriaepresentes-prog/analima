@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import type { Product } from "@/hooks/useProducts";
-import { getProductLabelModels, resolveLabelPrice, LABEL_LAYOUT, type LabelModel, type LabelPrices } from "./labelPricing";
+import { resolveProductLabelModel, resolveLabelPrice, LABEL_LAYOUT, type LabelModel, type LabelPrices } from "./labelPricing";
 
 export interface LabelItem {
   product: Product;
@@ -322,8 +322,8 @@ export function createLabelsDocument(
   items: LabelItem[],
   options?: LabelOptions
 ): jsPDF {
-  const model = options?.model ?? "dual";
-  if (!items.length || items.some(item => !getProductLabelModels(getLabelPrices(item.product)).includes(model)
+  const preferred = options?.model ?? "dual";
+  if (!items.length || items.some(item => !resolveProductLabelModel(getLabelPrices(item.product), preferred)
     || !Number.isSafeInteger(item.quantity) || item.quantity < 1)) {
     throw new Error("Seleção incompatível: confira os preços e as quantidades antes de gerar etiquetas.");
   }
@@ -370,6 +370,7 @@ export function createLabelsDocument(
       const y = MARGIN_TOP + row * LABEL_HEIGHT;
 
       const { product, isPromotion } = allLabels[i];
+      const model = resolveProductLabelModel(getLabelPrices(product), preferred)!;
       drawLabel(doc, x, y, product, primaryColor, accentColor, isPromotion, model);
     }
   }

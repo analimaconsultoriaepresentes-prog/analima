@@ -36,8 +36,13 @@ describe("Independent product and label prices", () => {
     expect(getCommonLabelModels([prices(null, 20, 22), prices(25, 18, 24)])).toEqual(["dual"]);
     expect(getCommonLabelModels([prices(25), prices(null, 20, 22)])).toEqual([]);
   });
-  test("generation rejects incompatible products rather than replacing prices", () => {
-    expect(() => createLabelsDocument([{ product: product(prices(25)), quantity: 1, isPromotion: false }], { model: "dual" })).toThrow();
+  test("mixed PIX+Cartão and Valor único print in one PDF; products without prices are rejected", () => {
+    const doc = createLabelsDocument([
+      { product: product(prices(null, 20, 22)), quantity: 30, isPromotion: false },
+      { product: product(prices(25)), quantity: 30, isPromotion: false },
+    ], { model: "dual" });
+    expect(doc.getNumberOfPages()).toBe(2);
+    expect(() => createLabelsDocument([{ product: product(prices(null, 0, 0)), quantity: 1, isPromotion: false }], { model: "dual" })).toThrow();
     expect(() => resolveLabelPrice(prices(null, 20, 22), "single")).toThrow();
   });
   test("label compatibility ignores legacy sale fallback", () => {
@@ -56,5 +61,19 @@ describe("Independent product and label prices", () => {
       expect(doc.internal.pageSize.getWidth()).toBeCloseTo(210, 1);
       expect(doc.internal.pageSize.getHeight()).toBeCloseTo(297, 1);
     }
+  });
+});
+import { resolveProductLabelModel } from "./labelPricing";
+describe("seleção mista por produto", () => {
+  test("PIX+Cartão e Valor único juntos: cada um usa seu modelo", () => {
+    expect(resolveProductLabelModel({ singlePrice: null, pricePix: 20, priceCard: 22 }, "dual")).toBe("dual");
+    expect(resolveProductLabelModel({ singlePrice: 25, pricePix: 0, priceCard: 0 }, "dual")).toBe("single");
+  });
+  test("só PIX e só Cartão não copiam preço", () => {
+    expect(resolveProductLabelModel({ pricePix: 20, priceCard: 0 }, "dual")).toBe("pix");
+    expect(resolveProductLabelModel({ pricePix: 0, priceCard: 22 }, "single")).toBe("card");
+  });
+  test("sem preço válido não gera modelo", () => {
+    expect(resolveProductLabelModel({ singlePrice: null, pricePix: 0, priceCard: 0 }, "dual")).toBeNull();
   });
 });
