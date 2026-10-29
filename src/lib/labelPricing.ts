@@ -36,6 +36,18 @@ export function getCommonLabelModels(products: LabelPrices[]): LabelModel[] {
   );
 }
 
+// Compatibility is per product: use the preferred model when the product supports it,
+// otherwise the product's own first valid model. Returns null when it has no valid price.
+export function resolveProductLabelModel(product: LabelPrices, preferred?: LabelModel | null): LabelModel | null {
+  const models = getProductLabelModels(product);
+  if (preferred && models.includes(preferred)) return preferred;
+  return models[0] ?? null;
+}
+
+export function getLabelModelTitle(model: LabelModel): string {
+  return LABEL_MODELS.find(m => m.value === model)?.title ?? model;
+}
+
 export function resolveLabelPrice(product: LabelPrices, model: LabelModel): number {
   if (!getProductLabelModels(product).includes(model) || model === "dual") {
     throw new Error("Produto incompatível com o modelo de etiqueta selecionado.");

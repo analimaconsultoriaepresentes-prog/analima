@@ -23,7 +23,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { generateLabelsPDF, getLabelPrices } from "@/lib/labelGenerator";
-import { getCommonLabelModels, getProductLabelModels, isPositivePrice, LABEL_MODELS, type LabelModel } from "@/lib/labelPricing";
+import { getProductLabelModels, getLabelModelTitle, isPositivePrice, LABEL_MODELS, resolveProductLabelModel, type LabelModel } from "@/lib/labelPricing";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PrintedLabelPreview } from "@/components/products/PrintedLabelPreview";
 
@@ -44,8 +44,11 @@ export default function Etiquetas() {
   const selectedItems = useMemo(() => Array.from(selectedProducts.values()).map(item => ({
     ...item, product: products.find(p => p.id === item.product.id) ?? item.product,
   })), [selectedProducts, products]);
-  const compatibleModels = getCommonLabelModels(selectedItems.map(item => getLabelPrices(item.product)));
-  const model = compatibleModels.includes(preferredModel) ? preferredModel : compatibleModels[0] ?? null;
+  const availableModels = LABEL_MODELS.map(m => m.value).filter(value =>
+    selectedItems.some(item => getProductLabelModels(getLabelPrices(item.product)).includes(value)));
+  const invalidItems = selectedItems.filter(item => !resolveProductLabelModel(getLabelPrices(item.product)));
+  const model: LabelModel | null = selectedItems.length && !invalidItems.length
+    ? (availableModels.includes(preferredModel) ? preferredModel : availableModels[0] ?? null) : null;
   const previewItem = selectedItems[selectedItems.length - 1];
 
   // Set help context for this page
@@ -138,7 +141,7 @@ export default function Etiquetas() {
     }
 
     if (!model) {
-      toast({ title: "Preços incompatíveis", description: "Ajuste a seleção ou complete os preços dos produtos.", variant: "destructive" });
+      toast({ title: "Produto sem preço válido", description: `Corrija o cadastro ou remova da seleção: ${invalidItems.map(i => i.product.name).join(", ")}.`, variant: "destructive" });
       return;
     }
     setGenerating(true);
@@ -391,22 +394,26 @@ export default function Etiquetas() {
               {selectedItems.length > 0 && (
                 <div className="space-y-2 mb-4">
                   <p id="label-model-title" className="text-sm font-medium">Modelo da etiqueta</p>
-                  {model ? (
-                    <Select value={model} onValueChange={value => setPreferredModel(value as LabelModel)}>
-                      <SelectTrigger aria-labelledby="label-model-title"><SelectValue /></SelectTrigger>
-                      <SelectContent>{LABEL_MODELS.filter(option => compatibleModels.includes(option.value)).map(option => (
-                        <SelectItem key={option.value} value={option.value}>{option.title}</SelectItem>
-                      ))}</SelectContent>
-                    </Select>
-                  ) : (
+                  {invalidItems.length > 0 ? (
                     <div role="alert" className="text-sm text-destructive space-y-2">
-                      <p>Nenhum modelo é compatível com todos os produtos. Ajuste a seleção ou complete os preços:</p>
-                      <ul className="list-disc pl-4">{selectedItems.map(({ product }) => (
-                        <li key={product.id}>{product.name}: {LABEL_MODELS.filter(option =>
-                          !getProductLabelModels(getLabelPrices(product)).includes(option.value)
-                        ).map(option => option.title).join(", ")} indisponível.</li>
+                      <p>Estes produtos não têm nenhum preço válido. Corrija o cadastro ou remova da seleção:</p>
+                      <ul className="list-disc pl-4">{invalidItems.map(({ product }) => (
+                        <li key={product.id}>{product.name}</li>
                       ))}</ul>
                     </div>
+                  ) : model && (
+                    <>
+                      <Select value={model} onValueChange={value => setPreferredModel(value as LabelModel)}>
+                        <SelectTrigger aria-labelledby="label-model-title"><SelectValue /></SelectTrigger>
+                        <SelectContent>{LABEL_MODELS.filter(option => availableModels.includes(option.value)).map(option => (
+                          <SelectItem key={option.value} value={option.value}>{option.title}</SelectItem>
+                        ))}</SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Modelo preferido. Produtos sem esse preço usam automaticamente o modelo dos preços cadastrados.</p>
+                      <ul className="text-xs space-y-0.5">{selectedItems.map(({ product }) => (
+                        <li key={product.id}><span className="font-medium">{product.name}</span>: {getLabelModelTitle(resolveProductLabelModel(getLabelPrices(product), model)!)}</li>
+                      ))}</ul>
+                    </>
                   )}
                 </div>
               )}
@@ -444,14 +451,25 @@ export default function Etiquetas() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex justify-center">
-                <PrintedLabelPreview product={previewItem?.product} model={model}
-                  labelColor={store?.labelColor} isPromotion={previewItem?.isPromotion} />
-              </div>
-              {selectedProducts.size > 0 && (
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  Mostrando: {previewItem?.product.name}
-                </p>
+              {model ? (
+                <div className="space-y-4 max-h-[520px] overflow-y-auto">
+                  {selectedItems.map(item => {
+                    const itemModel = resolveProductLabelModel(getLabelPrices(item.product), model)!;
+                    return (
+                      <div key={item.product.id} className="flex flex-col items-center gap-1">
+                        <PrintedLabelPreview product={item.product} model={itemModel}
+                          labelColor={store?.labelColor} isPromotion={item.isPromotion} />
+                        <p className="text-xs text-muted-foreground text-center">
+                          {item.product.name} · {getLabelModelTitle(itemModel)} · {item.quantity}x
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <PrintedLabelPreview product={undefined} model={null} />
+                </div>
               )}
             </CardContent>
           </Card>
